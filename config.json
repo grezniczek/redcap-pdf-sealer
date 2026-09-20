@@ -1,7 +1,7 @@
 {
     "name": "PDF Sealer",
     "namespace": "DE\\RUB\\PDFSealerExternalModule",
-    "description": "TODO",
+    "description": "Reference implementation of terminal PDF sealing through the REDCap PDF finalization pipeline.",
     "authors": [
         {
             "name": "Günther Rezniczek",
@@ -9,5 +9,15 @@
             "institution": "Department of Gynecology and Obstetrics, Ruhr University Bochum, Marien Hospital Herne"
         }
     ],
-    "framework-version": 16
+    "framework-version": 16,
+    "pdf-finalize": [
+        {
+            "id": "seal",
+            "purpose": "Apply a cryptographic document seal",
+            "document_types": [
+                "econsent"
+            ],
+            "is_terminal": true
+        }
+    ]
 }
