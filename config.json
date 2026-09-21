@@ -18,6 +18,14 @@
                 "econsent"
             ],
             "is_terminal": true
+        },
+        {
+            "id": "watermark",
+            "purpose": "Demo watermark (no PDF changes)",
+            "document_types": [
+                "econsent"
+            ],
+            "is_terminal": false
         }
     ]
 }
