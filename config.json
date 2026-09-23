@@ -23,7 +23,8 @@
             "id": "watermark",
             "purpose": "Demo watermark (no PDF changes)",
             "document_types": [
-                "econsent"
+                "econsent",
+                "survey_pdf"
             ],
             "is_terminal": false
         }
