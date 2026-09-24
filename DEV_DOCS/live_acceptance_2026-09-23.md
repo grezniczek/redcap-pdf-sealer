@@ -38,14 +38,21 @@ After `survey_pdf` was added to the dummy watermark declaration, record 9 comple
 
 Both edocs had PDF headers and EOF markers and were identified as one-page PDFs. Record 9's earlier e-Consent file-field failure belongs to snapshot 266 and was not changed by this Form 2 run.
 
+## Survey confirmation email: received attachment
+
+On 24 September 2026 at 09:22:50 Europe/Berlin, record 8 completed Form 2 in Event 2 with the survey confirmation email's PDF attachment enabled. Email generation `8a83db371863a9ff9debec91313454cf` logged `document_type = survey_pdf`, one `pdf_sealer:watermark` invocation with status `unchanged`, and `artifact_committed` with `storage_target = email_attachment`, `survey_id = 1006`, and no edoc ID. Both `final_sha256` and `artifact_sha256` were `47db2c3c1b2a00ff5f2c0e107e669e5da5bfe1b1a845cf0b318dd1808c7edb34`.
+
+The PDF actually received in the email, `20260924092250_survey_ba64b5ae.pdf`, was 51,789 bytes, identified as a one-page PDF, and had that exact SHA-256. This establishes that the finalized bytes reached the recipient as the attachment; `artifact_committed` alone would only establish that `Message::send()` reported success. A separate File Repository generation seven seconds earlier produced edoc 2245 with a different hash, as expected for a separately generated PDF.
+
 ## Acceptance coverage and remaining live evidence
 
-These runs establish live evidence for e-Consent and non-e-Consent survey paths, document-type exclusion and inclusion, the persisted `module_prefix:operation_id` plan, correlated logging, File Repository archival, corrected e-Consent file-field storage, and hash agreement between finalized and committed bytes. This supports section 35 criteria 4 and 25, the exact-match portion of criterion 8 (not wildcard matching), and the storage/archival portion of criterion 24. Criteria 23–24 remain only partly established live because the dummy operation returns `unchanged`.
+These runs establish live evidence for e-Consent and non-e-Consent survey paths, document-type exclusion and inclusion, the persisted `module_prefix:operation_id` plan, correlated logging, File Repository archival, corrected e-Consent file-field storage, survey confirmation email attachment delivery, and hash agreement between finalized and committed bytes. This supports section 35 criteria 4 and 25, the exact-match portion of criterion 8 (not wildcard matching), and the storage/archival/email portion of criterion 24. Criteria 23–24 remain only partly established live because the dummy operation returns `unchanged`.
 
 The highest-value remaining gaps are:
 
 1. A byte-changing finalizer on the real survey path, proving that its changed bytes are committed without later modification (criteria 23–24). Core's `UnitTests/PdfSnapshotFinalizationTest.php` exercises exact stored-byte equality with a test operation, but that is automated evidence.
-2. A live confirmation-email test (the email portion of criterion 24). Core now finalizes REDCap-generated survey confirmation PDFs before `Message::send()`, and `UnitTests/PdfSnapshotFinalizationTest.php` verifies changed bytes and context for both email document types. No received attachment or send-result log has been checked yet. Existing-edoc attachments are not finalized again. Other direct PDF generation such as `Files::archiveRecordAsPDF` and downloads remains a separate scope decision.
-3. Reproducible manual evidence for pipeline UI and activation paths—ordering, duplicate occurrences, removal, unresolved warnings, and enablement decisions (criteria 3, 5, 18–21). Earlier manual checks may exist, but are not recorded in this note.
+2. Reproducible manual evidence for pipeline UI and activation paths—ordering, duplicate occurrences, removal, unresolved warnings, and enablement decisions (criteria 3, 5, 18–21). Earlier manual checks may exist, but are not recorded in this note.
+
+Core's `UnitTests/PdfSnapshotFinalizationTest.php` verifies changed bytes and context for both email document types. Existing-edoc attachments are not finalized again. Other direct PDF generation such as `Files::archiveRecordAsPDF` and downloads remains a separate scope decision.
 
 Framework tests `PdfFinalizeTest.php`, `PdfFinalizeResultTest.php`, `PdfFinalizePersistenceTest.php`, and `PdfFinalizeEnablementTest.php` cover failure isolation, terminal rules, missing entries, multi-operation behavior, persistence, and enablement. Their coverage was inspected for this audit, not rerun here; live repetitions are optional if automated evidence satisfies acceptance.
