@@ -52,14 +52,21 @@ On 24 September 2026, record 7 completed Form 2 in Event 2. File Repository gene
 
 Confirmation-email generation `e76fbcf8992b3a6b96edc2b7a2c74307` at 11:34:32 also logged `status = modified`, one accepted modification, and matching final/attachment SHA-256 `7057ceedc6e117bdddeb35274abb45153803126205b979ff1a9d416285c10059`. The received `20260924113432_survey_8798c15a.pdf` was 29,269 bytes, a one-page PDF containing one extractable `FINALIZER TEST` mark, and its independently calculated SHA-256 matched. The initially supplied filename `20260924092250_survey_ba64b5ae.pdf` still referred to record 8's earlier unchanged attachment. The two record 7 hashes differ because repository and email PDFs were generated separately.
 
+## Byte-changing e-Consent: record 11
+
+Record 11 completed Form 1 in Event 1 on 24 September 2026. Snapshot 266 archived edoc 2250 (`survey_id = 964`, `consent_id = 169`, `contains_completed_consent = 1`). Generation `4f8a8f0de97871d0be65b46c7e755027` logged `document_type = econsent`, one `pdf_sealer:watermark` invocation with status `modified`, and matching final/committed SHA-256 `766b0f48ed8d036be2b92ccca1f37b494ff2799e77dee7601603d577fd0fcc4b`.
+
+The Event 2 `fileupload` value for record 11 points to edoc 2251. Its separate generation `532b9adf956a4020e131a188e6947064` likewise logged one accepted modification and matching final/committed SHA-256 `e16201b9cacdeed5f750c9641ddd32c156816bfaa1166b0b5ffa579edba81ac4`. Both edocs have PDF metadata and a size of 42,594 bytes; the user visually confirmed that the file-field PDF displays `FINALIZER TEST`. The stored files are owned by `www-data` with mode `600`, so this account could not hash them directly. The user confirmed that both stored-file hashes match their respective finalizer hashes above.
+
 ## Acceptance coverage and remaining live evidence
 
-These runs establish live evidence for e-Consent and non-e-Consent survey paths, document-type exclusion and inclusion, the persisted `module_prefix:operation_id` plan, correlated logging, File Repository archival, corrected e-Consent file-field storage, survey confirmation email attachment delivery, and hash agreement between finalized and committed bytes. This supports section 35 criteria 4 and 25, the exact-match portion of criterion 8 (not wildcard matching), and the storage/archival/email portion of criterion 24. Record 7 additionally establishes byte-changing finalization and exact delivered email bytes; the stored repository hash was confirmed by the user against the finalizer hash.
+These runs establish live evidence for e-Consent and non-e-Consent survey paths, document-type exclusion and inclusion, the persisted `module_prefix:operation_id` plan, correlated logging, File Repository archival, corrected e-Consent file-field storage, survey confirmation email attachment delivery, and hash agreement between finalized and committed bytes. This supports section 35 criteria 4 and 25, the exact-match portion of criterion 8 (not wildcard matching), and the storage/archival/email portion of criterion 24. Record 7 additionally establishes byte-changing finalization and exact delivered email bytes; its stored repository hash was confirmed by the user. Record 11 extends live byte-changing evidence to e-Consent repository and file-field targets, with both stored-file hashes confirmed by the user.
 
-The highest-value remaining gaps are:
+The remaining recorded live-evidence gap is:
 
-1. A byte-changing e-Consent file-field retest would extend live coverage to that destination. Core's `UnitTests/PdfSnapshotFinalizationTest.php` exercises exact stored-byte equality with a test operation as automated evidence.
-2. Reproducible manual evidence for pipeline UI and activation paths—ordering, duplicate occurrences, removal, unresolved warnings, and enablement decisions (criteria 3, 5, 18–21). Earlier manual checks may exist, but are not recorded in this note.
+1. Reproducible manual evidence for pipeline UI and activation paths—ordering, duplicate occurrences, removal, unresolved warnings, and enablement decisions (criteria 3, 5, 18–21). Earlier manual checks may exist, but are not recorded in this note.
+
+Core's `UnitTests/PdfSnapshotFinalizationTest.php` exercises exact stored-byte equality with a test operation as automated evidence.
 
 Core's `UnitTests/PdfSnapshotFinalizationTest.php` verifies changed bytes and context for both email document types. Existing-edoc attachments are not finalized again. Other direct PDF generation such as `Files::archiveRecordAsPDF` and downloads remains a separate scope decision.
 
