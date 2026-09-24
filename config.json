@@ -24,7 +24,8 @@
             "purpose": "Add visible FINALIZER TEST watermark (demo)",
             "document_types": [
                 "econsent",
-                "survey_pdf"
+                "survey_pdf",
+                "record_pdf"
             ],
             "is_terminal": false
         }
