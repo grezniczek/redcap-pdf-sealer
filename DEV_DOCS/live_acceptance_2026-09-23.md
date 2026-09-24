@@ -58,13 +58,19 @@ Record 11 completed Form 1 in Event 1 on 24 September 2026. Snapshot 266 archive
 
 The Event 2 `fileupload` value for record 11 points to edoc 2251. Its separate generation `532b9adf956a4020e131a188e6947064` likewise logged one accepted modification and matching final/committed SHA-256 `e16201b9cacdeed5f750c9641ddd32c156816bfaa1166b0b5ffa579edba81ac4`. Both edocs have PDF metadata and a size of 42,594 bytes; the user visually confirmed that the file-field PDF displays `FINALIZER TEST`. The stored files are owned by `www-data` with mode `600`, so this account could not hash them directly. The user confirmed that both stored-file hashes match their respective finalizer hashes above.
 
+## Pipeline UI manual check: PID 461
+
+The user confirmed that the editor initially showed one `pdf_sealer:watermark` assignment and use count 1. Adding two more occurrences displayed three assignments, use count 3, and the duplicate warning. Removing one reduced the count to 2; Cancel and reopen restored the original single assignment. The user then added `pdf_sealer:seal`, dragged it above `watermark`, and saw the expected advisory warning that `watermark` may not run for `econsent` after a terminal operation. Saving and reopening preserved both order and warning. Removing `seal` and saving restored the original plan. A read-only Framework state check afterwards showed exactly `['pdf_sealer:watermark']`, no warnings, and `seal` use count 0.
+
+The user then disabled PDF Sealer for PID 461 only. The editor retained `pdf_sealer:watermark` as an unresolved assignment with the module-unavailable warning, while PDF Sealer operations disappeared from the available catalog. Re-enabling the module required no placement dialog because its saved assignment already existed. The editor again showed one resolved watermark without warning. A read-only Framework state check confirmed the original one-entry plan.
+
+To test explicit placement, the user removed `watermark` and saved an empty plan, then disabled PDF Sealer for PID 461. The next enable attempt opened `Enable Module and Set PDF Finalization Order` with an empty pipeline and `Cancel (module will not be enabled)`. Cancel left the module disabled. On a second attempt, the user added `pdf_sealer:watermark` and selected `Save & Enable`. A read-only Framework state check confirmed PDF Sealer enabled at `v9.9.9` and the original one-entry plan restored, resolved, and warning-free.
+
 ## Acceptance coverage and remaining live evidence
 
 These runs establish live evidence for e-Consent and non-e-Consent survey paths, document-type exclusion and inclusion, the persisted `module_prefix:operation_id` plan, correlated logging, File Repository archival, corrected e-Consent file-field storage, survey confirmation email attachment delivery, and hash agreement between finalized and committed bytes. This supports section 35 criteria 4 and 25, the exact-match portion of criterion 8 (not wildcard matching), and the storage/archival/email portion of criterion 24. Record 7 additionally establishes byte-changing finalization and exact delivered email bytes; its stored repository hash was confirmed by the user. Record 11 extends live byte-changing evidence to e-Consent repository and file-field targets, with both stored-file hashes confirmed by the user.
 
-The remaining recorded live-evidence gap is:
-
-1. Reproducible manual evidence for pipeline UI and activation paths—ordering, duplicate occurrences, removal, unresolved warnings, and enablement decisions (criteria 3, 5, 18–21). Earlier manual checks may exist, but are not recorded in this note.
+Project-level UI and enablement acceptance is complete. A live Control Center enable-for-all toggle was not performed because it affects other projects; `PdfFinalizeEnablementTest.php` and `PdfFinalizePersistenceTest.php` cover the global placement decision and skip behavior. No further manual PID 461 UI test is recommended.
 
 Core's `UnitTests/PdfSnapshotFinalizationTest.php` exercises exact stored-byte equality with a test operation as automated evidence.
 
