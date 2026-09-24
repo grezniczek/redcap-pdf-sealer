@@ -1,6 +1,6 @@
 # PDF finalizer live acceptance — 2026-09-23
 
-This is test-environment evidence for the `redcap_pdf_finalize` implementation, not a claim that the placeholder PDF Sealer operations modify PDF bytes. The `pdf_sealer:watermark` operation currently returns `unchanged`.
+This is test-environment evidence for the `redcap_pdf_finalize` implementation. The live runs below predate the byte-changing demo watermark and logged `pdf_sealer:watermark` as `unchanged`.
 
 ## Setup
 
@@ -44,9 +44,13 @@ On 24 September 2026 at 09:22:50 Europe/Berlin, record 8 completed Form 2 in Eve
 
 The PDF actually received in the email, `20260924092250_survey_ba64b5ae.pdf`, was 51,789 bytes, identified as a one-page PDF, and had that exact SHA-256. This establishes that the finalized bytes reached the recipient as the attachment; `artifact_committed` alone would only establish that `Message::send()` reported success. A separate File Repository generation seven seconds earlier produced edoc 2245 with a different hash, as expected for a separately generated PDF.
 
+## Byte-changing demo prepared; live retest pending
+
+The `pdf_sealer:watermark` implementation now uses Ghostscript to add a visible `FINALIZER TEST` mark to each page and returns `modified`. A no-send local smoke test on a copy of the received record 8 PDF changed its SHA-256 from `47db2c3c1b2a00ff5f2c0e107e669e5da5bfe1b1a845cf0b318dd1808c7edb34` to `adcd8612d8e3eca26c293e00ff3dee9b4c4ee8cd51b0b71d35c864694091e21a`, retained one page, and exposed one extractable `FINALIZER TEST` mark. With Ghostscript unavailable, the operation returned a controlled failure and left the input bytes unchanged. No live REDCap generation with this mutation has yet been checked.
+
 ## Acceptance coverage and remaining live evidence
 
-These runs establish live evidence for e-Consent and non-e-Consent survey paths, document-type exclusion and inclusion, the persisted `module_prefix:operation_id` plan, correlated logging, File Repository archival, corrected e-Consent file-field storage, survey confirmation email attachment delivery, and hash agreement between finalized and committed bytes. This supports section 35 criteria 4 and 25, the exact-match portion of criterion 8 (not wildcard matching), and the storage/archival/email portion of criterion 24. Criteria 23–24 remain only partly established live because the dummy operation returns `unchanged`.
+These runs establish live evidence for e-Consent and non-e-Consent survey paths, document-type exclusion and inclusion, the persisted `module_prefix:operation_id` plan, correlated logging, File Repository archival, corrected e-Consent file-field storage, survey confirmation email attachment delivery, and hash agreement between finalized and committed bytes. This supports section 35 criteria 4 and 25, the exact-match portion of criterion 8 (not wildcard matching), and the storage/archival/email portion of criterion 24. Criteria 23–24 remain only partly established live because all recorded live runs used the earlier `unchanged` operation.
 
 The highest-value remaining gaps are:
 

@@ -21,7 +21,7 @@
         },
         {
             "id": "watermark",
-            "purpose": "Demo watermark (no PDF changes)",
+            "purpose": "Add visible FINALIZER TEST watermark (demo)",
             "document_types": [
                 "econsent",
                 "survey_pdf"
