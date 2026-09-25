@@ -18,11 +18,15 @@ final class ExistingPdf
         public readonly array $catalog,
         public readonly string $pagesRef,
         public readonly array $pageTree,
+        public readonly ?array $permissions,
+        public readonly ?string $permissionsRef,
+        public readonly array $indirectArrays,
         public readonly string $firstPageRef,
         public readonly array $firstPage,
         public readonly ?array $acroForm,
         public readonly ?string $acroFormRef,
         public readonly bool $hasSignatureFields,
+        public readonly bool $hasExistingSignatures,
     ) {
     }
 }

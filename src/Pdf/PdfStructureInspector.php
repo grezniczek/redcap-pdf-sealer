@@ -40,8 +40,9 @@ final class PdfStructureInspector
         }
 
         $perms = self::value($catalog, 'Perms');
-        if ($perms !== null) {
-            $permsDictionary = self::resolveDictionary($objects, $perms, 'permissions');
+        $permsDictionary = $perms === null ? null : self::resolveDictionary($objects, $perms, 'permissions');
+        $permsRef = $perms === null ? null : self::reference($perms, false);
+        if ($permsDictionary !== null) {
             if (self::value($permsDictionary, 'DocMDP') !== null) {
                 throw new UnsupportedPdf('Existing DocMDP certification is unsupported');
             }
@@ -60,6 +61,18 @@ final class PdfStructureInspector
         $acroFormToken = self::value($catalog, 'AcroForm');
         $acroForm = $acroFormToken === null ? null : self::resolveDictionary($objects, $acroFormToken, 'AcroForm');
         $acroFormRef = $acroFormToken === null ? null : self::reference($acroFormToken, false);
+        $indirectArrays = [];
+        foreach ([$acroForm === null ? null : self::value($acroForm, 'Fields'), self::value($firstPage, 'Annots')] as $token) {
+            if (($token[0] ?? null) !== 'objref') {
+                continue;
+            }
+            $ref = self::reference($token);
+            $array = $objects[$ref][0] ?? null;
+            if (!is_array($array) || ($array[0] ?? null) !== '[') {
+                throw new UnsupportedPdf('Unresolvable indirect array');
+            }
+            $indirectArrays[$ref] = $array;
+        }
 
         $highest = 0;
         foreach (array_keys($xref['xref']) as $key) {
@@ -83,19 +96,29 @@ final class PdfStructureInspector
         }
 
         $hasSignatureFields = false;
+        $hasExistingSignatures = false;
         foreach ($objects as $object) {
             $dictionary = $object[0] ?? null;
-            if (($dictionary[0] ?? null) === '<<'
-                && (self::name(self::value($dictionary, 'FT')) === 'Sig'
-                    || self::name(self::value($dictionary, 'Type')) === 'Sig')) {
+            if (($dictionary[0] ?? null) !== '<<') {
+                continue;
+            }
+            $isSigValue = self::name(self::value($dictionary, 'Type')) === 'Sig'
+                || (self::value($dictionary, 'ByteRange') !== null
+                    && self::value($dictionary, 'Contents') !== null);
+            $isSigField = self::name(self::value($dictionary, 'FT')) === 'Sig';
+            if ($isSigValue || $isSigField) {
                 $hasSignatureFields = true;
-                break;
+            }
+            if ($isSigValue || ($isSigField && ($value = self::value($dictionary, 'V')) !== null
+                && ($value[0] ?? null) !== 'null')) {
+                $hasExistingSignatures = true;
             }
         }
 
         return new ExistingPdf(
             $bytes, $startXref, $nextObjectNumber, array_fill_keys(array_keys($xref['xref']), true), $rootRef, $infoRef, $ids,
-            $catalog, $pagesRef, $pageTree, $firstPageRef, $firstPage, $acroForm, $acroFormRef, $hasSignatureFields,
+            $catalog, $pagesRef, $pageTree, $permsDictionary, $permsRef, $indirectArrays,
+            $firstPageRef, $firstPage, $acroForm, $acroFormRef, $hasSignatureFields, $hasExistingSignatures,
         );
     }
 
@@ -134,12 +157,16 @@ final class PdfStructureInspector
         if (count($entries) % 2 !== 0) {
             throw new UnsupportedPdf('Malformed PDF dictionary');
         }
+        $found = null;
         for ($index = 0; $index + 1 < count($entries); $index += 2) {
             if (($entries[$index][0] ?? null) === '/' && ($entries[$index][1] ?? null) === $key) {
-                return $entries[$index + 1];
+                if ($found !== null) {
+                    throw new UnsupportedPdf('Duplicate PDF dictionary key: ' . $key);
+                }
+                $found = $entries[$index + 1];
             }
         }
-        return null;
+        return $found;
     }
 
     private static function objectDictionary(array $objects, string $reference, string $label): array

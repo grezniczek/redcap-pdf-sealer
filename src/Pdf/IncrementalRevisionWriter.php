@@ -11,7 +11,7 @@ final class IncrementalRevisionWriter
     {
     }
 
-    /** @param array<string, array> $objects Map of object-generation refs to COS tokens. */
+    /** @param array<string, array|string> $objects Map of refs to COS tokens or trusted dictionary bodies. */
     public function append(ExistingPdf $pdf, array $objects): string
     {
         if ($objects === []) {
@@ -32,7 +32,17 @@ final class IncrementalRevisionWriter
                 || ($number >= $pdf->nextObjectNumber && $generation !== 0)) {
                 throw new \InvalidArgumentException('Object number or generation cannot be used');
             }
-            $entries[$number] = [$generation, $this->cos->serialize($token)];
+            if (is_array($token)) {
+                $body = $this->cos->serialize($token);
+            } elseif (is_string($token) && str_starts_with($token, '<<')
+                && str_ends_with($token, '>>') && !str_contains($token, 'endobj')) {
+                // Tecnick's PDF signature/widget emitters provide complete objects.
+                // The builder extracts only their validated dictionary bodies.
+                $body = $token;
+            } else {
+                throw new \InvalidArgumentException('Invalid indirect object body');
+            }
+            $entries[$number] = [$generation, $body];
             $highest = max($highest, $number);
         }
         if (count($entries) !== count($objects)) {
