@@ -16,6 +16,8 @@ php tests/admin_alarms.php
 php tests/pdf_structure.php
 ```
 
+To check a REDCap-generated PDF without adding its bytes to the repository, export it to a local file and run `PDF_SEALER_REDCAP_PDF_PATH=/absolute/path/to/exported.pdf php tests/pdf_structure.php`. The test appends a benign revision in memory and checks it with the parser and `qpdf`.
+
 The superuser Control Center **PDF Seal PKI** page provides explicit, one-time root and TSA initialization. The PDF adapter can inspect existing PDFs and append a benign incremental revision for testing, but it is not connected to the hook. The hook still returns `unchanged`.
 
 On a disposable REDCap development instance, run `PDF_SEALER_LIVE_TEST=1 php tests/pki_live_framework.php` to verify real Framework storage and alarm throttling. Its records and settings are rolled back, and its sender is mocked. See [implementation status](DEV_DOCS/implementation_status.md) for completed work and remaining integration.

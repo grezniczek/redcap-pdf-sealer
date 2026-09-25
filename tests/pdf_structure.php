@@ -112,6 +112,12 @@ $localFixtures = [
     '/home/gr/redcap/dev-modules/redcap_pdf_form_v9.9.9/PDF/Test.pdf',
     '/home/gr/redcap/codebase/Resources/PDFJS/web/compressed.tracemonkey-pldi-09.pdf',
 ];
+$redcapPdfPath = getenv('PDF_SEALER_REDCAP_PDF_PATH');
+if ($redcapPdfPath !== false && $redcapPdfPath !== '') {
+    checkPdf(str_starts_with($redcapPdfPath, '/') && is_file($redcapPdfPath),
+        'PDF_SEALER_REDCAP_PDF_PATH must name an exported PDF file');
+    $localFixtures[] = $redcapPdfPath;
+}
 $tested = 0;
 foreach ($localFixtures as $path) {
     if (!is_file($path)) {
