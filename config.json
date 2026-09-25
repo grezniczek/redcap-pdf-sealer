@@ -20,5 +20,15 @@
             ],
             "is_terminal": true
         }
+    ],
+    "system-settings": [
+        {
+            "key": "admin-alert-recipients",
+            "name": "PKI alarm email recipients",
+            "tt_name": "admin_alert_recipients",
+            "type": "email",
+            "repeatable": true,
+            "required": false
+        }
     ]
 }

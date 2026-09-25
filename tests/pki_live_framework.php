@@ -11,6 +11,9 @@ $_SERVER['PHP_SELF'] = 'pdf_sealer_live_framework.php';
 require '/home/gr/redcap/codebase/Config/init_global.php';
 require dirname(__DIR__) . '/vendor/autoload.php';
 
+use DE\RUB\PDFSealerExternalModule\Alerts\AdminAlarmService;
+use DE\RUB\PDFSealerExternalModule\Alerts\AlarmLock;
+use DE\RUB\PDFSealerExternalModule\Alerts\AlarmRepository;
 use DE\RUB\PDFSealerExternalModule\Pki\CertificateIssuer;
 use DE\RUB\PDFSealerExternalModule\Pki\IdentityRepository;
 use DE\RUB\PDFSealerExternalModule\Pki\PkiHealthService;
@@ -26,6 +29,8 @@ $protector = new SecretProtector();
 $repository = new IdentityRepository($framework, $protector);
 $issuer = new CertificateIssuer([$framework, 'createTempFile']);
 $bindings = new ProjectBindingRepository($framework);
+$previousRootId = $repository->activeId('root');
+$previousRecipients = $framework->getSystemSetting('admin-alert-recipients');
 \ExternalModules\ExternalModules::setProjectId('461');
 $root = $issuer->createRoot('PDF Sealer Integration Test');
 
@@ -71,13 +76,35 @@ try {
         || $project->projectUuid === null) {
         throw new RuntimeException('Lazy project identity was not stable in a project context');
     }
+    $framework->setSystemSetting('admin-alert-recipients', ['alarm@example.org']);
+    $alarms = new AlarmRepository($framework);
+    $mailCount = 0;
+    $alarmService = new AdminAlarmService(
+        $framework, $alarms, new AlarmLock(),
+        static function (string $to, string $subject, string $body) use (&$mailCount): bool {
+            if ($to !== 'alarm@example.org' || !str_contains($subject, 'PROJECT_KEY_MISMATCH')) {
+                throw new RuntimeException('Unexpected alarm mail');
+            }
+            ++$mailCount;
+            return true; // No real email leaves this test.
+        },
+    );
+    $alarmNow = time();
+    if ($alarmService->raise('PROJECT_KEY_MISMATCH', 'critical', $project->id, $alarmNow) !== 'sent'
+        || $alarmService->raise('PROJECT_KEY_MISMATCH', 'critical', $project->id, $alarmNow + 1) !== 'throttled'
+        || $mailCount !== 1) {
+        throw new RuntimeException('Live alarm throttle failed');
+    }
 } finally {
     if (db_query('ROLLBACK') === false) {
         throw new RuntimeException('Could not roll back test records');
     }
 }
 
-if ($repository->find($id) !== null || $bindings->find(461) !== null) {
-    throw new RuntimeException('Test PKI records remained after rollback');
+if ($repository->find($id) !== null || $bindings->find(461) !== null
+    || $repository->activeId('root') !== $previousRootId
+    || $framework->getSystemSetting('admin-alert-recipients') !== $previousRecipients
+    || $alarms->lastMailedAt(hash('sha256', 'PROJECT_KEY_MISMATCH' . "\0" . $project->id)) !== null) {
+    throw new RuntimeException('Test PKI records or settings remained after rollback');
 }
-echo "Live Framework PKI storage, project issuance, real REDCap crypto, system scope, and rollback passed.\n";
+echo "Live Framework PKI storage, project issuance, alarm throttle, system scope, and rollback passed.\n";
