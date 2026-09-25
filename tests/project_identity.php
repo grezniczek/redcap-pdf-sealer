@@ -6,6 +6,7 @@ use DE\RUB\PDFSealerExternalModule\Pki\CertificateIssuer;
 use DE\RUB\PDFSealerExternalModule\Pki\IdentityRepository;
 use DE\RUB\PDFSealerExternalModule\Pki\PkiHealthService;
 use DE\RUB\PDFSealerExternalModule\Pki\PrimaryLogReader;
+use DE\RUB\PDFSealerExternalModule\Pki\PrimarySystemSettingReader;
 use DE\RUB\PDFSealerExternalModule\Pki\ProjectBindingRepository;
 use DE\RUB\PDFSealerExternalModule\Pki\ProjectIdentityService;
 use DE\RUB\PDFSealerExternalModule\Pki\ProjectIssueLock;
@@ -82,7 +83,7 @@ final class FakeFramework
 $framework = new FakeFramework();
 $protector = new SecretProtector();
 $reader = new PrimaryLogReader($framework, [$framework, 'queryLogs']);
-$identities = new IdentityRepository($framework, $protector, $reader);
+$identities = new IdentityRepository($framework, $protector, $reader, new PrimarySystemSettingReader($framework, [$framework, 'getSystemSetting']));
 $bindings = new ProjectBindingRepository($framework, $reader);
 $issuer = new CertificateIssuer(static function (): string {
     $path = tempnam(sys_get_temp_dir(), 'pdf_sealer_project_test_');

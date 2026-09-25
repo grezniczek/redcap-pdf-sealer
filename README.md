@@ -10,8 +10,11 @@ The standalone RFC 3161 timestamp responder and PKI components are under `src/`.
 php tests/timestamp_spike.php
 php tests/pki_primitives.php
 php tests/pki_storage.php
+php tests/pki_initialization.php
 php tests/project_identity.php
 php tests/admin_alarms.php
 ```
+
+The superuser Control Center **PDF Seal PKI** page provides explicit, one-time root and TSA initialization. The PDF hook still returns `unchanged`.
 
 On a disposable REDCap development instance, run `PDF_SEALER_LIVE_TEST=1 php tests/pki_live_framework.php` to verify real Framework storage and alarm throttling. Its records and settings are rolled back, and its sender is mocked. See [implementation status](DEV_DOCS/implementation_status.md) for completed work and remaining integration.

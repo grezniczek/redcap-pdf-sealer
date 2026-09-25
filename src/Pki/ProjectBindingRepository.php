@@ -19,6 +19,18 @@ final class ProjectBindingRepository
         $this->reader = $reader ?? new PrimaryLogReader($framework);
     }
 
+    public function hasAny(): bool
+    {
+        $result = $this->reader->query(
+            'SELECT log_id WHERE message = ? AND ISNULL(project_id) LIMIT 1',
+            [self::MESSAGE],
+        );
+        if ($result === false) {
+            throw new RuntimeException('Project binding query failed');
+        }
+        return $result->fetch_assoc() !== null;
+    }
+
     public function find(int $pid): ?ProjectBinding
     {
         self::assertPid($pid);

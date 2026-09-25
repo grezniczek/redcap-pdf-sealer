@@ -16,7 +16,10 @@ use DE\RUB\PDFSealerExternalModule\Alerts\AlarmLock;
 use DE\RUB\PDFSealerExternalModule\Alerts\AlarmRepository;
 use DE\RUB\PDFSealerExternalModule\Pki\CertificateIssuer;
 use DE\RUB\PDFSealerExternalModule\Pki\IdentityRepository;
+use DE\RUB\PDFSealerExternalModule\Pki\PkiHealth;
 use DE\RUB\PDFSealerExternalModule\Pki\PkiHealthService;
+use DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationLock;
+use DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationService;
 use DE\RUB\PDFSealerExternalModule\Pki\ProjectBindingRepository;
 use DE\RUB\PDFSealerExternalModule\Pki\ProjectIdentityService;
 use DE\RUB\PDFSealerExternalModule\Pki\ProjectIssueLock;
@@ -30,27 +33,39 @@ $repository = new IdentityRepository($framework, $protector);
 $issuer = new CertificateIssuer([$framework, 'createTempFile']);
 $bindings = new ProjectBindingRepository($framework);
 $previousRootId = $repository->activeId('root');
+$previousTsaId = $repository->activeId('tsa');
+$previousOrganization = $framework->getSystemSetting('organization');
 $previousRecipients = $framework->getSystemSetting('admin-alert-recipients');
 \ExternalModules\ExternalModules::setProjectId('461');
-$root = $issuer->createRoot('PDF Sealer Integration Test');
 
 $probe = 'pdf-sealer-crypto-probe-' . bin2hex(random_bytes(8));
 if ($protector->decrypt($protector->encrypt($probe)) !== $probe) {
     throw new RuntimeException('REDCap encryption round trip failed');
 }
 
+if ($framework->query('START TRANSACTION', []) === false
+    || $framework->query('ROLLBACK', []) === false) {
+    throw new RuntimeException('Framework transaction commands failed');
+}
 if (db_query('START TRANSACTION') === false) {
     throw new RuntimeException('Could not start test transaction');
 }
 try {
-    $id = $repository->append('root', $root);
-    $repository->activate('root', $id);
-    $stored = $repository->find($id);
-    if (!$repository->hasRole('root')) {
-        throw new RuntimeException('System-scoped role lookup missed the test identity');
+    // The outer transaction belongs to this test. Suppress only the service's nested transaction commands.
+    (new PkiInitializationService(
+        $framework, $repository, $bindings, $issuer,
+        new PkiHealthService($repository, $protector), new PkiInitializationLock(),
+        static fn (string $sql): bool => in_array($sql, ['START TRANSACTION', 'COMMIT', 'ROLLBACK'], true),
+    ))->initialize('PDF Sealer Integration Test');
+    $id = $repository->activeId('root');
+    $tsaId = $repository->activeId('tsa');
+    $stored = $id === null ? null : $repository->find($id);
+    if ($id === null || $tsaId === null || $id === $tsaId
+        || (new PkiHealthService($repository, $protector))->inspect(time())->status !== PkiHealth::Ready
+        || $framework->getSystemSetting('organization') !== 'PDF Sealer Integration Test') {
+        throw new RuntimeException('Live PKI initialization was not ready');
     }
     if ($stored === null || $stored->role !== 'root'
-        || $stored->certificateDer !== $root->certificateDer
         || !openssl_x509_check_private_key(
             \Com\Tecnick\Pdf\Sign\Cms\Certificate::derToPem($stored->certificateDer),
             $stored->privateKey($protector),
@@ -103,8 +118,10 @@ try {
 
 if ($repository->find($id) !== null || $bindings->find(461) !== null
     || $repository->activeId('root') !== $previousRootId
+    || $repository->activeId('tsa') !== $previousTsaId
+    || $framework->getSystemSetting('organization') !== $previousOrganization
     || $framework->getSystemSetting('admin-alert-recipients') !== $previousRecipients
     || $alarms->lastMailedAt(hash('sha256', 'PROJECT_KEY_MISMATCH' . "\0" . $project->id)) !== null) {
     throw new RuntimeException('Test PKI records or settings remained after rollback');
 }
-echo "Live Framework PKI storage, project issuance, alarm throttle, system scope, and rollback passed.\n";
+echo "Live Framework PKI initialization, project issuance, alarm throttle, and rollback passed.\n";

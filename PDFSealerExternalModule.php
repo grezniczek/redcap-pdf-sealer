@@ -2,6 +2,8 @@
 
 namespace DE\RUB\PDFSealerExternalModule;
 
+require_once __DIR__ . '/vendor/autoload.php';
+
 class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
 {
 	public function redcap_pdf_finalize(

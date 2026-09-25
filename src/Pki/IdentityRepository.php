@@ -14,14 +14,17 @@ final class IdentityRepository
     private const ROLES = ['root', 'tsa', 'project'];
 
     private PrimaryLogReader $reader;
+    private PrimarySystemSettingReader $settings;
 
     /** @param \ExternalModules\Framework $framework */
     public function __construct(
         private readonly object $framework,
         private readonly SecretProtector $protector,
         ?PrimaryLogReader $reader = null,
+        ?PrimarySystemSettingReader $settings = null,
     ) {
         $this->reader = $reader ?? new PrimaryLogReader($framework);
+        $this->settings = $settings ?? new PrimarySystemSettingReader($framework);
     }
 
     public function append(string $role, GeneratedIdentity $identity, ?string $projectUuid = null): string
@@ -134,7 +137,7 @@ final class IdentityRepository
     public function activeId(string $role): ?string
     {
         $key = $this->activeSettingKey($role);
-        $value = $this->framework->getSystemSetting($key);
+        $value = $this->settings->get($key);
         if ($value === null || $value === '') {
             return null;
         }

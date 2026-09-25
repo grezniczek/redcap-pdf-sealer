@@ -7,6 +7,7 @@ use DE\RUB\PDFSealerExternalModule\Pki\IdentityRepository;
 use DE\RUB\PDFSealerExternalModule\Pki\PkiHealth;
 use DE\RUB\PDFSealerExternalModule\Pki\PkiHealthService;
 use DE\RUB\PDFSealerExternalModule\Pki\PrimaryLogReader;
+use DE\RUB\PDFSealerExternalModule\Pki\PrimarySystemSettingReader;
 use DE\RUB\PDFSealerExternalModule\Pki\SecretProtector;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
@@ -87,7 +88,7 @@ final class FakeFramework
 $framework = new FakeFramework();
 $protector = new SecretProtector();
 $reader = new PrimaryLogReader($framework, [$framework, 'queryLogs']);
-$repository = new IdentityRepository($framework, $protector, $reader);
+$repository = new IdentityRepository($framework, $protector, $reader, new PrimarySystemSettingReader($framework, [$framework, 'getSystemSetting']));
 $health = new PkiHealthService($repository, $protector);
 $now = time();
 check($health->inspect($now)->status === PkiHealth::Uninitialized, 'Fresh PKI is not uninitialized');

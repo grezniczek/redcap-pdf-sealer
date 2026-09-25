@@ -30,5 +30,16 @@
             "repeatable": true,
             "required": false
         }
-    ]
+    ],
+    "links": {
+        "control-center": [
+            {
+                "name": "PDF Seal PKI",
+                "tt_name": "pki_link_name",
+                "icon": "fas fa-lock",
+                "url": "pki-admin.php",
+                "show-header-and-footer": true
+            }
+        ]
+    }
 }
