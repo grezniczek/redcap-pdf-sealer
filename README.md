@@ -2,7 +2,7 @@
 
 A reference implementation in progress for cryptographically sealing REDCap-generated PDFs through the `redcap_pdf_finalize` hook.
 
-The module declares one terminal `seal` operation for e-Consent PDFs. When it is assigned to a project PDF finalization pipeline and the PKI is ready, the hook seals the Framework working copy and returns a terminal modified result. The Framework keeps the prior PDF on failure.
+The module declares one terminal `seal` operation for e-Consent PDFs. If the source page contains a direct PDF Link annotation, the signing revision preserves its clickable action in an indirect object before adding the invisible signature widget; the original PDF bytes remain intact. When it is assigned to a project PDF finalization pipeline and the PKI is ready, the hook seals the Framework working copy and returns a terminal modified result. The Framework keeps the prior PDF on failure.
 
 The standalone RFC 3161 timestamp responder, PKI components, and PDF seal builder are under `src/`. After `composer install`, run the standalone checks (`tests/pdf_structure.php` requires `qpdf`; the PDF seal tests also require `pdfsig` on `PATH`):
 

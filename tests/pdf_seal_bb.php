@@ -54,6 +54,22 @@ function testPdf(): string
     ]);
 }
 
+function testPdfWithUriLink(bool $indirect): string
+{
+    $link = '<< /Type /Annot /Subtype /Link /Rect [0 0 10 10]'
+        . ' /A << /S /URI /URI (https://projectredcap.org) >> >>';
+    $bodies = [
+        1 => '<< /Type /Catalog /Pages 2 0 R >>',
+        2 => '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+        3 => '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100]'
+            . ' /Annots [' . ($indirect ? '4 0 R' : $link) . '] >>',
+    ];
+    if ($indirect) {
+        $bodies[4] = $link;
+    }
+    return assemblePdf($bodies);
+}
+
 function testPdfWithIndirectArrays(): string
 {
     return assemblePdf([
@@ -130,6 +146,20 @@ function verifySeal(string $source, string $sealed, string $rootPem): string
     }
     checkSeal(($annots[0] ?? null) === '[' && end($annots[1])[1] === $lastField[1],
         'Signature widget was not attached to the first page');
+    if (str_contains($source, '/URI (https://projectredcap.org)')) {
+        $linkRef = $annots[1][0] ?? null;
+        checkSeal(($linkRef[0] ?? null) === 'objref', 'Existing Link annotation was not indirect');
+        $link = $objects[$linkRef[1]][0] ?? null;
+        checkSeal(is_array($link), 'Existing Link object was not emitted');
+        $action = dictionaryValue($link, 'A');
+        checkSeal(is_array($action), 'Existing Link action was not preserved');
+        checkSeal(dictionaryValue($link, 'Subtype')[1] === 'Link'
+            && dictionaryValue($action, 'URI')[1] === 'https://projectredcap.org',
+            'Existing Link annotation or URI action changed');
+        if (str_contains($source, '/Annots [4 0 R]')) {
+            checkSeal($linkRef[1] === '4_0', 'Existing indirect Link was unnecessarily replaced');
+        }
+    }
     if (str_contains($source, '/Fields 5 0 R')) {
         checkSeal($fields[1][0][1] === '8_0' && $annots[1][0][1] === '9_0'
             && dictionaryValue($objects['7_0'][0], 'UR3')[0] === 'null',
@@ -221,7 +251,8 @@ try {
     throw new RuntimeException('Certification after an existing signed field was accepted');
 } catch (UnsupportedPdf $expected) {
 }
-$cases = [testPdf(), testPdfWithIndirectArrays(), testPdfWithExistingSignature(false)];
+$cases = [testPdf(), testPdfWithUriLink(false), testPdfWithUriLink(true),
+    testPdfWithIndirectArrays(), testPdfWithExistingSignature(false)];
 $redcapPdfPath = getenv('PDF_SEALER_REDCAP_PDF_PATH');
 if ($redcapPdfPath !== false && $redcapPdfPath !== '') {
     checkSeal(str_starts_with($redcapPdfPath, '/') && is_file($redcapPdfPath),

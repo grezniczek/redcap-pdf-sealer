@@ -93,6 +93,7 @@ final class PdfSealBuilder
         $annots = $this->appendArrayReference(
             PdfStructureInspector::value($page, 'Annots'), $widgetRef, $pdf, $objects,
         );
+        $annots = $this->externalizeInlineLinks($annots, $objects, $next);
         $objects[$pdf->firstPageRef] = self::put($page, 'Annots', $annots);
 
         $acroForm = $pdf->acroForm ?? CosSerializer::dictionary([]);
@@ -217,6 +218,33 @@ final class PdfSealBuilder
             return $token;
         }
         throw new UnsupportedPdf('Fields or Annots is not an array');
+    }
+
+    /** @param array<string, array|string> $objects */
+    private function externalizeInlineLinks(array $annots, array &$objects, int &$next): array
+    {
+        if (($annots[0] ?? null) === 'objref') {
+            $ref = $annots[1];
+            $objects[$ref] = $this->externalizeInlineLinks($objects[$ref], $objects, $next);
+            return $annots;
+        }
+        foreach ($annots[1] as &$annotation) {
+            if (($annotation[0] ?? null) !== '<<') {
+                continue;
+            }
+            $subtype = PdfStructureInspector::value($annotation, 'Subtype');
+            if (($subtype[0] ?? null) !== '/' || ($subtype[1] ?? null) !== 'Link') {
+                continue;
+            }
+            if ($next >= PHP_INT_MAX) {
+                throw new UnsupportedPdf('Too many PDF objects for an indirect link annotation');
+            }
+            $ref = $next++ . '_0';
+            $objects[$ref] = $annotation;
+            $annotation = CosSerializer::reference($ref);
+        }
+        unset($annotation);
+        return $annots;
     }
 
     private static function put(array $dictionary, string $key, array $value): array

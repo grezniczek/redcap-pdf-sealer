@@ -1067,9 +1067,7 @@ If absent:
 
 ## 17.3 Page annotations
 
-Preserve existing `/Annots`.
-
-Append the invisible signature widget reference.
+Preserve existing annotations and actions. Before appending the invisible signature widget reference, write any direct `/Link` annotation on the first page as an equivalent indirect object in the signing revision. This preserves the original PDF bytes and clickable link while avoiding an Acrobat certification failure observed when REDCap's inline footer link and the widget share a rewritten page object.
 
 ## 17.4 Certification / DocMDP
 
