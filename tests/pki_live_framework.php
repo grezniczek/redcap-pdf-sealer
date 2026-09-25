@@ -136,10 +136,28 @@ try {
     }
     try {
         $module = $framework->getModuleInstance();
-        $context = ['project_id' => 461, 'document_type' => 'econsent', 'generation_id' => $generationId];
+        $testEventId = (int) (new \Project(461))->firstEventId;
+        if ($testEventId < 1) {
+            throw new RuntimeException('Project has no event for seal logging test');
+        }
+        $testRecordId = 'pdf-sealer-live-record';
+        $context = [
+            'project_id' => 461, 'document_type' => 'econsent', 'generation_id' => $generationId,
+            'record_id' => $testRecordId, 'event_id' => $testEventId,
+        ];
         $operation = ['id' => 'seal'];
-        $sealExpectations = [];
+        $projectLogExpected = [];
+        $failureExpected = [];
         $inputHash = hash('sha256', $pdf);
+        $projectLogTable = \Logging::getLogEventTable(461);
+        if (preg_match('/^redcap_log_event[0-9]*$/D', $projectLogTable) !== 1) {
+            throw new RuntimeException('Unexpected REDCap project log table');
+        }
+        $beforeLog = db_query("SELECT MAX(log_event_id) FROM {$projectLogTable} WHERE project_id = 461");
+        if ($beforeLog === false) {
+            throw new RuntimeException('Could not read baseline project log ID');
+        }
+        $beforeLogId = (int) db_result($beforeLog, 0);
         $framework->setSystemSetting('timestamp_mode', 'internal');
         $framework->setSystemSetting('bb_fallback', '1');
         $framework->setSystemSetting('tsa_policy_oid', '');
@@ -152,8 +170,7 @@ try {
             throw new RuntimeException('Live hook did not return a B-T working PDF');
         }
         assertFinalizedPdf($workingPath);
-        $sealExpectations[] = ['pades-b-t', '1', 'internal', '0', null, hash_file('sha256', $workingPath),
-            $result->getMetadata()['timestamp_serial'], (string) $result->getMetadata()['timestamp_time']];
+        $projectLogExpected[] = ['PDF seal succeeded', 'Profile: PAdES B-T'];
 
         $framework->setSystemSetting('tsa_policy_oid', '1.3.6.1.4.1.55555.3161.1');
         file_put_contents($workingPath, $pdf);
@@ -162,8 +179,7 @@ try {
             throw new RuntimeException('Live hook did not honor the TSA policy override');
         }
         assertFinalizedPdf($workingPath);
-        $sealExpectations[] = ['pades-b-t', '1', 'internal', '0', null, hash_file('sha256', $workingPath),
-            $result->getMetadata()['timestamp_serial'], (string) $result->getMetadata()['timestamp_time']];
+        $projectLogExpected[] = ['PDF seal succeeded', 'Profile: PAdES B-T'];
 
         $framework->setSystemSetting('tsa_policy_oid', 'invalid-policy');
         file_put_contents($workingPath, $pdf);
@@ -173,7 +189,7 @@ try {
             throw new RuntimeException('Live hook did not fall back to B-B after TSA configuration failure');
         }
         assertFinalizedPdf($workingPath);
-        $sealExpectations[] = ['pades-b-b', '1', 'none', '1', null, hash_file('sha256', $workingPath), null, null];
+        $projectLogExpected[] = ['PDF seal succeeded', 'Profile: PAdES B-B (timestamp fallback)'];
 
         $framework->setSystemSetting('bb_fallback', '0');
         file_put_contents($workingPath, $pdf);
@@ -181,7 +197,8 @@ try {
         if (!$result->isFailed() || file_get_contents($workingPath) !== $pdf) {
             throw new RuntimeException('Live hook did not preserve the working PDF on failure');
         }
-        $sealExpectations[] = ['failed', '0', 'none', '0', 'PDF_SEAL_FAILED', null, null, null];
+        $projectLogExpected[] = ['PDF seal failed', 'Reference: ' . $generationId];
+        $failureExpected[] = ['PDF_SEAL_FAILED', '461', true];
 
         $framework->setSystemSetting('timestamp_mode', 'none');
         file_put_contents($workingPath, $pdf);
@@ -189,17 +206,28 @@ try {
         if (!$result->isModified() || ($result->getMetadata()['seal_profile'] ?? null) !== 'pades-b-b') {
             throw new RuntimeException('Live hook did not honor B-B-only mode');
         }
-        $sealExpectations[] = ['pades-b-b', '1', 'none', '0', null, hash_file('sha256', $workingPath), null, null];
+        $projectLogExpected[] = ['PDF seal succeeded', 'Profile: PAdES B-B'];
         \ExternalModules\ExternalModules::setProjectId(null);
+        $hadQueryEventId = array_key_exists('event_id', $_GET);
+        $previousQueryEventId = $_GET['event_id'] ?? null;
+        $_GET['event_id'] = $testEventId;
         try {
             file_put_contents($workingPath, $pdf);
-            $result = $module->redcap_pdf_finalize($workingPath, $operation, $context);
-            if (!$result->isModified() || ($result->getMetadata()['seal_profile'] ?? null) !== 'pades-b-b') {
-                throw new RuntimeException('Live hook rejected a context-only project ID');
+            $withoutRecord = $context;
+            unset($withoutRecord['record_id'], $withoutRecord['event_id']);
+            $result = $module->redcap_pdf_finalize($workingPath, $operation, $withoutRecord);
+            if (!$result->isModified() || ($result->getMetadata()['seal_profile'] ?? null) !== 'pades-b-b'
+                || $_GET['event_id'] !== $testEventId) {
+                throw new RuntimeException('Live hook rejected context-only PID or altered query event ID');
             }
-            $sealExpectations[] = ['pades-b-b', '1', 'none', '0', null, hash_file('sha256', $workingPath), null, null];
+            $projectLogExpected[] = ['PDF seal succeeded', 'Profile: PAdES B-B'];
         } finally {
             \ExternalModules\ExternalModules::setProjectId('461');
+            if ($hadQueryEventId) {
+                $_GET['event_id'] = $previousQueryEventId;
+            } else {
+                unset($_GET['event_id']);
+            }
         }
         file_put_contents($workingPath, $pdf);
         $invalidContext = $context;
@@ -208,9 +236,39 @@ try {
         if (!$result->isFailed() || file_get_contents($workingPath) !== $pdf) {
             throw new RuntimeException('Live hook accepted a mismatched project context');
         }
-        $sealExpectations[] = ['failed', '0', 'none', '0', 'INVALID_CONTEXT', null, null, null];
+        $failureExpected[] = ['INVALID_CONTEXT', '462', false];
     } finally {
         @unlink($workingPath);
+    }
+
+    $projectRowsResult = db_query(
+        "SELECT log_event_id, project_id, description, data_values, pk, event_id, sql_log
+         FROM {$projectLogTable}
+         WHERE project_id = 461 AND log_event_id > {$beforeLogId}
+           AND description IN ('PDF seal succeeded', 'PDF seal failed')
+         ORDER BY log_event_id ASC"
+    );
+    if ($projectRowsResult === false) {
+        throw new RuntimeException('Could not read project seal log entries');
+    }
+    $projectRows = [];
+    $projectLogIds = [];
+    while ($row = db_fetch_assoc($projectRowsResult)) {
+        $projectRows[] = $row;
+        $projectLogIds[] = (int) $row['log_event_id'];
+    }
+    if (count($projectRows) !== count($projectLogExpected)) {
+        throw new RuntimeException('Expected one project log entry per valid seal attempt');
+    }
+    foreach ($projectRows as $index => $row) {
+        [$description, $details] = $projectLogExpected[$index];
+        $expectedRecord = $index === count($projectRows) - 1 ? null : $testRecordId;
+        $expectedEvent = $index === count($projectRows) - 1 ? null : (string) $testEventId;
+        if ($row['project_id'] !== '461' || $row['description'] !== $description
+            || $row['data_values'] !== $details || $row['pk'] !== $expectedRecord
+            || $row['event_id'] !== $expectedEvent || $row['sql_log'] !== null) {
+            throw new RuntimeException('Project seal log contains wrong outcome or excess details at attempt ' . $index);
+        }
     }
 
     $rows = $framework->queryLogs(
@@ -218,43 +276,42 @@ try {
         ['seal_event', $generationId],
     );
     if ($rows === false) {
-        throw new RuntimeException('Could not read live seal events');
+        throw new RuntimeException('Could not read failure diagnostics');
     }
-    $sealRows = [];
+    $failureRows = [];
     while ($row = $rows->fetch_assoc()) {
-        $sealRows[] = $row;
+        $failureRows[] = $row;
     }
-    if (count($sealRows) !== count($sealExpectations)) {
-        throw new RuntimeException('Expected exactly one seal event per hook attempt');
+    if (count($failureRows) !== count($failureExpected)) {
+        throw new RuntimeException('Expected detailed EM log entries only for failed seal attempts');
     }
     $certificate = openssl_x509_parse(\Com\Tecnick\Pdf\Sign\Cms\Certificate::derToPem($project->certificateDer));
     if (!is_array($certificate)) {
-        throw new RuntimeException('Could not parse project certificate for seal event check');
+        throw new RuntimeException('Could not parse project certificate for failure diagnostics check');
     }
-    foreach ($sealRows as $index => $row) {
-        [$profile, $success, $timestampSource, $fallbackUsed, $errorCode, $outputHash, $timestampSerial, $timestampTime] =
-            $sealExpectations[$index];
+    foreach ($failureRows as $index => $row) {
+        [$errorCode, $pid, $hasIdentity] = $failureExpected[$index];
         if ($row['project_id'] !== null || $row['record'] !== null || $row['event'] !== 'seal'
-            || $row['generation_id'] !== $generationId
-            || $row['pid'] !== ($index === count($sealRows) - 1 ? '462' : '461')
-            || $row['profile'] !== $profile || $row['success'] !== $success
-            || $row['timestamp_source'] !== $timestampSource || $row['fallback_used'] !== $fallbackUsed
-            || $row['error_code'] !== $errorCode || $row['output_sha256'] !== $outputHash
-            || $row['timestamp_serial'] !== $timestampSerial || $row['timestamp_time'] !== $timestampTime
+            || $row['generation_id'] !== $generationId || $row['pid'] !== $pid
+            || $row['profile'] !== 'failed' || $row['success'] !== '0'
+            || $row['timestamp_source'] !== 'none' || $row['fallback_used'] !== '0'
+            || $row['error_code'] !== $errorCode || $row['output_sha256'] !== null
+            || $row['timestamp_serial'] !== null || $row['timestamp_time'] !== null
             || !preg_match('/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/D', $row['created_at'] ?? '')) {
-            throw new RuntimeException('Live seal event profile, scope, or outcome mismatch at attempt ' . $index);
+            throw new RuntimeException('Failure diagnostic scope or outcome mismatch at attempt ' . $index);
         }
-        if ($index === count($sealRows) - 1) {
+        if (!$hasIdentity) {
             if ($row['project_uuid'] !== null || $row['certificate_identity_id'] !== null
                 || $row['input_sha256'] !== null || $row['error_message'] !== 'PDF seal project context is invalid') {
-                throw new RuntimeException('Invalid-context seal event exposed project or PDF details');
+                throw new RuntimeException('Invalid-context diagnostic exposed project or PDF details');
             }
         } elseif ($row['project_uuid'] !== $project->projectUuid
             || $row['certificate_identity_id'] !== $project->id
             || $row['certificate_serial'] !== strtoupper($certificate['serialNumberHex'])
             || $row['certificate_sha256'] !== hash('sha256', $project->certificateDer)
-            || $row['input_sha256'] !== $inputHash) {
-            throw new RuntimeException('Live seal event identity or digest mismatch at attempt ' . $index);
+            || $row['input_sha256'] !== $inputHash
+            || $row['error_message'] !== 'PDF sealing failed') {
+            throw new RuntimeException('Failure diagnostic identity or digest mismatch');
         }
     }
 
@@ -298,4 +355,11 @@ if ($repository->find($id) !== null || $bindings->find(461) !== null
     )->fetch_assoc() !== null) {
     throw new RuntimeException('Test PKI records or settings remained after rollback');
 }
-echo "Live Framework PKI, PDF finalization hook, seal events, alarm throttle, and rollback passed.\n";
+$rolledBackProjectLogs = db_query(
+    "SELECT COUNT(*) FROM {$projectLogTable} WHERE project_id = 461
+     AND log_event_id IN (" . implode(',', $projectLogIds) . ")"
+);
+if ($rolledBackProjectLogs === false || (int) db_result($rolledBackProjectLogs, 0) !== 0) {
+    throw new RuntimeException('Project seal log entries remained after rollback');
+}
+echo "Live Framework PKI, project seal logging, failure diagnostics, alarm throttle, and rollback passed.\n";

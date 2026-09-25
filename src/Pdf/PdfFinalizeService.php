@@ -61,7 +61,7 @@ final class PdfFinalizeService
         $ambientPid = $this->framework->getProjectId();
         if ((!is_int($pid) && (!is_string($pid) || !ctype_digit($pid))) || (int) $pid < 1
             || ($ambientPid !== null && (int) $pid !== (int) $ambientPid)) {
-            return $this->failed($events, $event, 'INVALID_CONTEXT', 'PDF seal project context is invalid');
+            return $this->failed($events, $event, $context, null, 'INVALID_CONTEXT', 'PDF seal project context is invalid');
         }
         try {
             $protector = new SecretProtector();
@@ -70,7 +70,7 @@ final class PdfFinalizeService
             $report = $health->inspect(time());
             if ($report->status === PkiHealth::Uninitialized || $report->status === PkiHealth::Broken) {
                 $this->alarm($report);
-                return $this->failed($events, $event, 'PKI_NOT_READY', $report->errorCode ?? $report->status->value);
+                return $this->failed($events, $event, $context, (int) $pid, 'PKI_NOT_READY', $report->errorCode ?? $report->status->value);
             }
             if ($report->status === PkiHealth::Degraded) {
                 $this->alarm($report);
@@ -84,7 +84,7 @@ final class PdfFinalizeService
             $fallback = self::fallbackEnabled($settings->get('bb_fallback'));
             $source = file_get_contents($path);
             if (!is_string($source)) {
-                return $this->failed($events, $event, 'INPUT_READ_FAILED', 'PDF working copy is unreadable');
+                return $this->failed($events, $event, $context, (int) $pid, 'INPUT_READ_FAILED', 'PDF working copy is unreadable');
             }
             $event['input_sha256'] = hash('sha256', $source);
 
@@ -118,20 +118,19 @@ final class PdfFinalizeService
             }
             $written = file_put_contents($path, $result->pdf, LOCK_EX);
             if ($written !== strlen($result->pdf)) {
-                return $this->failed($events, $event, 'OUTPUT_WRITE_FAILED', 'Could not write sealed PDF working copy');
+                return $this->failed($events, $event, $context, (int) $pid, 'OUTPUT_WRITE_FAILED', 'Could not write sealed PDF working copy');
             }
-            $event['output_sha256'] = hash('sha256', $result->pdf);
-            $event['profile'] = $result->profile;
-            $event['timestamp_source'] = $result->profile === 'pades-b-t' ? 'internal' : 'none';
-            $event['timestamp_serial'] = $result->timestampSerialHex;
-            $event['timestamp_time'] = $result->timestampTime === null ? null : (string) $result->timestampTime;
-            $event['fallback_used'] = $mode === 'internal' && $result->profile === 'pades-b-b' ? '1' : '0';
-            $event['success'] = '1';
+            $fallbackUsed = $mode === 'internal' && $result->profile === 'pades-b-b';
             try {
-                $events->append($event);
+                self::logProjectOutcome(
+                    (int) $pid, $context, 'PDF seal succeeded',
+                    'Profile: ' . ($result->profile === 'pades-b-t' ? 'PAdES B-T' : 'PAdES B-B')
+                        . ($fallbackUsed ? ' (timestamp fallback)' : ''),
+                );
             } catch (Throwable $e) {
-                error_log('PDF Sealer seal event failed: ' . get_class($e));
-                return PdfFinalizeResult::failed('SEAL_EVENT_WRITE_FAILED', 'Could not record PDF seal event');
+                error_log('PDF Sealer project logging failed: ' . get_class($e));
+                return $this->failed($events, $event, $context, (int) $pid,
+                    'PROJECT_LOG_FAILED', 'Could not record PDF seal outcome');
             }
             return PdfFinalizeResult::modified($path, true, [
                 'seal_profile' => $result->profile,
@@ -140,12 +139,12 @@ final class PdfFinalizeService
             ]);
         } catch (Throwable $e) {
             error_log('PDF Sealer finalization failed: ' . get_class($e));
-            return $this->failed($events, $event, 'PDF_SEAL_FAILED', 'PDF sealing failed');
+            return $this->failed($events, $event, $context, (int) $pid, 'PDF_SEAL_FAILED', 'PDF sealing failed');
         }
     }
 
     /** @param array<string, string|null> $event */
-    private function failed(SealEventRepository $events, array $event, string $code, string $message): PdfFinalizeResult
+    private function failed(SealEventRepository $events, array $event, array $context, ?int $projectLogPid, string $code, string $message): PdfFinalizeResult
     {
         $event['profile'] = 'failed';
         $event['timestamp_source'] = 'none';
@@ -156,11 +155,48 @@ final class PdfFinalizeService
         $event['error_code'] = $code;
         $event['error_message'] = $message;
         try {
-            $events->append($event);
+            $events->appendFailure($event);
         } catch (Throwable $e) {
-            error_log('PDF Sealer seal event failed: ' . get_class($e));
+            error_log('PDF Sealer failure diagnostics failed: ' . get_class($e));
+        }
+        if ($projectLogPid !== null) {
+            try {
+                self::logProjectOutcome(
+                    $projectLogPid, $context, 'PDF seal failed',
+                    $event['generation_id'] === null ? '' : 'Reference: ' . $event['generation_id'],
+                );
+            } catch (Throwable $e) {
+                error_log('PDF Sealer project logging failed: ' . get_class($e));
+            }
         }
         return PdfFinalizeResult::failed($code, $message);
+    }
+
+    /** @param array<string, mixed> $context */
+    private static function logProjectOutcome(int $pid, array $context, string $description, string $details): void
+    {
+        $record = $context['record_id'] ?? null;
+        $record = (is_string($record) || is_int($record)) && (string) $record !== ''
+            ? (string) $record : null;
+        $eventId = $context['event_id'] ?? null;
+        $eventId = (is_int($eventId) || (is_string($eventId) && ctype_digit($eventId)))
+            && (int) $eventId > 0 ? (int) $eventId : null;
+
+        // REDCap::logEvent otherwise inherits a query-string event ID when none is supplied.
+        $hadQueryEventId = array_key_exists('event_id', $_GET);
+        $queryEventId = $_GET['event_id'] ?? null;
+        if ($eventId === null) {
+            unset($_GET['event_id']);
+        }
+        try {
+            \REDCap::logEvent($description, $details, '', $record, $eventId, $pid);
+        } finally {
+            if ($hadQueryEventId) {
+                $_GET['event_id'] = $queryEventId;
+            } else {
+                unset($_GET['event_id']);
+            }
+        }
     }
 
     private function sealWithFallback(

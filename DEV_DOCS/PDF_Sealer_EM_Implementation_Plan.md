@@ -1215,38 +1215,35 @@ Do not parse/rewrite the document again after signature offsets are fixed.
 
 # 22. Seal-event persistence
 
-Append one event per sealing attempt.
+Write a short success or failure entry to the project's standard REDCap Logging page through `REDCap::logEvent` for every seal attempt with a trustworthy project context. Supply the project ID and, when present in the finalization context, the record ID and event ID. The project entry contains only the outcome and a concise profile/fallback note on success, or a generation-ID reference on failure. Do not put certificate metadata, hashes, exception details, or clinical context into the visible description.
 
-Suggested fields:
+Append a system-scoped `seal_event` EM log entry with extended diagnostics only for failed attempts. An invalid or mismatched project context must not be attributed to an arbitrary project Logging page; retain its failure details in the system-scoped EM log.
+
+Suggested failure fields:
 
 ```text
 event = seal
-
 generation_id
 pid
 project_uuid
-
 certificate_identity_id
 certificate_serial
 certificate_sha256
-
 input_sha256
 output_sha256
-
-profile = pades-b-t | pades-b-b | failed
-timestamp_source = internal | none
+profile = failed
+timestamp_source = none
 timestamp_serial
 timestamp_time
-
-success
+success = 0
 error_code
 error_message
 created_at
 ```
 
-Avoid persisting REDCap record ID, instrument, or unnecessary clinical context unless a later requirement proves this necessary.
+Avoid persisting REDCap record ID, instrument, or unnecessary clinical context in EM logs. The project Logging entry receives record and event identifiers through the dedicated `REDCap::logEvent` arguments so authorized users can filter it.
 
-Use `generation_id` for correlation with Framework logging.
+Use `generation_id` to correlate a failed project Logging entry with the EM diagnostic and Framework logging.
 
 ---
 

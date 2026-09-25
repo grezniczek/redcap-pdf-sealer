@@ -6,13 +6,13 @@ namespace DE\RUB\PDFSealerExternalModule\Pdf;
 
 use RuntimeException;
 
-/** Append-only, system-scoped audit entries for PDF sealing attempts. */
+/** Append-only, system-scoped diagnostics for failed PDF sealing attempts. */
 final class SealEventRepository
 {
     public function __construct(private readonly object $framework) {}
 
     /** @param array<string, string|null> $fields */
-    public function append(array $fields): void
+    public function appendFailure(array $fields): void
     {
         $logId = $this->framework->log('seal_event', [
             'project_id' => null,
