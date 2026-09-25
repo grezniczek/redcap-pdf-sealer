@@ -11,6 +11,7 @@
     ],
     "framework-version": 16,
     "enable-no-auth-logging": true,
+    "auth-ajax-actions": ["save_alert_recipients"],
     "pdf-finalize": [
         {
             "id": "seal",
@@ -38,7 +39,7 @@
                 "tt_name": "pki_link_name",
                 "icon": "fas fa-lock",
                 "url": "pki-admin.php",
-                "show-header-and-footer": true
+                "show-header-and-footer": false
             }
         ]
     }

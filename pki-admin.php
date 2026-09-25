@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use Com\Tecnick\Pdf\Sign\Cms\Certificate;
-use DE\RUB\PDFSealerExternalModule\Alerts\AdminAlarmService;
 use DE\RUB\PDFSealerExternalModule\Pki\CertificateIssuer;
 use DE\RUB\PDFSealerExternalModule\Pki\IdentityRepository;
 use DE\RUB\PDFSealerExternalModule\Pki\PkiHealth;
@@ -25,13 +24,9 @@ $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, 
 $protector = new SecretProtector();
 $identities = new IdentityRepository($framework, $protector);
 $health = new PkiHealthService($identities, $protector);
-$error = null;
-$success = false;
-$recipientsSaved = false;
-$recipientInput = null;
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-    $action = $_POST['action'] ?? null;
-    if ($action === 'initialize' && is_string($_POST['organization'] ?? null)) {
+    $notice = 'invalid';
+    if (($_POST['action'] ?? null) === 'initialize' && is_string($_POST['organization'] ?? null)) {
         try {
             (new PkiInitializationService(
                 $framework,
@@ -41,42 +36,30 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 $health,
                 new PkiInitializationLock(),
             ))->initialize($_POST['organization']);
-            $success = true;
+            $notice = 'initialized';
         } catch (Throwable $e) {
             error_log('PDF Sealer PKI initialization failed (' . get_class($e) . ')');
-            $error = $framework->tt('pki_init_failed');
+            $notice = 'init_failed';
         }
-    } elseif ($action === 'save_recipients' && is_string($_POST['recipients'] ?? null)) {
-        $recipientInput = $_POST['recipients'];
-        $parsed = strlen($recipientInput) <= 4096 ? AdminAlarmService::parseRecipients($recipientInput) : null;
-        if ($parsed === null) {
-            http_response_code(400);
-            $error = $framework->tt('admin_alert_recipients_invalid');
-        } else {
-            try {
-                $framework->setSystemSetting('admin-alert-recipients', $parsed);
-                $recipientsSaved = true;
-                $recipientInput = null;
-            } catch (Throwable $e) {
-                error_log('PDF Sealer alarm recipient update failed (' . get_class($e) . ')');
-                $error = $framework->tt('admin_alert_recipients_save_failed');
-            }
-        }
-    } else {
-        http_response_code(400);
-        $error = $framework->tt('pki_invalid_request');
     }
+    header('Location: ' . $framework->getUrl('pki-admin.php') . '&pki_notice=' . $notice, true, 303);
+    exit;
 }
+$notice = $_GET['pki_notice'] ?? null;
+$error = $notice === 'invalid' ? $framework->tt('pki_invalid_request')
+    : ($notice === 'init_failed' ? $framework->tt('pki_init_failed') : null);
+$success = $notice === 'initialized';
 $report = $health->inspect(time());
 $organization = (new PrimarySystemSettingReader($framework))->get('organization');
 $recipients = $framework->getSystemSetting('admin-alert-recipients');
 $recipients = is_array($recipients) ? implode(', ', array_filter($recipients, 'is_string')) : (is_string($recipients) ? $recipients : '');
+require_once APP_PATH_DOCROOT . 'ControlCenter/header.php';
+$framework->initializeJavascriptModuleObject();
 ?>
 <div style="max-width: 820px; margin: 24px auto;">
     <h2><?= $escape($framework->tt('pki_page_title')) ?></h2>
     <?php if ($error !== null): ?><div class="alert alert-danger"><?= $escape($error) ?></div><?php endif; ?>
     <?php if ($success): ?><div class="alert alert-success"><?= $escape($framework->tt('pki_init_success')) ?></div><?php endif; ?>
-    <?php if ($recipientsSaved): ?><div class="alert alert-success"><?= $escape($framework->tt('admin_alert_recipients_saved')) ?></div><?php endif; ?>
     <p><strong><?= $escape($framework->tt('pki_status')) ?>:</strong> <?= $escape($report->status->value) ?></p>
     <?php if ($report->status === PkiHealth::Uninitialized): ?>
         <form method="post">
@@ -112,13 +95,40 @@ $recipients = is_array($recipients) ? implode(', ', array_filter($recipients, 'i
     <?php endif; ?>
     <h3><?= $escape($framework->tt('admin_alert_recipients')) ?></h3>
     <p><?= $escape($framework->tt('admin_alert_recipients_help')) ?></p>
-    <form method="post">
-        <input type="hidden" name="redcap_external_module_csrf_token" value="<?= $escape($framework->getCSRFToken()) ?>">
-        <input type="hidden" name="action" value="save_recipients">
-        <div class="form-group">
-            <label for="pdf-sealer-recipients"><?= $escape($framework->tt('admin_alert_recipients')) ?></label>
-            <textarea id="pdf-sealer-recipients" class="form-control" name="recipients" rows="3" maxlength="4096"><?= $escape($recipientInput ?? $recipients) ?></textarea>
-        </div>
-        <button type="submit" class="btn btn-primary"><?= $escape($framework->tt('admin_alert_recipients_save')) ?></button>
-    </form>
+    <div id="pdf-sealer-recipient-message" role="status" hidden></div>
+    <div class="form-group">
+        <label for="pdf-sealer-recipients"><?= $escape($framework->tt('admin_alert_recipients')) ?></label>
+        <textarea id="pdf-sealer-recipients" class="form-control" rows="3" maxlength="4096"><?= $escape($recipients) ?></textarea>
+    </div>
+    <button id="pdf-sealer-save-recipients" type="button" class="btn btn-primary"><?= $escape($framework->tt('admin_alert_recipients_save')) ?></button>
 </div>
+<script>
+(() => {
+    const module = <?= $framework->getJavascriptModuleObjectName() ?>;
+    const input = document.getElementById('pdf-sealer-recipients');
+    const button = document.getElementById('pdf-sealer-save-recipients');
+    const message = document.getElementById('pdf-sealer-recipient-message');
+    const savedMessage = <?= json_encode($framework->tt('admin_alert_recipients_saved'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    const failedMessage = <?= json_encode($framework->tt('admin_alert_recipients_save_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    const showMessage = (success, text) => {
+        message.className = 'alert ' + (success ? 'alert-success' : 'alert-danger');
+        message.textContent = text;
+        message.hidden = false;
+    };
+    button.addEventListener('click', () => {
+        button.disabled = true;
+        message.hidden = true;
+        module.ajax('save_alert_recipients', input.value).then(response => {
+            if (response && response.ok) {
+                input.value = response.recipients;
+                showMessage(true, savedMessage);
+            } else {
+                showMessage(false, response && response.message ? response.message : failedMessage);
+            }
+        }).catch(() => showMessage(false, failedMessage)).finally(() => {
+            button.disabled = false;
+        });
+    });
+})();
+</script>
+<?php require_once APP_PATH_DOCROOT . 'ControlCenter/footer.php'; ?>
