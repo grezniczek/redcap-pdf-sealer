@@ -13,11 +13,16 @@ final class IdentityRepository
     private const MESSAGE = 'pki_identity';
     private const ROLES = ['root', 'tsa', 'project'];
 
+    private PrimaryLogReader $reader;
+
     /** @param \ExternalModules\Framework $framework */
     public function __construct(
         private readonly object $framework,
         private readonly SecretProtector $protector,
-    ) {}
+        ?PrimaryLogReader $reader = null,
+    ) {
+        $this->reader = $reader ?? new PrimaryLogReader($framework);
+    }
 
     public function append(string $role, GeneratedIdentity $identity, ?string $projectUuid = null): string
     {
@@ -56,7 +61,7 @@ final class IdentityRepository
         if (preg_match('/^[0-9a-f]{32}$/D', $id) !== 1) {
             throw new RuntimeException('Invalid identity ID');
         }
-        $result = $this->framework->queryLogs(
+        $result = $this->reader->query(
             'SELECT log_id, identity_id, identity_role, project_uuid, certificate_der_b64, certificate_sha256, private_key_ciphertext WHERE message = ? AND identity_id = ? AND ISNULL(project_id) ORDER BY log_id DESC LIMIT 2',
             [self::MESSAGE, $id],
         );
@@ -90,10 +95,33 @@ final class IdentityRepository
         return new StoredIdentity($id, $row['identity_role'], $der, $row['private_key_ciphertext'], $projectUuid);
     }
 
+    /** Used only to recover issuance interrupted before its project binding was activated. */
+    public function findUnboundProject(string $uuid): ?StoredIdentity
+    {
+        if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/D', $uuid) !== 1) {
+            throw new RuntimeException('Invalid project UUID');
+        }
+        $result = $this->reader->query(
+            'SELECT identity_id WHERE message = ? AND identity_role = ? AND project_uuid = ? AND ISNULL(project_id) ORDER BY log_id DESC LIMIT 2',
+            [self::MESSAGE, 'project', $uuid],
+        );
+        if ($result === false) {
+            throw new RuntimeException('Project identity recovery query failed');
+        }
+        $row = $result->fetch_assoc();
+        if ($row === null) {
+            return null;
+        }
+        if ($result->fetch_assoc() !== null || !is_string($row['identity_id'] ?? null)) {
+            throw new RuntimeException('Ambiguous unbound project identity');
+        }
+        return $this->find($row['identity_id']);
+    }
+
     public function hasRole(string $role): bool
     {
         $this->assertRole($role);
-        $result = $this->framework->queryLogs(
+        $result = $this->reader->query(
             'SELECT log_id WHERE message = ? AND identity_role = ? AND ISNULL(project_id) LIMIT 1',
             [self::MESSAGE, $role],
         );

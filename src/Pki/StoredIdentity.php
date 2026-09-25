@@ -34,6 +34,16 @@ final readonly class StoredIdentity
         }
     }
 
+    /** Rehydrate a validated root only for transient certificate issuance. */
+    public function asGeneratedIdentity(SecretProtector $protector): GeneratedIdentity
+    {
+        $key = $this->privateKey($protector);
+        if (!openssl_pkey_export($key, $pem)) {
+            throw new RuntimeException('Stored identity key cannot be exported');
+        }
+        return new GeneratedIdentity($this->certificateDer, $pem);
+    }
+
     public function __debugInfo(): array
     {
         return [

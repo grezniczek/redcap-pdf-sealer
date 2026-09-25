@@ -13,12 +13,20 @@ require dirname(__DIR__) . '/vendor/autoload.php';
 
 use DE\RUB\PDFSealerExternalModule\Pki\CertificateIssuer;
 use DE\RUB\PDFSealerExternalModule\Pki\IdentityRepository;
+use DE\RUB\PDFSealerExternalModule\Pki\PkiHealthService;
+use DE\RUB\PDFSealerExternalModule\Pki\ProjectBindingRepository;
+use DE\RUB\PDFSealerExternalModule\Pki\ProjectIdentityService;
+use DE\RUB\PDFSealerExternalModule\Pki\ProjectIssueLock;
 use DE\RUB\PDFSealerExternalModule\Pki\SecretProtector;
 
 $framework = \ExternalModules\ExternalModules::getFrameworkInstance('pdf_sealer', 'v9.9.9');
+// REDCap disables user-based setting permissions inside hooks; mirror that for this CLI probe.
+$framework->disableUserBasedSettingPermissions();
 $protector = new SecretProtector();
 $repository = new IdentityRepository($framework, $protector);
 $issuer = new CertificateIssuer([$framework, 'createTempFile']);
+$bindings = new ProjectBindingRepository($framework);
+\ExternalModules\ExternalModules::setProjectId('461');
 $root = $issuer->createRoot('PDF Sealer Integration Test');
 
 $probe = 'pdf-sealer-crypto-probe-' . bin2hex(random_bytes(8));
@@ -31,6 +39,7 @@ if (db_query('START TRANSACTION') === false) {
 }
 try {
     $id = $repository->append('root', $root);
+    $repository->activate('root', $id);
     $stored = $repository->find($id);
     if (!$repository->hasRole('root')) {
         throw new RuntimeException('System-scoped role lookup missed the test identity');
@@ -44,7 +53,7 @@ try {
         throw new RuntimeException('Stored identity did not round trip through the Framework');
     }
     $row = $framework->queryLogs(
-        'SELECT project_id, record, private_key_ciphertext WHERE message = ? AND identity_id = ? LIMIT 1',
+        'SELECT project_id, record, private_key_ciphertext WHERE message = ? AND identity_id = ? AND ISNULL(project_id) LIMIT 1',
         ['pki_identity', $id],
     )->fetch_assoc();
     if ($row === null || $row['project_id'] !== null || $row['record'] !== null
@@ -52,13 +61,23 @@ try {
         || str_contains($row['private_key_ciphertext'], 'PRIVATE KEY')) {
         throw new RuntimeException('Identity log scope or encryption is incorrect');
     }
+    $projects = new ProjectIdentityService(
+        $bindings, $repository, $protector, $issuer,
+        new PkiHealthService($repository, $protector), new ProjectIssueLock(),
+    );
+    $project = $projects->getOrIssue(461);
+    if ($projects->getOrIssue(461)->id !== $project->id
+        || $bindings->find(461)?->identityId !== $project->id
+        || $project->projectUuid === null) {
+        throw new RuntimeException('Lazy project identity was not stable in a project context');
+    }
 } finally {
     if (db_query('ROLLBACK') === false) {
         throw new RuntimeException('Could not roll back test records');
     }
 }
 
-if ($repository->find($id) !== null) {
-    throw new RuntimeException('Test identity remained after rollback');
+if ($repository->find($id) !== null || $bindings->find(461) !== null) {
+    throw new RuntimeException('Test PKI records remained after rollback');
 }
-echo "Live Framework PKI storage, real REDCap crypto, system scope, and rollback passed.\n";
+echo "Live Framework PKI storage, project issuance, real REDCap crypto, system scope, and rollback passed.\n";
