@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace DE\RUB\PDFSealerExternalModule\Pki;
 
 use Com\Tecnick\Pdf\Sign\Cms\Certificate;
+use Closure;
 use OpenSSLAsymmetricKey;
 use OpenSSLCertificate;
 use OpenSSLCertificateSigningRequest;
@@ -45,6 +46,14 @@ extendedKeyUsage = 1.3.6.1.5.5.7.3.36
 subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid,issuer
 CONFIG;
+
+    private Closure $createTempFile;
+
+    /** Pass the EM Framework's createTempFile() method in REDCap. */
+    public function __construct(callable $createTempFile)
+    {
+        $this->createTempFile = Closure::fromCallable($createTempFile);
+    }
 
     public function createRoot(string $organization): GeneratedIdentity
     {
@@ -130,8 +139,8 @@ CONFIG;
         if (!$key instanceof OpenSSLAsymmetricKey) {
             throw new RuntimeException('Unable to generate RSA identity key');
         }
-        $configPath = tempnam(sys_get_temp_dir(), 'pdf_sealer_ca_');
-        if ($configPath === false) {
+        $configPath = ($this->createTempFile)();
+        if (!is_string($configPath) || !is_file($configPath)) {
             throw new RuntimeException('Unable to create temporary OpenSSL configuration');
         }
         try {

@@ -31,7 +31,13 @@ function readCertificate(GeneratedIdentity $identity): array
     return $details;
 }
 
-$issuer = new CertificateIssuer();
+$tempPaths = [];
+$issuer = new CertificateIssuer(static function () use (&$tempPaths): string {
+    $path = tempnam(sys_get_temp_dir(), 'pdf_sealer_test_ca_');
+    check(is_string($path), 'Cannot create test OpenSSL config');
+    $tempPaths[] = $path;
+    return $path;
+});
 $root = $issuer->createRoot('Test Institution');
 $tsa = $issuer->createTsa('Test Institution', $root);
 $uuid = $issuer->newProjectUuid();
@@ -128,6 +134,10 @@ try {
     throw new RuntimeException('Invalid project UUID accepted');
 } catch (RuntimeException $e) {
     check($e->getMessage() === 'Invalid project seal UUID', 'Unexpected UUID error');
+}
+
+foreach ($tempPaths as $path) {
+    check(!is_file($path), 'OpenSSL configuration was not removed');
 }
 
 echo "PKI primitives: certificate profiles, distinct keys, root chain, and TSA use passed.\n";
