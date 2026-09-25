@@ -1,6 +1,7 @@
 {
     "name": "de-rub/pdf-sealer",
     "description": "Reference REDCap PDF sealing external module",
+    "license": "MIT",
     "type": "project",
     "require": {
         "php": "^8.2",
