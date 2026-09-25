@@ -2,22 +2,35 @@
 
 namespace DE\RUB\PDFSealerExternalModule;
 
+use Com\Tecnick\Pdf\Sign\Cms\Certificate;
 use DE\RUB\PDFSealerExternalModule\Alerts\AdminAlarmService;
 use DE\RUB\PDFSealerExternalModule\Pdf\PdfFinalizeService;
+use DE\RUB\PDFSealerExternalModule\Pki\IdentityRepository;
+use DE\RUB\PDFSealerExternalModule\Pki\SecretProtector;
 
 require_once __DIR__ . '/vendor/autoload.php';
 
 class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
 {
-    /** @return array{ok: bool, message?: string, recipients?: string} */
     public function redcap_module_ajax($action, $payload, $project_id): array
     {
-        if ($action !== 'save_alert_recipients'
-            || !$this->framework->isSuperUser()
+        if (!$this->framework->isSuperUser()
             || $project_id !== null
             || $this->framework->getProjectId() !== null) {
             throw new \RuntimeException($this->framework->tt('pki_access_denied'));
         }
+        if ($action === 'save_alert_recipients') {
+            return $this->saveAlertRecipients($payload);
+        }
+        if ($action === 'download_root_certificate') {
+            return $this->downloadRootCertificate($payload);
+        }
+        throw new \RuntimeException($this->framework->tt('pki_invalid_request'));
+    }
+
+    /** @return array{ok: bool, message?: string, recipients?: string} */
+    private function saveAlertRecipients(mixed $payload): array
+    {
         $recipients = is_string($payload) && strlen($payload) <= 4096
             ? AdminAlarmService::parseRecipients($payload)
             : null;
@@ -31,6 +44,41 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             return ['ok' => false, 'message' => $this->framework->tt('admin_alert_recipients_save_failed')];
         }
         return ['ok' => true, 'recipients' => implode(', ', $recipients)];
+    }
+
+    /** @return array{ok: bool, message?: string, filename?: string, content_type?: string, base64?: string} */
+    private function downloadRootCertificate(mixed $format): array
+    {
+        if (!in_array($format, ['pem', 'der'], true)) {
+            return ['ok' => false, 'message' => $this->framework->tt('pki_invalid_request')];
+        }
+        try {
+            $identities = new IdentityRepository($this->framework, new SecretProtector());
+            $id = $identities->activeId('root');
+            $root = $id === null ? null : $identities->find($id);
+            if ($root === null || $root->role !== 'root') {
+                throw new \RuntimeException('Active root identity unavailable');
+            }
+            $der = $root->certificateDer;
+            $pem = Certificate::derToPem($der);
+            $publicKey = openssl_pkey_get_public($pem);
+            if (!is_array(openssl_x509_parse($pem))
+                || !(new Certificate())->isCertificateAuthority($der)
+                || $publicKey === false
+                || openssl_x509_verify($pem, $publicKey) !== 1) {
+                throw new \RuntimeException('Active root certificate is invalid');
+            }
+        } catch (\Throwable $e) {
+            error_log('PDF Sealer root certificate download failed (' . get_class($e) . ')');
+            return ['ok' => false, 'message' => $this->framework->tt('pki_root_download_unavailable')];
+        }
+        $contents = $format === 'pem' ? $pem : $der;
+        return [
+            'ok' => true,
+            'filename' => 'redcap-pdf-sealer-root-' . substr(hash('sha256', $der), 0, 16) . '.' . $format,
+            'content_type' => $format === 'pem' ? 'application/x-pem-file' : 'application/pkix-cert',
+            'base64' => base64_encode($contents),
+        ];
     }
 
     public function redcap_pdf_finalize(

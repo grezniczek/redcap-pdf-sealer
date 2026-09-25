@@ -55,6 +55,10 @@ namespace {
     check($result['ok'] === true && $framework->settings['admin-alert-recipients'] === [],
         'Empty input did not disable alarm email');
 
+    $result = $module->redcap_module_ajax('download_root_certificate', 'unknown', null);
+    check($result === ['ok' => false, 'message' => 'pki_invalid_request'],
+        'Unsupported certificate format was accepted');
+
     foreach ([['superuser' => false, 'projectId' => null, 'context' => null],
               ['superuser' => true, 'projectId' => 461, 'context' => 461],
               ['superuser' => true, 'projectId' => null, 'context' => 461]] as $case) {
@@ -66,6 +70,12 @@ namespace {
         } catch (\RuntimeException $e) {
             check($e->getMessage() === 'pki_access_denied', 'Unexpected unauthorized request outcome');
         }
+        try {
+            $module->redcap_module_ajax('download_root_certificate', 'pem', $case['context']);
+            throw new \RuntimeException('Unauthorized download was accepted');
+        } catch (\RuntimeException $e) {
+            check($e->getMessage() === 'pki_access_denied', 'Unexpected unauthorized download outcome');
+        }
     }
 
     $framework->superuser = true;
@@ -75,5 +85,5 @@ namespace {
     check($result === ['ok' => false, 'message' => 'admin_alert_recipients_save_failed'],
         'Storage failure was not reported');
 
-    echo "PKI admin AJAX: validation, clearing, authorization, and storage failure passed.\n";
+    echo "PKI admin AJAX: recipients, download format, authorization, and storage failure passed.\n";
 }

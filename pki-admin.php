@@ -91,6 +91,14 @@ $framework->initializeJavascriptModuleObject();
                 <dt><?= $escape($framework->tt('pki_fingerprint')) ?></dt><dd><code><?= $escape(hash('sha256', $identity->certificateDer)) ?></code></dd>
                 <dt><?= $escape($framework->tt('pki_valid_until')) ?></dt><dd><?= $escape(gmdate('Y-m-d H:i:s \U\T\C', $details['validTo_time_t'] ?? 0)) ?></dd>
             </dl>
+            <?php if ($role === 'root'): ?>
+                <p>
+                    <button type="button" class="btn btn-default" data-pki-root-download="pem"><?= $escape($framework->tt('pki_download_root_pem')) ?></button>
+                    <button type="button" class="btn btn-default" data-pki-root-download="der"><?= $escape($framework->tt('pki_download_root_der')) ?></button>
+                </p>
+                <p class="text-muted"><?= $escape($framework->tt('pki_download_root_help')) ?></p>
+                <div id="pki-root-download-message" role="status" hidden></div>
+            <?php endif; ?>
         <?php endforeach; ?>
     <?php endif; ?>
     <h3><?= $escape($framework->tt('admin_alert_recipients')) ?></h3>
@@ -127,6 +135,41 @@ $framework->initializeJavascriptModuleObject();
             }
         }).catch(() => showMessage(false, failedMessage)).finally(() => {
             button.disabled = false;
+        });
+    });
+    const downloadMessage = document.getElementById('pki-root-download-message');
+    const downloadFailedMessage = <?= json_encode($framework->tt('pki_root_download_unavailable'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    document.querySelectorAll('[data-pki-root-download]').forEach(downloadButton => {
+        downloadButton.addEventListener('click', () => {
+            downloadButton.disabled = true;
+            downloadMessage.hidden = true;
+            module.ajax('download_root_certificate', downloadButton.dataset.pkiRootDownload).then(response => {
+                if (!response || !response.ok) {
+                    downloadMessage.className = 'alert alert-danger';
+                    downloadMessage.textContent = response && response.message ? response.message : downloadFailedMessage;
+                    downloadMessage.hidden = false;
+                    return;
+                }
+                const binary = atob(response.base64);
+                const bytes = new Uint8Array(binary.length);
+                for (let index = 0; index < binary.length; index++) {
+                    bytes[index] = binary.charCodeAt(index);
+                }
+                const url = URL.createObjectURL(new Blob([bytes], {type: response.content_type}));
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = response.filename;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 60000);
+            }).catch(() => {
+                downloadMessage.className = 'alert alert-danger';
+                downloadMessage.textContent = downloadFailedMessage;
+                downloadMessage.hidden = false;
+            }).finally(() => {
+                downloadButton.disabled = false;
+            });
         });
     });
 })();
