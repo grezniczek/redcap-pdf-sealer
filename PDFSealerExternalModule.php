@@ -43,6 +43,17 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
         require __DIR__ . '/trust.php';
     }
 
+    public function redcap_module_link_check_display($project_id, $link)
+    {
+        if ($project_id !== null && ($link['key'] ?? null) === 'public-trust') {
+            return $this->framework->getProjectSetting('hide-project-trust-link', $project_id) == true
+                ? null
+                : $link;
+        }
+
+        return parent::redcap_module_link_check_display($project_id, $link);
+    }
+
     public function redcap_module_ajax($action, $payload, $project_id): array
     {
         if ($action === 'download_public_root_certificate') {

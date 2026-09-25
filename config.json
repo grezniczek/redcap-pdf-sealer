@@ -25,6 +25,14 @@
             "is_terminal": true
         }
     ],
+    "project-settings": [
+        {
+            "key": "hide-project-trust-link",
+            "name": "Hide the PDF Seal trust certificate link in this project",
+            "tt_name": "project_hide_trust_link",
+            "type": "checkbox"
+        }
+    ],
     "system-settings": [
         {
             "key": "admin-alert-recipients",
@@ -42,6 +50,17 @@
                 "tt_name": "pki_link_name",
                 "icon": "fas fa-lock",
                 "url": "pki-admin.php",
+                "show-header-and-footer": false
+            }
+        ],
+        "project": [
+            {
+                "key": "public-trust",
+                "name": "PDF Seal trust certificates",
+                "tt_name": "project_trust_link_name",
+                "icon": "fas fa-certificate",
+                "url": "project-trust-link.php",
+                "target": "_blank",
                 "show-header-and-footer": false
             }
         ]
