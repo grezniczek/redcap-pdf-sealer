@@ -6,7 +6,8 @@
     "require": {
         "php": "^8.2",
         "ext-openssl": "*",
-        "tecnickcom/tc-lib-pdf-sign": "^2.0"
+        "tecnickcom/tc-lib-pdf-sign": "^2.0",
+        "tecnickcom/tc-lib-pdf-parser": "^3.16"
     },
     "autoload": {
         "psr-4": {
