@@ -275,7 +275,7 @@ Initially support:
 ```text
 version              = 1
 messageImprint       = SHA-256 only
-reqPolicy            = absent or our configured policy OID
+reqPolicy            = absent or the selected TSA policy OID
 nonce                = optional
 certReq              = supported
 extensions           = reject unsupported extensions
@@ -290,7 +290,7 @@ Construct:
 ```text
 TSTInfo
     version          = 1
-    policy           = configured module TSA policy OID
+    policy           = built-in PDF Sealer TSA Policy v1 OID or explicit override
     messageImprint   = exact request imprint
     serialNumber     = cryptographically random positive 128-bit integer
     genTime          = UTC derived from REDCap/PHP request time
@@ -688,6 +688,13 @@ tsa_policy_oid
 
 admin_alert_recipients
 ```
+
+The default TSA policy is PDF Sealer TSA Policy v1, OID
+`2.25.186172099785128831488612506224552954430`, derived from UUID
+`8c0f7132-9d42-4240-b259-da71e931ca3e`. `tsa_policy_oid` is an optional
+override. An unset value must not by itself trigger B-B fallback. The TSA
+accepts an absent `reqPolicy` or the selected OID and rejects other values
+with RFC 3161 `unacceptedPolicy`.
 
 ### EM logs table
 

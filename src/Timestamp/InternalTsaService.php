@@ -23,9 +23,8 @@ final class InternalTsaService
 
     public function __construct(private readonly string $policyOid)
     {
-        $this->asn1 = new Asn1();
+        $this->asn1 = new PolicyOidAsn1($policyOid);
         $this->certificate = new Certificate($this->asn1);
-        $this->asn1->encodeObjectIdentifier($policyOid);
     }
 
     public function policyOid(): string
@@ -90,7 +89,7 @@ final class InternalTsaService
             $nonce = '';
             $field = $this->asn1->readOptionalTlv($body, $offset);
             if ($field !== null && $field['tag'] === 0x06) {
-                if ($this->asn1->decodeObjectIdentifier($field['value']) !== $this->policyOid) {
+                if ($field['raw'] !== $this->asn1->encodeObjectIdentifier($this->policyOid)) {
                     throw new InvalidTimestampRequest(15);
                 }
                 $field = $this->asn1->readOptionalTlv($body, $offset);

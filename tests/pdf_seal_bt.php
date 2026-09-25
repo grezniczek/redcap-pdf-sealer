@@ -10,12 +10,13 @@ use DE\RUB\PDFSealerExternalModule\Timestamp\InternalTimestampProvider;
 use DE\RUB\PDFSealerExternalModule\Timestamp\InternalTsaService;
 use DE\RUB\PDFSealerExternalModule\Timestamp\TimestampProvider;
 use DE\RUB\PDFSealerExternalModule\Timestamp\TsaIdentity;
+use DE\RUB\PDFSealerExternalModule\Timestamp\TsaPolicy;
 
 require __DIR__ . '/pdf_seal_bb.php';
 
 $tsa = $issuer->createTsa('PDF Seal Test', $root);
 $internal = new InternalTimestampProvider(
-    new InternalTsaService('1.3.6.1.4.1.55555.3161.1'),
+    new InternalTsaService(TsaPolicy::DEFAULT_OID),
     new TsaIdentity($tsa->certificateDer, $tsa->privateKey(), [$root->certificateDer]),
 );
 $provider = new class($internal) implements TimestampProvider {
@@ -126,7 +127,7 @@ foreach ($cases as $source) {
 $failingProvider = new class implements TimestampProvider {
     public function policyOid(): string
     {
-        return '1.3.6.1.4.1.55555.3161.1';
+        return TsaPolicy::DEFAULT_OID;
     }
 
     public function respond(string $requestDer, int $now): string

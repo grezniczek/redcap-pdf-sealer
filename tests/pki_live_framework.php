@@ -139,7 +139,7 @@ try {
         $operation = ['id' => 'seal'];
         $framework->setSystemSetting('timestamp_mode', 'internal');
         $framework->setSystemSetting('bb_fallback', '1');
-        $framework->setSystemSetting('tsa_policy_oid', '1.3.6.1.4.1.55555.3161.1');
+        $framework->setSystemSetting('tsa_policy_oid', '');
         $result = $module->redcap_pdf_finalize($workingPath, $operation, $context);
         if (!$result->isModified() || !$result->isTerminal()
             || ($result->getMetadata()['seal_profile'] ?? null) !== 'pades-b-t'
@@ -150,12 +150,20 @@ try {
         }
         assertFinalizedPdf($workingPath);
 
-        $framework->setSystemSetting('tsa_policy_oid', '');
+        $framework->setSystemSetting('tsa_policy_oid', '1.3.6.1.4.1.55555.3161.1');
+        file_put_contents($workingPath, $pdf);
+        $result = $module->redcap_pdf_finalize($workingPath, $operation, $context);
+        if (!$result->isModified() || ($result->getMetadata()['seal_profile'] ?? null) !== 'pades-b-t') {
+            throw new RuntimeException('Live hook did not honor the TSA policy override');
+        }
+        assertFinalizedPdf($workingPath);
+
+        $framework->setSystemSetting('tsa_policy_oid', 'invalid-policy');
         file_put_contents($workingPath, $pdf);
         $result = $module->redcap_pdf_finalize($workingPath, $operation, $context);
         if (!$result->isModified() || ($result->getMetadata()['seal_profile'] ?? null) !== 'pades-b-b'
             || ($result->getMetadata()['timestamp_serial'] ?? null) !== null) {
-            throw new RuntimeException('Live hook did not fall back to B-B');
+            throw new RuntimeException('Live hook did not fall back to B-B after TSA configuration failure');
         }
         assertFinalizedPdf($workingPath);
 

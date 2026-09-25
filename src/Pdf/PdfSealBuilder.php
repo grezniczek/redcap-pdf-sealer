@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace DE\RUB\PDFSealerExternalModule\Pdf;
 
-use Com\Tecnick\Pdf\Sign\Cms\Asn1;
 use Com\Tecnick\Pdf\Sign\Cms\Certificate;
 use Com\Tecnick\Pdf\Sign\Cms\Oid;
 use Com\Tecnick\Pdf\Sign\Config;
@@ -15,6 +14,7 @@ use Com\Tecnick\Pdf\Sign\Timestamp\Client as TimestampClient;
 use Com\Tecnick\Pdf\Sign\Timestamp\Config as TimestampConfig;
 use DateTimeImmutable;
 use DateTimeZone;
+use DE\RUB\PDFSealerExternalModule\Timestamp\PolicyOidAsn1;
 use DE\RUB\PDFSealerExternalModule\Timestamp\TimestampProvider;
 use OpenSSLAsymmetricKey;
 
@@ -138,8 +138,8 @@ final class PdfSealBuilder
         $contentsEnd = $hexStart + $hexLength + 1;
         $coveredBytes = substr($coveredPdf, 0, $contentsStart) . substr($coveredPdf, $contentsEnd);
         $timestampClient = $timestampProvider === null ? null : new TimestampClient(new TimestampConfig(
-            'http://localhost.invalid/tsa', policyOid: $timestampProvider->policyOid(),
-        ));
+            'http://localhost.invalid/tsa',
+        ), new PolicyOidAsn1($timestampProvider->policyOid()));
         // Tecnick uses this client only as an RFC 3161 codec; the provider owns transport.
         $timestampNow ??= time();
         $transport = $timestampProvider === null ? null
@@ -156,18 +156,18 @@ final class PdfSealBuilder
         if ($timestampProvider === null) {
             return new PdfSealResult($sealed, $profile);
         }
-        [$serialHex, $time] = $this->timestampMetadata($cmsDer);
+        [$serialHex, $time] = $this->timestampMetadata($cmsDer, $timestampProvider->policyOid());
         return new PdfSealResult($sealed, $profile, $serialHex, $time);
     }
 
     /** @return array{string,int} Timestamp serial hex and generation time. */
-    private function timestampMetadata(string $cmsDer): array
+    private function timestampMetadata(string $cmsDer, string $policyOid): array
     {
         $tokens = $this->signer->signatureTimestampTokens($cmsDer);
         if (count($tokens) !== 1) {
             throw new \RuntimeException('PAdES B-T CMS must contain one timestamp token');
         }
-        $asn1 = new Asn1();
+        $asn1 = new PolicyOidAsn1($policyOid);
         $certificate = new Certificate($asn1);
         $offset = 0;
         [$contentType, $content] = $certificate->encapsulatedContent(
@@ -181,6 +181,9 @@ final class PdfSealBuilder
         $offset = 0;
         while ($offset < strlen($info['value'])) {
             $fields[] = $asn1->readTlv($info['value'], $offset);
+        }
+        if (($fields[1]['raw'] ?? null) !== $asn1->encodeObjectIdentifier($policyOid)) {
+            throw new \RuntimeException('Timestamp token policy does not match the configured policy');
         }
         if (($fields[3]['tag'] ?? null) !== 0x02 || ($fields[4]['tag'] ?? null) !== 0x18) {
             throw new \RuntimeException('Timestamp token lacks serial or generation time');

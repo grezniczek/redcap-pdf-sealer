@@ -20,6 +20,7 @@ use DE\RUB\PDFSealerExternalModule\Pki\SecretProtector;
 use DE\RUB\PDFSealerExternalModule\Timestamp\InternalTimestampProvider;
 use DE\RUB\PDFSealerExternalModule\Timestamp\InternalTsaService;
 use DE\RUB\PDFSealerExternalModule\Timestamp\TsaIdentity;
+use DE\RUB\PDFSealerExternalModule\Timestamp\TsaPolicy;
 use ExternalModules\PdfFinalizeResult;
 use RuntimeException;
 use Throwable;
@@ -118,10 +119,12 @@ final class PdfFinalizeService
             if ($health->status !== PkiHealth::Ready) {
                 throw new RuntimeException('TSA is unavailable');
             }
-            $policy = $settings->get('tsa_policy_oid');
-            if (!is_string($policy) || $policy === '') {
-                throw new RuntimeException('TSA policy OID is not configured');
+            $configuredPolicy = $settings->get('tsa_policy_oid');
+            if ($configuredPolicy !== null && !is_string($configuredPolicy)) {
+                throw new RuntimeException('TSA policy OID setting is invalid');
             }
+            $policy = $configuredPolicy === null || $configuredPolicy === ''
+                ? TsaPolicy::DEFAULT_OID : $configuredPolicy;
             $tsaId = $identities->activeId('tsa');
             $tsa = $tsaId === null ? null : $identities->find($tsaId);
             if ($tsa === null || $tsa->role !== 'tsa') {
