@@ -18,16 +18,6 @@
                 "econsent"
             ],
             "is_terminal": true
-        },
-        {
-            "id": "watermark",
-            "purpose": "Add visible FINALIZER TEST watermark (demo)",
-            "document_types": [
-                "econsent",
-                "survey_pdf",
-                "record_pdf"
-            ],
-            "is_terminal": false
         }
     ]
 }

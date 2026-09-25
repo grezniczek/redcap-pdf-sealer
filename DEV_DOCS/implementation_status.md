@@ -1,6 +1,6 @@
 # PDF Sealer implementation status
 
-The repository is progressing through `PDF_Sealer_EM_Implementation_Plan.md` in bounded slices. The existing `watermark` hook operation is only a finalizer demo. The `seal` operation still returns unchanged; no cryptographic PDF seal is active in REDCap yet.
+The repository is progressing through `PDF_Sealer_EM_Implementation_Plan.md` in bounded slices. The sole declared `seal` operation still returns unchanged; no cryptographic PDF seal is active in REDCap yet.
 
 ## Milestone 1: standalone RFC 3161 responder
 
