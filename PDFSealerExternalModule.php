@@ -6,6 +6,9 @@ use Com\Tecnick\Pdf\Sign\Cms\Certificate;
 use DE\RUB\PDFSealerExternalModule\Alerts\AdminAlarmService;
 use DE\RUB\PDFSealerExternalModule\Pdf\PdfFinalizeService;
 use DE\RUB\PDFSealerExternalModule\Pki\IdentityRepository;
+use DE\RUB\PDFSealerExternalModule\Pki\PrimaryLogReader;
+use DE\RUB\PDFSealerExternalModule\Pki\PrimarySystemSettingReader;
+use DE\RUB\PDFSealerExternalModule\Pki\PublicTrustRepository;
 use DE\RUB\PDFSealerExternalModule\Pki\SecretProtector;
 
 require_once __DIR__ . '/vendor/autoload.php';
@@ -14,6 +17,9 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
 {
     public function redcap_module_ajax($action, $payload, $project_id): array
     {
+        if ($action === 'download_public_root_certificate') {
+            return $this->downloadPublicRootCertificate($payload);
+        }
         if (!$this->framework->isSuperUser()
             || $project_id !== null
             || $this->framework->getProjectId() !== null) {
@@ -72,7 +78,38 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             error_log('PDF Sealer root certificate download failed (' . get_class($e) . ')');
             return ['ok' => false, 'message' => $this->framework->tt('pki_root_download_unavailable')];
         }
-        $contents = $format === 'pem' ? $pem : $der;
+        return self::certificateDownloadPayload($der, $format);
+    }
+
+    /** @return array{ok: bool, message?: string, filename?: string, content_type?: string, base64?: string} */
+    private function downloadPublicRootCertificate(mixed $payload): array
+    {
+        if (!is_array($payload)
+            || !is_string($payload['id'] ?? null)
+            || preg_match('/^[0-9a-f]{32}$/D', $payload['id']) !== 1
+            || !in_array($payload['format'] ?? null, ['pem', 'der'], true)) {
+            return ['ok' => false, 'message' => $this->framework->tt('pki_invalid_request')];
+        }
+        try {
+            $repository = new PublicTrustRepository(
+                new PrimaryLogReader($this->framework),
+                new PrimarySystemSettingReader($this->framework),
+            );
+            foreach ($repository->roots() as $root) {
+                if ($root['id'] === $payload['id']) {
+                    return self::certificateDownloadPayload($root['der'], $payload['format']);
+                }
+            }
+        } catch (\Throwable) {
+            // Do not expose repository details through a public endpoint.
+        }
+        return ['ok' => false, 'message' => $this->framework->tt('pki_root_download_unavailable')];
+    }
+
+    /** @return array{ok: true, filename: string, content_type: string, base64: string} */
+    private static function certificateDownloadPayload(string $der, string $format): array
+    {
+        $contents = $format === 'pem' ? Certificate::derToPem($der) : $der;
         return [
             'ok' => true,
             'filename' => 'redcap-pdf-sealer-root-' . substr(hash('sha256', $der), 0, 16) . '.' . $format,

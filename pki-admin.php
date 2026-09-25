@@ -101,6 +101,7 @@ $framework->initializeJavascriptModuleObject();
             <?php endif; ?>
         <?php endforeach; ?>
     <?php endif; ?>
+    <p><a href="<?= $escape($framework->getUrl('trust.php', true, true)) ?>"><?= $escape($framework->tt('pki_public_trust_page')) ?></a></p>
     <h3><?= $escape($framework->tt('admin_alert_recipients')) ?></h3>
     <p><?= $escape($framework->tt('admin_alert_recipients_help')) ?></p>
     <div id="pdf-sealer-recipient-message" role="status" hidden></div>

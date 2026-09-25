@@ -59,6 +59,12 @@ namespace {
     check($result === ['ok' => false, 'message' => 'pki_invalid_request'],
         'Unsupported certificate format was accepted');
 
+    $framework->superuser = false;
+    $result = $module->redcap_module_ajax('download_public_root_certificate', ['id' => 'bad', 'format' => 'pem'], null);
+    check($result === ['ok' => false, 'message' => 'pki_invalid_request'],
+        'Public download action did not accept unauthenticated dispatch');
+    $framework->superuser = true;
+
     foreach ([['superuser' => false, 'projectId' => null, 'context' => null],
               ['superuser' => true, 'projectId' => 461, 'context' => 461],
               ['superuser' => true, 'projectId' => null, 'context' => 461]] as $case) {
