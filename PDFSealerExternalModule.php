@@ -15,6 +15,34 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
 {
+    private const PUBLIC_TRUST_QUERY = 'pdf_sealer_certs&NOAUTH';
+
+    public static function publicTrustUrl(): string
+    {
+        return APP_PATH_SURVEY_FULL . '?' . self::PUBLIC_TRUST_QUERY;
+    }
+
+    public function redcap_every_page_before_render($project_id): void
+    {
+        if ($project_id !== null
+            || ($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET'
+            || ($_SERVER['QUERY_STRING'] ?? '') !== self::PUBLIC_TRUST_QUERY) {
+            return;
+        }
+
+        $requestPath = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
+        $surveyPath = parse_url(APP_PATH_SURVEY_FULL, PHP_URL_PATH);
+        if (!is_string($requestPath) || !is_string($surveyPath)
+            || rtrim($requestPath, '/') !== rtrim($surveyPath, '/')) {
+            return;
+        }
+
+        define('PDF_SEALER_PUBLIC_TRUST_ROUTE', true);
+        $module = $this;
+		$module->exitAfterHook();
+        require __DIR__ . '/trust.php';
+    }
+
     public function redcap_module_ajax($action, $payload, $project_id): array
     {
         if ($action === 'download_public_root_certificate') {

@@ -11,9 +11,9 @@
     ],
     "framework-version": 16,
     "enable-no-auth-logging": true,
+    "enable-every-page-hooks-on-system-pages": true,
     "auth-ajax-actions": ["save_alert_recipients", "download_root_certificate", "download_public_root_certificate"],
     "no-auth-ajax-actions": ["download_public_root_certificate"],
-    "no-auth-pages": ["trust"],
     "pdf-finalize": [
         {
             "id": "seal",

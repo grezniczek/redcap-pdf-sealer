@@ -7,6 +7,11 @@ use DE\RUB\PDFSealerExternalModule\Pki\PrimarySystemSettingReader;
 use DE\RUB\PDFSealerExternalModule\Pki\PublicTrustRepository;
 
 /** @var \DE\RUB\PDFSealerExternalModule\PDFSealerExternalModule $module */
+if (!defined('PDF_SEALER_PUBLIC_TRUST_ROUTE')) {
+    http_response_code(404);
+    exit;
+}
+
 $framework = $module->framework;
 $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $unavailable = false;
