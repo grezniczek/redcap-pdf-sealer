@@ -24,7 +24,7 @@ The repository is progressing through `PDF_Sealer_EM_Implementation_Plan.md` in 
 
 ### Control Center page follow-ups
 
-Integrate alarm recipient configuration into the PKI Control Center page. Further UI fixes and refinements for this page are expected; leave them for a later UI slice.
+The PKI Control Center page now accepts comma-, semicolon-, or whitespace-separated alarm recipient addresses, validates them with the alarm sender's parser, and saves the repeatable system setting. Empty input disables alarm email. Further UI fixes and refinements for this page remain for later slices.
 
 The repository, initialization path, and encryption wrapper have a live development-instance check: `PDF_SEALER_LIVE_TEST=1 php tests/pki_live_framework.php` boots REDCap, initializes a disposable root and TSA using the Framework temporary-file helper, reads their encrypted identities through real Framework logs, issues a project identity in an active project context, checks system scope and alarm throttling with a mock sender, and rolls back the outer test transaction. The test uses REDCap's actual `encrypt()`/`decrypt()` and confirms the rollback removed the records and settings. It sends no email. It must only run against a disposable development instance. `enable-no-auth-logging` is enabled because e-consent PDF finalization can run without an authenticated user. This verifies the services in a CLI REDCap bootstrap; it does not exercise the Control Center page in a browser or an e-consent web request. The PDF hook now uses these services.
 

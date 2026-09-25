@@ -45,7 +45,7 @@ final class AdminAlarmService
             $last = $this->alarms->lastMailedAt($fingerprint);
             $status = 'throttled';
             if ($last === null || $now - $last >= self::INTERVAL_SECONDS) {
-                $recipients = $this->recipients();
+                $recipients = self::parseRecipients($this->framework->getSystemSetting('admin-alert-recipients'));
                 if ($recipients === null) {
                     $status = 'invalid_recipients';
                 } elseif ($recipients === []) {
@@ -69,9 +69,8 @@ final class AdminAlarmService
     }
 
     /** @return list<string>|null Null means invalid configuration. */
-    private function recipients(): ?array
+    public static function parseRecipients(mixed $setting): ?array
     {
-        $setting = $this->framework->getSystemSetting('admin-alert-recipients');
         if ($setting === null || $setting === '') {
             return [];
         }

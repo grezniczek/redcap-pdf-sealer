@@ -77,6 +77,10 @@ $sender = static function (string $to, string $subject, string $body) use (&$sen
     return true;
 };
 $service = new AdminAlarmService($framework, $repository, $lock, $sender);
+check(AdminAlarmService::parseRecipients("Admin@example.org; admin@example.org\nother@example.org")
+    === ['admin@example.org', 'other@example.org'], 'Recipient normalization failed');
+check(AdminAlarmService::parseRecipients('') === [], 'Empty recipient input was not accepted');
+check(AdminAlarmService::parseRecipients('invalid address') === null, 'Invalid recipient input was accepted');
 $id = str_repeat('a', 32);
 $base = 1_700_000_000;
 
