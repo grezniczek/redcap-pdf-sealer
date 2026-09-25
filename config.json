@@ -10,6 +10,7 @@
         }
     ],
     "framework-version": 16,
+    "enable-no-auth-logging": true,
     "pdf-finalize": [
         {
             "id": "seal",
