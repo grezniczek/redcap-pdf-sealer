@@ -1,0 +1,15 @@
+{
+    "name": "de-rub/pdf-sealer",
+    "description": "Reference REDCap PDF sealing external module",
+    "type": "project",
+    "require": {
+        "php": "^8.2",
+        "ext-openssl": "*",
+        "tecnickcom/tc-lib-pdf-sign": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "DE\\RUB\\PDFSealerExternalModule\\": "src/"
+        }
+    }
+}
