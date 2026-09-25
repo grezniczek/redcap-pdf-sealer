@@ -14,4 +14,6 @@ The repository is progressing through `PDF_Sealer_EM_Implementation_Plan.md` in 
 
 `php tests/pki_primitives.php` verifies certificate profiles, distinct keys, the root chain, invalid-root rejection, and an RFC 3161 response signed by the issued TSA. Both Tecnick and `openssl ts -verify` accept that response.
 
-Identity persistence, system-scoped settings/log records, lazy project issuance, concurrency locks, health states, and alarms remain in Milestone 2. The encryption wrapper has not yet been exercised inside a live REDCap request. No keys or certificates have been persisted by this slice.
+`IdentityRepository` now appends encrypted identity records to system-scoped EM logs and keeps active root/TSA IDs in system settings. `PkiHealthService` reports `UNINITIALIZED`, `READY`, `DEGRADED`, or `BROKEN` without creating replacement identities. A missing active root pointer after a root record exists is `BROKEN`; an unusable TSA leaves the signing root in `DEGRADED` state. `php tests/pki_storage.php` checks scope, encrypted storage, pointer integrity, key mismatches, and these health transitions with a Framework test double. No live database records were created by this slice.
+
+Lazy project binding/issuance, concurrency locks, alarm persistence and throttling remain in Milestone 2. The encryption wrapper and Framework pseudo-query behavior have not yet been exercised inside a live REDCap request. The module hook does not yet instantiate these services.
