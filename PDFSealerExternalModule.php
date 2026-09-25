@@ -15,7 +15,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
 {
-    private const PUBLIC_TRUST_QUERY = 'pdf_sealer_certs&NOAUTH';
+    private const PUBLIC_TRUST_QUERY = 'pdf_sealer_certs';
 
     public static function publicTrustUrl(): string
     {
