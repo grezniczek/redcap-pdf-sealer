@@ -516,14 +516,14 @@ Suggested subjects:
 
 ```text
 O  = <configured organization>
-CN = REDCap PDF Seal Root CA
+CN = REDCap PDF Sealer Root CA
 ```
 
 ### Project certificate
 
 ```text
 O  = <configured organization>
-OU = REDCap PDF Seal
+OU = REDCap PDF Sealer
 CN = REDCap Project <stable project UUID>
 ```
 
@@ -531,8 +531,8 @@ CN = REDCap Project <stable project UUID>
 
 ```text
 O  = <configured organization>
-OU = REDCap PDF Seal
-CN = REDCap Instance Timestamp Authority
+OU = REDCap PDF Sealer
+CN = REDCap PDF Sealer Timestamp Authority
 ```
 
 Never put the REDCap project title into a certificate.
@@ -1255,7 +1255,7 @@ Fields/actions:
 
 ```text
 Organization (required)
-Initialize PDF Seal PKI
+Initialize PDF Sealer PKI
 ```
 
 ## After initialization

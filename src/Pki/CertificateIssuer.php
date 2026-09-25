@@ -24,7 +24,7 @@ distinguished_name = subject
 prompt = no
 
 [subject]
-CN = REDCap PDF Seal
+CN = REDCap PDF Sealer
 
 [root_ext]
 basicConstraints = critical,CA:true
@@ -59,7 +59,7 @@ CONFIG;
     {
         $this->assertOrganization($organization);
         return $this->issue(
-            ['O' => $organization, 'CN' => 'REDCap PDF Seal Root CA'],
+            ['O' => $organization, 'CN' => 'REDCap PDF Sealer Root CA'],
             'root_ext',
             self::ROOT_DAYS,
         );
@@ -70,7 +70,7 @@ CONFIG;
         $this->assertOrganization($organization);
         $this->assertRoot($organization, $root);
         return $this->issue(
-            ['O' => $organization, 'OU' => 'REDCap PDF Seal', 'CN' => 'REDCap Instance Timestamp Authority'],
+            ['O' => $organization, 'OU' => 'REDCap PDF Sealer', 'CN' => 'REDCap PDF Sealer Timestamp Authority'],
             'tsa_ext',
             self::LEAF_DAYS,
             $root,
@@ -85,7 +85,7 @@ CONFIG;
             throw new RuntimeException('Invalid project seal UUID');
         }
         return $this->issue(
-            ['O' => $organization, 'OU' => 'REDCap PDF Seal', 'CN' => 'REDCap Project ' . $projectUuid],
+            ['O' => $organization, 'OU' => 'REDCap PDF Sealer', 'CN' => 'REDCap Project ' . $projectUuid],
             'project_ext',
             self::LEAF_DAYS,
             $root,

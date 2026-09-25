@@ -28,7 +28,7 @@
     "project-settings": [
         {
             "key": "hide-project-trust-link",
-            "name": "Hide the PDF Seal trust certificate link in this project",
+            "name": "Hide the link to PDF Sealer root certificates in this project",
             "tt_name": "project_hide_trust_link",
             "type": "checkbox"
         }
@@ -46,7 +46,7 @@
     "links": {
         "control-center": [
             {
-                "name": "PDF Seal PKI",
+                "name": "PDF Sealer PKI",
                 "tt_name": "pki_link_name",
                 "icon": "fas fa-lock",
                 "url": "pki-admin.php",
@@ -56,7 +56,7 @@
         "project": [
             {
                 "key": "public-trust",
-                "name": "PDF Seal trust certificates",
+                "name": "PDF Sealer root certificates",
                 "tt_name": "project_trust_link_name",
                 "icon": "fas fa-certificate",
                 "url": "project-trust-link.php",
