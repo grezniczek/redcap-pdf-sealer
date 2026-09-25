@@ -87,7 +87,7 @@ function dictionaryValue(array $dictionary, string $key): ?array
     return PdfStructureInspector::value($dictionary, $key);
 }
 
-function verifySeal(string $source, string $sealed, string $rootPem): void
+function verifySeal(string $source, string $sealed, string $rootPem): string
 {
     checkSeal(str_starts_with($sealed, $source), 'Sealing changed the original PDF prefix');
     [$xref, $objects] = (new Parser(['decode_streams' => false, 'strict_limits' => true]))->parse($sealed);
@@ -198,6 +198,7 @@ function verifySeal(string $source, string $sealed, string $rootPem): void
         throw new RuntimeException('A second certification seal was accepted');
     } catch (UnsupportedPdf $expected) {
     }
+    return $cms;
 }
 
 $issuer = new CertificateIssuer(static function (): string {

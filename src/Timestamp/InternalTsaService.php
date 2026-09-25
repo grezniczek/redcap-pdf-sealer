@@ -28,6 +28,11 @@ final class InternalTsaService
         $this->asn1->encodeObjectIdentifier($policyOid);
     }
 
+    public function policyOid(): string
+    {
+        return $this->policyOid;
+    }
+
     /** Return a DER TimeStampResp; invalid requests receive a rejection status. */
     public function respond(string $timestampRequestDer, TsaIdentity $identity, int $now): string
     {

@@ -4,16 +4,24 @@ declare(strict_types=1);
 
 namespace DE\RUB\PDFSealerExternalModule\Pdf;
 
+use Com\Tecnick\Pdf\Sign\Cms\Asn1;
 use Com\Tecnick\Pdf\Sign\Cms\Certificate;
+use Com\Tecnick\Pdf\Sign\Cms\Oid;
 use Com\Tecnick\Pdf\Sign\Config;
 use Com\Tecnick\Pdf\Sign\Output\Signature;
 use Com\Tecnick\Pdf\Sign\Output\Widget;
 use Com\Tecnick\Pdf\Sign\Signer;
+use Com\Tecnick\Pdf\Sign\Timestamp\Client as TimestampClient;
+use Com\Tecnick\Pdf\Sign\Timestamp\Config as TimestampConfig;
+use DateTimeImmutable;
+use DateTimeZone;
+use DE\RUB\PDFSealerExternalModule\Timestamp\TimestampProvider;
 use OpenSSLAsymmetricKey;
 
-/** Builds an invisible, certification-level PAdES B-B seal in one appended revision. */
+/** Builds an invisible, certification-level PAdES B-B or B-T seal in one appended revision. */
 final class PdfSealBuilder
 {
+    private const TIMESTAMPED_CONTENTS_LENGTH = 32_768;
     private const DOC_MDP = ' /Reference [<< /Type /SigRef /TransformMethod /DocMDP'
         . ' /TransformParams << /Type /TransformParams /P 1 /V /1.2 >> >>]';
 
@@ -32,6 +40,30 @@ final class PdfSealBuilder
         array $chainCertsDer,
         int $signingTime,
     ): string {
+        return $this->build($originalPdf, $projectCertDer, $privateKey, $chainCertsDer, $signingTime, null)->pdf;
+    }
+
+    /** @param list<string> $chainCertsDer Issuer certificates, root included. */
+    public function sealTimestamped(
+        string $originalPdf,
+        string $projectCertDer,
+        OpenSSLAsymmetricKey $privateKey,
+        array $chainCertsDer,
+        int $signingTime,
+        TimestampProvider $timestampProvider,
+    ): PdfSealResult {
+        return $this->build($originalPdf, $projectCertDer, $privateKey, $chainCertsDer, $signingTime, $timestampProvider);
+    }
+
+    /** @param list<string> $chainCertsDer Issuer certificates, root included. */
+    private function build(
+        string $originalPdf,
+        string $projectCertDer,
+        OpenSSLAsymmetricKey $privateKey,
+        array $chainCertsDer,
+        int $signingTime,
+        ?TimestampProvider $timestampProvider,
+    ): PdfSealResult {
         if ($chainCertsDer === [] || !openssl_x509_check_private_key(Certificate::derToPem($projectCertDer), $privateKey)) {
             throw new \InvalidArgumentException('Project signing identity or root chain is invalid');
         }
@@ -44,7 +76,10 @@ final class PdfSealBuilder
             throw new UnsupportedPdf('Page generation is unsupported by the signature widget emitter');
         }
 
-        $config = new Config(Config::PROFILE_PADES_B_B, 'sha256', 1);
+        $profile = $timestampProvider === null ? Config::PROFILE_PADES_B_B : Config::PROFILE_PADES_B_T;
+        $config = new Config($profile, 'sha256', 1);
+        $contentsLength = $timestampProvider === null
+            ? Signature::DEFAULT_CONTENTS_LENGTH : self::TIMESTAMPED_CONTENTS_LENGTH;
         $next = $pdf->nextObjectNumber;
         $signatureNumber = $next++;
         $widgetNumber = $next++;
@@ -91,23 +126,69 @@ final class PdfSealBuilder
         $objects[$widgetRef] = self::emittedBody($widgetNumber, $widget);
         $date = '(D:' . gmdate('YmdHis', $signingTime) . 'Z)';
         $signature = (new Signature())->valueObject(
-            $signatureNumber, $config->subFilter(), self::DOC_MDP, [], $date,
+            $signatureNumber, $config->subFilter(), self::DOC_MDP, [], $date, $contentsLength,
         );
         $objects[$signatureRef] = self::emittedBody($signatureNumber, $signature);
 
         $prepared = $this->writer->append($pdf, $objects);
-        [$coveredPdf, $hexStart, $hexLength] = self::fixByteRange($prepared, strlen($originalPdf));
+        [$coveredPdf, $hexStart, $hexLength] = self::fixByteRange($prepared, strlen($originalPdf), $contentsLength);
         $contentsStart = $hexStart - 1;
         $contentsEnd = $hexStart + $hexLength + 1;
         $coveredBytes = substr($coveredPdf, 0, $contentsStart) . substr($coveredPdf, $contentsEnd);
+        $timestampClient = $timestampProvider === null ? null : new TimestampClient(new TimestampConfig(
+            'http://localhost.invalid/tsa', policyOid: $timestampProvider->policyOid(),
+        ));
+        // Tecnick uses this client only as an RFC 3161 codec; the provider owns transport.
+        $timestampNow = time();
+        $transport = $timestampProvider === null ? null
+            : static fn(string $requestDer): string => $timestampProvider->respond($requestDer, $timestampNow);
         $cmsDer = $this->signer->sign(
             $coveredBytes, $projectCertDer, $privateKey, $chainCertsDer, $config, $signingTime,
+            $timestampClient, $transport, timestampNow: $timestampNow,
         );
         $hexCms = strtoupper(bin2hex($cmsDer));
         if (strlen($hexCms) > $hexLength) {
             throw new \LengthException('CMS signature exceeds reserved PDF Contents');
         }
-        return substr_replace($coveredPdf, str_pad($hexCms, $hexLength, '0'), $hexStart, $hexLength);
+        $sealed = substr_replace($coveredPdf, str_pad($hexCms, $hexLength, '0'), $hexStart, $hexLength);
+        if ($timestampProvider === null) {
+            return new PdfSealResult($sealed, $profile);
+        }
+        [$serialHex, $time] = $this->timestampMetadata($cmsDer);
+        return new PdfSealResult($sealed, $profile, $serialHex, $time);
+    }
+
+    /** @return array{string,int} Timestamp serial hex and generation time. */
+    private function timestampMetadata(string $cmsDer): array
+    {
+        $tokens = $this->signer->signatureTimestampTokens($cmsDer);
+        if (count($tokens) !== 1) {
+            throw new \RuntimeException('PAdES B-T CMS must contain one timestamp token');
+        }
+        $asn1 = new Asn1();
+        $certificate = new Certificate($asn1);
+        $offset = 0;
+        [$contentType, $content] = $certificate->encapsulatedContent(
+            $certificate->signedDataContent($tokens[0]), $offset,
+        );
+        if ($contentType !== $asn1->encodeObjectIdentifier(Oid::TST_INFO)) {
+            throw new \RuntimeException('Timestamp token has the wrong content type');
+        }
+        $info = $asn1->readSingleElement($content, 0x30, 'TSTInfo');
+        $fields = [];
+        $offset = 0;
+        while ($offset < strlen($info['value'])) {
+            $fields[] = $asn1->readTlv($info['value'], $offset);
+        }
+        if (($fields[3]['tag'] ?? null) !== 0x02 || ($fields[4]['tag'] ?? null) !== 0x18) {
+            throw new \RuntimeException('Timestamp token lacks serial or generation time');
+        }
+        $timeText = $fields[4]['value'];
+        $time = DateTimeImmutable::createFromFormat('!YmdHis\Z', $timeText, new DateTimeZone('UTC'));
+        if ($time === false || $time->format('YmdHis\Z') !== $timeText) {
+            throw new \RuntimeException('Timestamp generation time is invalid');
+        }
+        return [strtoupper(bin2hex($fields[3]['value'])), $time->getTimestamp()];
     }
 
     /** @param array<string, array|string> $objects */
@@ -192,7 +273,7 @@ final class PdfSealBuilder
     }
 
     /** @return array{string,int,int} Final ByteRange bytes, hex start, reserved hex length. */
-    private static function fixByteRange(string $prepared, int $sourceLength): array
+    private static function fixByteRange(string $prepared, int $sourceLength, int $contentsLength): array
     {
         $placeholder = Signature::BYTE_RANGE_PLACEHOLDER;
         $rangeOffset = strpos($prepared, $placeholder, $sourceLength);
@@ -205,7 +286,7 @@ final class PdfSealBuilder
             throw new \RuntimeException('PDF signature Contents placeholder is missing');
         }
         $hexStart = $markerOffset + strlen($contentsMarker);
-        $hexLength = Signature::DEFAULT_CONTENTS_LENGTH;
+        $hexLength = $contentsLength;
         $contentsStart = $hexStart - 1;
         $contentsEnd = $hexStart + $hexLength + 1;
         if (substr($prepared, $hexStart, $hexLength) !== str_repeat('0', $hexLength)
