@@ -60,6 +60,7 @@ $previousFallback = $framework->getSystemSetting('bb_fallback');
 \ExternalModules\ExternalModules::setProjectId('461');
 
 $probe = 'pdf-sealer-crypto-probe-' . bin2hex(random_bytes(8));
+$generationId = 'pdf-sealer-live-test-' . bin2hex(random_bytes(8));
 if ($protector->decrypt($protector->encrypt($probe)) !== $probe) {
     throw new RuntimeException('REDCap encryption round trip failed');
 }
@@ -135,8 +136,10 @@ try {
     }
     try {
         $module = $framework->getModuleInstance();
-        $context = ['project_id' => 461, 'document_type' => 'econsent', 'generation_id' => 'pdf-sealer-live-test'];
+        $context = ['project_id' => 461, 'document_type' => 'econsent', 'generation_id' => $generationId];
         $operation = ['id' => 'seal'];
+        $sealExpectations = [];
+        $inputHash = hash('sha256', $pdf);
         $framework->setSystemSetting('timestamp_mode', 'internal');
         $framework->setSystemSetting('bb_fallback', '1');
         $framework->setSystemSetting('tsa_policy_oid', '');
@@ -149,6 +152,8 @@ try {
             throw new RuntimeException('Live hook did not return a B-T working PDF');
         }
         assertFinalizedPdf($workingPath);
+        $sealExpectations[] = ['pades-b-t', '1', 'internal', '0', null, hash_file('sha256', $workingPath),
+            $result->getMetadata()['timestamp_serial'], (string) $result->getMetadata()['timestamp_time']];
 
         $framework->setSystemSetting('tsa_policy_oid', '1.3.6.1.4.1.55555.3161.1');
         file_put_contents($workingPath, $pdf);
@@ -157,6 +162,8 @@ try {
             throw new RuntimeException('Live hook did not honor the TSA policy override');
         }
         assertFinalizedPdf($workingPath);
+        $sealExpectations[] = ['pades-b-t', '1', 'internal', '0', null, hash_file('sha256', $workingPath),
+            $result->getMetadata()['timestamp_serial'], (string) $result->getMetadata()['timestamp_time']];
 
         $framework->setSystemSetting('tsa_policy_oid', 'invalid-policy');
         file_put_contents($workingPath, $pdf);
@@ -166,6 +173,7 @@ try {
             throw new RuntimeException('Live hook did not fall back to B-B after TSA configuration failure');
         }
         assertFinalizedPdf($workingPath);
+        $sealExpectations[] = ['pades-b-b', '1', 'none', '1', null, hash_file('sha256', $workingPath), null, null];
 
         $framework->setSystemSetting('bb_fallback', '0');
         file_put_contents($workingPath, $pdf);
@@ -173,6 +181,7 @@ try {
         if (!$result->isFailed() || file_get_contents($workingPath) !== $pdf) {
             throw new RuntimeException('Live hook did not preserve the working PDF on failure');
         }
+        $sealExpectations[] = ['failed', '0', 'none', '0', 'PDF_SEAL_FAILED', null, null, null];
 
         $framework->setSystemSetting('timestamp_mode', 'none');
         file_put_contents($workingPath, $pdf);
@@ -180,6 +189,7 @@ try {
         if (!$result->isModified() || ($result->getMetadata()['seal_profile'] ?? null) !== 'pades-b-b') {
             throw new RuntimeException('Live hook did not honor B-B-only mode');
         }
+        $sealExpectations[] = ['pades-b-b', '1', 'none', '0', null, hash_file('sha256', $workingPath), null, null];
         \ExternalModules\ExternalModules::setProjectId(null);
         try {
             file_put_contents($workingPath, $pdf);
@@ -187,11 +197,65 @@ try {
             if (!$result->isModified() || ($result->getMetadata()['seal_profile'] ?? null) !== 'pades-b-b') {
                 throw new RuntimeException('Live hook rejected a context-only project ID');
             }
+            $sealExpectations[] = ['pades-b-b', '1', 'none', '0', null, hash_file('sha256', $workingPath), null, null];
         } finally {
             \ExternalModules\ExternalModules::setProjectId('461');
         }
+        file_put_contents($workingPath, $pdf);
+        $invalidContext = $context;
+        $invalidContext['project_id'] = 462;
+        $result = $module->redcap_pdf_finalize($workingPath, $operation, $invalidContext);
+        if (!$result->isFailed() || file_get_contents($workingPath) !== $pdf) {
+            throw new RuntimeException('Live hook accepted a mismatched project context');
+        }
+        $sealExpectations[] = ['failed', '0', 'none', '0', 'INVALID_CONTEXT', null, null, null];
     } finally {
         @unlink($workingPath);
+    }
+
+    $rows = $framework->queryLogs(
+        'SELECT project_id, record, event, generation_id, pid, project_uuid, certificate_identity_id, certificate_serial, certificate_sha256, input_sha256, output_sha256, profile, timestamp_source, timestamp_serial, timestamp_time, fallback_used, success, error_code, error_message, created_at WHERE message = ? AND generation_id = ? AND ISNULL(project_id) ORDER BY log_id ASC',
+        ['seal_event', $generationId],
+    );
+    if ($rows === false) {
+        throw new RuntimeException('Could not read live seal events');
+    }
+    $sealRows = [];
+    while ($row = $rows->fetch_assoc()) {
+        $sealRows[] = $row;
+    }
+    if (count($sealRows) !== count($sealExpectations)) {
+        throw new RuntimeException('Expected exactly one seal event per hook attempt');
+    }
+    $certificate = openssl_x509_parse(\Com\Tecnick\Pdf\Sign\Cms\Certificate::derToPem($project->certificateDer));
+    if (!is_array($certificate)) {
+        throw new RuntimeException('Could not parse project certificate for seal event check');
+    }
+    foreach ($sealRows as $index => $row) {
+        [$profile, $success, $timestampSource, $fallbackUsed, $errorCode, $outputHash, $timestampSerial, $timestampTime] =
+            $sealExpectations[$index];
+        if ($row['project_id'] !== null || $row['record'] !== null || $row['event'] !== 'seal'
+            || $row['generation_id'] !== $generationId
+            || $row['pid'] !== ($index === count($sealRows) - 1 ? '462' : '461')
+            || $row['profile'] !== $profile || $row['success'] !== $success
+            || $row['timestamp_source'] !== $timestampSource || $row['fallback_used'] !== $fallbackUsed
+            || $row['error_code'] !== $errorCode || $row['output_sha256'] !== $outputHash
+            || $row['timestamp_serial'] !== $timestampSerial || $row['timestamp_time'] !== $timestampTime
+            || !preg_match('/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/D', $row['created_at'] ?? '')) {
+            throw new RuntimeException('Live seal event profile, scope, or outcome mismatch at attempt ' . $index);
+        }
+        if ($index === count($sealRows) - 1) {
+            if ($row['project_uuid'] !== null || $row['certificate_identity_id'] !== null
+                || $row['input_sha256'] !== null || $row['error_message'] !== 'PDF seal project context is invalid') {
+                throw new RuntimeException('Invalid-context seal event exposed project or PDF details');
+            }
+        } elseif ($row['project_uuid'] !== $project->projectUuid
+            || $row['certificate_identity_id'] !== $project->id
+            || $row['certificate_serial'] !== strtoupper($certificate['serialNumberHex'])
+            || $row['certificate_sha256'] !== hash('sha256', $project->certificateDer)
+            || $row['input_sha256'] !== $inputHash) {
+            throw new RuntimeException('Live seal event identity or digest mismatch at attempt ' . $index);
+        }
     }
 
     $framework->setSystemSetting('admin-alert-recipients', ['alarm@example.org']);
@@ -227,7 +291,11 @@ if ($repository->find($id) !== null || $bindings->find(461) !== null
     || $framework->getSystemSetting('tsa_policy_oid') !== $previousPolicy
     || $framework->getSystemSetting('timestamp_mode') !== $previousTimestampMode
     || $framework->getSystemSetting('bb_fallback') !== $previousFallback
-    || $alarms->lastMailedAt(hash('sha256', 'PROJECT_KEY_MISMATCH' . "\0" . $project->id)) !== null) {
+    || $alarms->lastMailedAt(hash('sha256', 'PROJECT_KEY_MISMATCH' . "\0" . $project->id)) !== null
+    || $framework->queryLogs(
+        'SELECT log_id WHERE message = ? AND generation_id = ? AND ISNULL(project_id) LIMIT 1',
+        ['seal_event', $generationId],
+    )->fetch_assoc() !== null) {
     throw new RuntimeException('Test PKI records or settings remained after rollback');
 }
-echo "Live Framework PKI, PDF finalization hook, alarm throttle, and rollback passed.\n";
+echo "Live Framework PKI, PDF finalization hook, seal events, alarm throttle, and rollback passed.\n";

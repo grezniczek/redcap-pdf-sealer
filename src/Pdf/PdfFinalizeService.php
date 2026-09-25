@@ -38,11 +38,30 @@ final class PdfFinalizeService
         if (($operation['id'] ?? null) !== 'seal' || ($context['document_type'] ?? null) !== 'econsent') {
             return PdfFinalizeResult::unchanged();
         }
+        $events = new SealEventRepository($this->framework);
         $pid = $context['project_id'] ?? null;
+        $event = [
+            'generation_id' => is_string($context['generation_id'] ?? null) ? $context['generation_id'] : null,
+            'pid' => (is_int($pid) || (is_string($pid) && ctype_digit($pid))) ? (string) $pid : null,
+            'project_uuid' => null,
+            'certificate_identity_id' => null,
+            'certificate_serial' => null,
+            'certificate_sha256' => null,
+            'input_sha256' => null,
+            'output_sha256' => null,
+            'profile' => 'failed',
+            'timestamp_source' => 'none',
+            'timestamp_serial' => null,
+            'timestamp_time' => null,
+            'fallback_used' => '0',
+            'success' => '0',
+            'error_code' => null,
+            'error_message' => null,
+        ];
         $ambientPid = $this->framework->getProjectId();
         if ((!is_int($pid) && (!is_string($pid) || !ctype_digit($pid))) || (int) $pid < 1
             || ($ambientPid !== null && (int) $pid !== (int) $ambientPid)) {
-            return PdfFinalizeResult::failed('INVALID_CONTEXT', 'PDF seal project context is invalid');
+            return $this->failed($events, $event, 'INVALID_CONTEXT', 'PDF seal project context is invalid');
         }
         try {
             $protector = new SecretProtector();
@@ -51,7 +70,7 @@ final class PdfFinalizeService
             $report = $health->inspect(time());
             if ($report->status === PkiHealth::Uninitialized || $report->status === PkiHealth::Broken) {
                 $this->alarm($report);
-                return PdfFinalizeResult::failed('PKI_NOT_READY', $report->errorCode ?? $report->status->value);
+                return $this->failed($events, $event, 'PKI_NOT_READY', $report->errorCode ?? $report->status->value);
             }
             if ($report->status === PkiHealth::Degraded) {
                 $this->alarm($report);
@@ -65,8 +84,9 @@ final class PdfFinalizeService
             $fallback = self::fallbackEnabled($settings->get('bb_fallback'));
             $source = file_get_contents($path);
             if (!is_string($source)) {
-                return PdfFinalizeResult::failed('INPUT_READ_FAILED', 'PDF working copy is unreadable');
+                return $this->failed($events, $event, 'INPUT_READ_FAILED', 'PDF working copy is unreadable');
             }
+            $event['input_sha256'] = hash('sha256', $source);
 
             $rootId = $identities->activeId('root');
             $root = $rootId === null ? null : $identities->find($rootId);
@@ -77,6 +97,14 @@ final class PdfFinalizeService
                 new ProjectBindingRepository($this->framework), $identities, $protector,
                 new CertificateIssuer([$this->framework, 'createTempFile']), $health, new ProjectIssueLock(),
             ))->getOrIssue((int) $pid);
+            $certificate = openssl_x509_parse(\Com\Tecnick\Pdf\Sign\Cms\Certificate::derToPem($project->certificateDer));
+            if (!is_array($certificate) || !is_string($certificate['serialNumberHex'] ?? null)) {
+                throw new RuntimeException('Project certificate serial is unavailable');
+            }
+            $event['project_uuid'] = $project->projectUuid;
+            $event['certificate_identity_id'] = $project->id;
+            $event['certificate_serial'] = strtoupper($certificate['serialNumberHex']);
+            $event['certificate_sha256'] = hash('sha256', $project->certificateDer);
             $key = $project->privateKey($protector);
             $now = self::requestTime();
             if ($mode === 'none') {
@@ -90,7 +118,20 @@ final class PdfFinalizeService
             }
             $written = file_put_contents($path, $result->pdf, LOCK_EX);
             if ($written !== strlen($result->pdf)) {
-                return PdfFinalizeResult::failed('OUTPUT_WRITE_FAILED', 'Could not write sealed PDF working copy');
+                return $this->failed($events, $event, 'OUTPUT_WRITE_FAILED', 'Could not write sealed PDF working copy');
+            }
+            $event['output_sha256'] = hash('sha256', $result->pdf);
+            $event['profile'] = $result->profile;
+            $event['timestamp_source'] = $result->profile === 'pades-b-t' ? 'internal' : 'none';
+            $event['timestamp_serial'] = $result->timestampSerialHex;
+            $event['timestamp_time'] = $result->timestampTime === null ? null : (string) $result->timestampTime;
+            $event['fallback_used'] = $mode === 'internal' && $result->profile === 'pades-b-b' ? '1' : '0';
+            $event['success'] = '1';
+            try {
+                $events->append($event);
+            } catch (Throwable $e) {
+                error_log('PDF Sealer seal event failed: ' . get_class($e));
+                return PdfFinalizeResult::failed('SEAL_EVENT_WRITE_FAILED', 'Could not record PDF seal event');
             }
             return PdfFinalizeResult::modified($path, true, [
                 'seal_profile' => $result->profile,
@@ -99,8 +140,27 @@ final class PdfFinalizeService
             ]);
         } catch (Throwable $e) {
             error_log('PDF Sealer finalization failed: ' . get_class($e));
-            return PdfFinalizeResult::failed('PDF_SEAL_FAILED', 'PDF sealing failed');
+            return $this->failed($events, $event, 'PDF_SEAL_FAILED', 'PDF sealing failed');
         }
+    }
+
+    /** @param array<string, string|null> $event */
+    private function failed(SealEventRepository $events, array $event, string $code, string $message): PdfFinalizeResult
+    {
+        $event['profile'] = 'failed';
+        $event['timestamp_source'] = 'none';
+        $event['timestamp_serial'] = null;
+        $event['timestamp_time'] = null;
+        $event['output_sha256'] = null;
+        $event['success'] = '0';
+        $event['error_code'] = $code;
+        $event['error_message'] = $message;
+        try {
+            $events->append($event);
+        } catch (Throwable $e) {
+            error_log('PDF Sealer seal event failed: ' . get_class($e));
+        }
+        return PdfFinalizeResult::failed($code, $message);
     }
 
     private function sealWithFallback(
