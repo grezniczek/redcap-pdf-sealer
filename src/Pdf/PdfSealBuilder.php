@@ -51,8 +51,9 @@ final class PdfSealBuilder
         array $chainCertsDer,
         int $signingTime,
         TimestampProvider $timestampProvider,
+        ?int $timestampNow = null,
     ): PdfSealResult {
-        return $this->build($originalPdf, $projectCertDer, $privateKey, $chainCertsDer, $signingTime, $timestampProvider);
+        return $this->build($originalPdf, $projectCertDer, $privateKey, $chainCertsDer, $signingTime, $timestampProvider, $timestampNow);
     }
 
     /** @param list<string> $chainCertsDer Issuer certificates, root included. */
@@ -63,6 +64,7 @@ final class PdfSealBuilder
         array $chainCertsDer,
         int $signingTime,
         ?TimestampProvider $timestampProvider,
+        ?int $timestampNow = null,
     ): PdfSealResult {
         if ($chainCertsDer === [] || !openssl_x509_check_private_key(Certificate::derToPem($projectCertDer), $privateKey)) {
             throw new \InvalidArgumentException('Project signing identity or root chain is invalid');
@@ -139,7 +141,7 @@ final class PdfSealBuilder
             'http://localhost.invalid/tsa', policyOid: $timestampProvider->policyOid(),
         ));
         // Tecnick uses this client only as an RFC 3161 codec; the provider owns transport.
-        $timestampNow = time();
+        $timestampNow ??= time();
         $transport = $timestampProvider === null ? null
             : static fn(string $requestDer): string => $timestampProvider->respond($requestDer, $timestampNow);
         $cmsDer = $this->signer->sign(

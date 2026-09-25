@@ -2,7 +2,7 @@
 
 A reference implementation in progress for cryptographically sealing REDCap-generated PDFs through the `redcap_pdf_finalize` hook.
 
-The module currently declares one terminal `seal` operation for e-Consent PDFs. The hook returns `unchanged` while sealing is being implemented, so enabling the operation does not yet alter PDFs.
+The module declares one terminal `seal` operation for e-Consent PDFs. When it is assigned to a project PDF finalization pipeline and the PKI is ready, the hook seals the Framework working copy and returns a terminal modified result. The Framework keeps the prior PDF on failure.
 
 The standalone RFC 3161 timestamp responder, PKI components, and PDF seal builder are under `src/`. After `composer install`, run the standalone checks (`tests/pdf_structure.php` requires `qpdf`; the PDF seal tests also require `pdfsig` on `PATH`):
 
@@ -20,6 +20,6 @@ php tests/pdf_seal_bt.php
 
 To check a REDCap-generated PDF without adding its bytes to the repository, export it to a local file and run `PDF_SEALER_REDCAP_PDF_PATH=/absolute/path/to/exported.pdf php tests/pdf_structure.php`, `PDF_SEALER_REDCAP_PDF_PATH=/absolute/path/to/exported.pdf php tests/pdf_seal_bb.php`, or the same command with `tests/pdf_seal_bt.php`. The seal tests sign in memory with disposable test certificates, then check the detached CMS and root chain with OpenSSL. The B-T test also validates the RFC 3161 response with OpenSSL. All PDF tests use `qpdf`; the seal tests also use Poppler `pdfsig` to confirm PDF signature recognition, signed ranges, and full-document coverage. Its `-nocert` option skips trust validation for the disposable test root; OpenSSL verifies that chain separately.
 
-The superuser Control Center **PDF Seal PKI** page provides explicit, one-time root and TSA initialization. The standalone PDF builder can append PAdES B-B and B-T certification seals using the in-process TSA, but it is not connected to the hook. The hook still returns `unchanged`.
+The superuser Control Center **PDF Seal PKI** page provides explicit, one-time root and TSA initialization. The PDF finalization hook uses the project sealing identity and in-process TSA for PAdES B-T. It falls back to B-B by default when timestamping is unavailable. A production `tsa_policy_oid` system setting is required for B-T; until configured, the default is B-B. Set `timestamp_mode` to `none` for B-B only, or `bb_fallback` to `0` to make timestamp failures fail the operation. These settings do not yet have UI controls.
 
-On a disposable REDCap development instance, run `PDF_SEALER_LIVE_TEST=1 php tests/pki_live_framework.php` to verify real Framework storage and alarm throttling. Its records and settings are rolled back, and its sender is mocked. See [implementation status](DEV_DOCS/implementation_status.md) for completed work and remaining integration.
+On a disposable REDCap development instance, run `PDF_SEALER_LIVE_TEST=1 php tests/pki_live_framework.php` to verify Framework storage, the PDF finalization hook, and alarm throttling. Its records and settings are rolled back, and its alarm sender is mocked. See [implementation status](DEV_DOCS/implementation_status.md) for completed work and remaining integration.
