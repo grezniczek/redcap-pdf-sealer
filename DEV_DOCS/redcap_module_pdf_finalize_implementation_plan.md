@@ -1,11 +1,11 @@
-# `redcap_pdf_finalize` — Implementation Plan
+# `redcap_module_pdf_finalize` — Implementation Plan
 
 ## 1. Purpose
 
 Introduce a new generic REDCap External Module hook:
 
 ```php
-redcap_pdf_finalize(
+redcap_module_pdf_finalize(
     string $temporaryPdfPath,
     array $operation,
     array $context
@@ -18,7 +18,7 @@ The hook is intentionally **fully generic**. REDCap Core and the External Module
 
 The central lifecycle guarantee is:
 
-> After the `redcap_pdf_finalize` pipeline has completed, REDCap must store, hash, expose, email, archive, or otherwise use exactly the resulting PDF bytes without any subsequent byte-level modification.
+> After the `redcap_module_pdf_finalize` pipeline has completed, REDCap must store, hash, expose, email, archive, or otherwise use exactly the resulting PDF bytes without any subsequent byte-level modification.
 
 ---
 
@@ -35,7 +35,7 @@ All normal REDCap PDF construction
         ↓
 All ordinary/non-final PDF transformations
         ↓
-redcap_pdf_finalize execution pipeline
+redcap_module_pdf_finalize execution pipeline
         ↓
 PDF bytes become immutable
         ↓
@@ -58,7 +58,7 @@ No component may modify the PDF bytes after the finalization pipeline has comple
 
 ## 3. Finalization operations are declared in `config.json`
 
-An EM must explicitly declare every operation for which it wants `redcap_pdf_finalize` to be invoked.
+An EM must explicitly declare every operation for which it wants `redcap_module_pdf_finalize` to be invoked.
 
 Proposed structure:
 
@@ -263,7 +263,7 @@ This permits operations from different EMs to be interleaved and avoids treating
 The hook receives the complete resolved declaration entry as `$operation`:
 
 ```php
-redcap_pdf_finalize(
+redcap_module_pdf_finalize(
     string $temporaryPdfPath,
     array $operation,
     array $context
@@ -493,7 +493,7 @@ A terminal-capable operation is permitted, but not required, to terminate a part
 
 `terminal=true` means only:
 
-> Stop invoking further `redcap_pdf_finalize` operations for this PDF.
+> Stop invoking further `redcap_module_pdf_finalize` operations for this PDF.
 
 It does not itself mean that the PDF lifecycle has already been committed.
 
@@ -641,7 +641,7 @@ watermark:add
 
 The Framework must not assume operations are idempotent or non-repeatable.
 
-For `redcap_pdf_finalize`, multiple assignment is allowed.
+For `redcap_module_pdf_finalize`, multiple assignment is allowed.
 
 The UI may indicate that an operation is used more than once, but this is not an error.
 
@@ -653,7 +653,7 @@ Each occurrence results in a separate hook invocation when its `document_types` 
 
 When enabling an EM that declares finalization operations, the Framework must avoid silently making ordering decisions that could affect existing PDF behavior.
 
-If the project already has a `redcap_pdf_finalize` execution plan and a newly enabled EM introduces additional available operations, project-level enablement must include explicit configuration of where the new operations belong when they are to be used.
+If the project already has a `redcap_module_pdf_finalize` execution plan and a newly enabled EM introduces additional available operations, project-level enablement must include explicit configuration of where the new operations belong when they are to be used.
 
 The key principle is:
 
@@ -665,7 +665,7 @@ Where appropriate, enablement can transition directly into the execution-order e
 
 ## 20. Control Center “enable for all projects”
 
-A Control Center action that makes an EM active/available globally must not silently introduce unresolved ordering into projects that already use `redcap_pdf_finalize`.
+A Control Center action that makes an EM active/available globally must not silently introduce unresolved ordering into projects that already use `redcap_module_pdf_finalize`.
 
 For each affected project:
 
@@ -889,7 +889,7 @@ The ordered-assignment UI required by this feature should be implemented with **
 It should not be intrinsically tied to:
 
 - PDF finalization;
-- `redcap_pdf_finalize`;
+- `redcap_module_pdf_finalize`;
 - document types;
 - terminal operations;
 - or necessarily even to hook configuration.
@@ -906,7 +906,7 @@ The design should allow consuming features to provide behavior such as:
 
 However, the detailed generic component API is **intentionally deferred**.
 
-The implementation of `redcap_pdf_finalize` should require only the concrete functionality needed by this feature while avoiding design decisions that would prevent later reuse for:
+The implementation of `redcap_module_pdf_finalize` should require only the concrete functionality needed by this feature while avoiding design decisions that would prevent later reuse for:
 
 - future ordered hooks;
 - existing hooks such as `redcap_pdf`;
@@ -1322,7 +1322,7 @@ The implementation should include automated coverage for at least the following.
 
 The implementation is complete when all of the following are true:
 
-1. An EM can declare one or more independent `redcap_pdf_finalize` operations in `config.json`.
+1. An EM can declare one or more independent `redcap_module_pdf_finalize` operations in `config.json`.
 2. Invalid declarations prevent EM enablement through existing config validation.
 3. Each declared operation is independently orderable in project configuration.
 4. Stored execution plans use `module_prefix:operation_id`.

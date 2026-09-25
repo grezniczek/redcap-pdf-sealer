@@ -6,7 +6,7 @@
 **Language:** PHP 8.2+  
 **Primary standards target:** PAdES-B-T with PAdES-B-B fallback  
 **Primary cryptographic stack:** `ext-openssl` + Tecnick PDF signing/parser libraries  
-**Primary REDCap integration:** `redcap_pdf_finalize`
+**Primary REDCap integration:** `redcap_module_pdf_finalize`
 
 ---
 
@@ -34,7 +34,7 @@ exact sealed bytes returned to REDCap
 
 If timestamping fails but PDF signing remains possible, the module should fall back to PAdES-B-B.
 
-If sealing itself fails, the finalizer must return failure and REDCap must retain/store the previously valid PDF according to the transactional `redcap_pdf_finalize` contract.
+If sealing itself fails, the finalizer must return failure and REDCap must retain/store the previously valid PDF according to the transactional `redcap_module_pdf_finalize` contract.
 
 This is explicitly a **reference implementation / proof of principle**, not yet a complete production PKI product.
 
@@ -1474,7 +1474,7 @@ Acceptance:
 
 ---
 
-## Milestone 6 — REDCap `redcap_pdf_finalize` integration
+## Milestone 6 — REDCap `redcap_module_pdf_finalize` integration
 
 Implement actual EM hook operation.
 
@@ -1785,7 +1785,7 @@ The reference implementation should end up with four cleanly separated layers:
 
 ```text
 REDCap integration
-    redcap_pdf_finalize
+    redcap_module_pdf_finalize
             ↓
 PDF incremental revision layer
     parse foreign PDF

@@ -1,6 +1,6 @@
 # PDF finalizer live acceptance — 2026-09-23
 
-This is test-environment evidence for the `redcap_pdf_finalize` implementation. The live runs below predate the byte-changing demo watermark and logged `pdf_sealer:watermark` as `unchanged`.
+This is test-environment evidence for the `redcap_module_pdf_finalize` implementation. The live runs below predate the byte-changing demo watermark and logged `pdf_sealer:watermark` as `unchanged`.
 
 ## Setup
 

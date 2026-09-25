@@ -157,7 +157,7 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
         ];
     }
 
-    public function redcap_pdf_finalize(
+    public function redcap_module_pdf_finalize(
         string $temporaryPdfPath,
         array $operation,
         array $context

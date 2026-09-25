@@ -161,7 +161,7 @@ try {
         $framework->setSystemSetting('timestamp_mode', 'internal');
         $framework->setSystemSetting('bb_fallback', '1');
         $framework->setSystemSetting('tsa_policy_oid', '');
-        $result = $module->redcap_pdf_finalize($workingPath, $operation, $context);
+        $result = $module->redcap_module_pdf_finalize($workingPath, $operation, $context);
         if (!$result->isModified() || !$result->isTerminal()
             || ($result->getMetadata()['seal_profile'] ?? null) !== 'pades-b-t'
             || !is_string($result->getMetadata()['timestamp_serial'] ?? null)
@@ -174,7 +174,7 @@ try {
 
         $framework->setSystemSetting('tsa_policy_oid', '1.3.6.1.4.1.55555.3161.1');
         file_put_contents($workingPath, $pdf);
-        $result = $module->redcap_pdf_finalize($workingPath, $operation, $context);
+        $result = $module->redcap_module_pdf_finalize($workingPath, $operation, $context);
         if (!$result->isModified() || ($result->getMetadata()['seal_profile'] ?? null) !== 'pades-b-t') {
             throw new RuntimeException('Live hook did not honor the TSA policy override');
         }
@@ -183,7 +183,7 @@ try {
 
         $framework->setSystemSetting('tsa_policy_oid', 'invalid-policy');
         file_put_contents($workingPath, $pdf);
-        $result = $module->redcap_pdf_finalize($workingPath, $operation, $context);
+        $result = $module->redcap_module_pdf_finalize($workingPath, $operation, $context);
         if (!$result->isModified() || ($result->getMetadata()['seal_profile'] ?? null) !== 'pades-b-b'
             || ($result->getMetadata()['timestamp_serial'] ?? null) !== null) {
             throw new RuntimeException('Live hook did not fall back to B-B after TSA configuration failure');
@@ -193,7 +193,7 @@ try {
 
         $framework->setSystemSetting('bb_fallback', '0');
         file_put_contents($workingPath, $pdf);
-        $result = $module->redcap_pdf_finalize($workingPath, $operation, $context);
+        $result = $module->redcap_module_pdf_finalize($workingPath, $operation, $context);
         if (!$result->isFailed() || file_get_contents($workingPath) !== $pdf) {
             throw new RuntimeException('Live hook did not preserve the working PDF on failure');
         }
@@ -202,7 +202,7 @@ try {
 
         $framework->setSystemSetting('timestamp_mode', 'none');
         file_put_contents($workingPath, $pdf);
-        $result = $module->redcap_pdf_finalize($workingPath, $operation, $context);
+        $result = $module->redcap_module_pdf_finalize($workingPath, $operation, $context);
         if (!$result->isModified() || ($result->getMetadata()['seal_profile'] ?? null) !== 'pades-b-b') {
             throw new RuntimeException('Live hook did not honor B-B-only mode');
         }
@@ -215,7 +215,7 @@ try {
             file_put_contents($workingPath, $pdf);
             $withoutRecord = $context;
             unset($withoutRecord['record_id'], $withoutRecord['event_id']);
-            $result = $module->redcap_pdf_finalize($workingPath, $operation, $withoutRecord);
+            $result = $module->redcap_module_pdf_finalize($workingPath, $operation, $withoutRecord);
             if (!$result->isModified() || ($result->getMetadata()['seal_profile'] ?? null) !== 'pades-b-b'
                 || $_GET['event_id'] !== $testEventId) {
                 throw new RuntimeException('Live hook rejected context-only PID or altered query event ID');
@@ -232,7 +232,7 @@ try {
         file_put_contents($workingPath, $pdf);
         $invalidContext = $context;
         $invalidContext['project_id'] = 462;
-        $result = $module->redcap_pdf_finalize($workingPath, $operation, $invalidContext);
+        $result = $module->redcap_module_pdf_finalize($workingPath, $operation, $invalidContext);
         if (!$result->isFailed() || file_get_contents($workingPath) !== $pdf) {
             throw new RuntimeException('Live hook accepted a mismatched project context');
         }
