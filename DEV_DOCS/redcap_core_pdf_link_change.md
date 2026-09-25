@@ -1,5 +1,7 @@
 # Core change request: indirect PDF footer link annotations
 
+**Status: deferred.** This records a possible future REDCap Core change. No Core implementation is planned for the current PDF Sealer release work; the EM's existing link normalization remains the active solution.
+
 ## Summary
 
 REDCap Core should emit its clickable `projectredcap.org` PDF footer link as an **indirect PDF annotation object** before the PDF finalization pipeline runs. Make the change in `Classes/PDF.php`; do not modify the PDF libraries under `Libraries/`. Keep the visible footer text and its `https://projectredcap.org` target.
