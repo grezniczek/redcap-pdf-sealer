@@ -1,7 +1,10 @@
 # REDCap PDF Sealer External Module
+
+> Historical design baseline. Subsequent implementation decisions and acceptance results are recorded in [implementation status](implementation_status.md). For current operation, use the [administrator guide](../docs/ADMIN.md). Proposed features here are not a statement of implemented functionality.
 ## Concrete Implementation Plan for Codex
 
-**Status:** Implementation-ready design  
+**Status:** Historical design baseline; see current implementation status
+
 **Target:** Reference / proof-of-principle REDCap External Module producing genuine cryptographically sealed PDFs  
 **Language:** PHP 8.2+  
 **Primary standards target:** PAdES-B-T with PAdES-B-B fallback  

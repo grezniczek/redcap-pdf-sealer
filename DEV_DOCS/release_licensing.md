@@ -27,7 +27,7 @@ After a dependency upgrade or deliberate library edit:
 
 ## Release staging
 
-No release builder or existing release ZIP was present at review time. `.gitattributes` excludes development docs, tests, tools, and editor files; it retains the root notice and `licenses/`. `vendor/` is Git-ignored, so **GitHub source ZIPs and `git archive` alone are not installable release packages** and do not contain the dependency license files.
+No release builder or existing release ZIP was present at review time. `.gitattributes` excludes development docs, tests, tools, and editor files; it retains the root README, audience guides and technical references under `docs/`, the root notice, and `licenses/`. `vendor/` is Git-ignored, so **GitHub source ZIPs and `git archive` alone are not installable release packages** and do not contain the dependency license files.
 
 After committing the intended release files, stage a release from that commit, install the locked production dependencies in the staging directory, then check that directory. Run from the checkout with PHP, Composer, Git, tar, zip, and unzip available:
 
@@ -48,7 +48,9 @@ unzip -q "$pdf_sealer_zip" -d "$pdf_sealer_verify"
 php tools/third-party-notices.php "$pdf_sealer_verify"
 ```
 
-The ZIP contains module source, the unchanged root MIT license, generated third-party notices, complete GPLv3 text, all package source and original LGPL licenses, Composer metadata/runtime and MIT license, and applicable modification notices. Keep dependencies as editable PHP source. Any future obfuscation, namespace rewriting, binary bundling, or additional distribution restrictions need a fresh review.
+Before distribution, also check that all three `config.json` documentation entries resolve inside the extracted ZIP: `README.md`, `docs/PROJECT.md`, and `docs/ADMIN.md`. Follow their relative links to the packaged technical references and confirm that links to developer documentation use GitHub URLs.
+
+The ZIP contains module source, the audience guides and technical references, the unchanged root MIT license, generated third-party notices, complete GPLv3 text, all package source and original LGPL licenses, Composer metadata/runtime and MIT license, and applicable modification notices. Keep dependencies as editable PHP source. Any future obfuscation, namespace rewriting, binary bundling, or additional distribution restrictions need a fresh review.
 
 The check requires a matching reviewed checkout; the development checker and review manifest are deliberately excluded from the release. Run this procedure with the same commit's tooling. Keep the development directory named `pdf_sealer_v9.9.9`; public release naming is separate.
 

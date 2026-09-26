@@ -1,5 +1,7 @@
 # `redcap_module_pdf_finalize` — Implementation Plan
 
+> Historical Core/Framework integration design, retained for rationale. Current module behavior is described in the [packaged guides](../docs/ADMIN.md); current development evidence is indexed in [DEV_DOCS](README.md). Examples here may describe the earlier demo or other modules.
+
 ## 1. Purpose
 
 Introduce a new generic REDCap External Module hook:

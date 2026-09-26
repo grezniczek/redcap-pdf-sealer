@@ -1,5 +1,7 @@
 # PDF finalizer live acceptance — 2026-09-23
 
+> Historical finalizer/demo acceptance from 2026-09-23. These findings predate the current sealer. Later evidence is in [pipeline acceptance](pdf_pipeline_acceptance.md) and [Acrobat/DSS acceptance](pdf_interop_acceptance.md).
+
 This is test-environment evidence for the `redcap_module_pdf_finalize` implementation. The live runs below predate the byte-changing demo watermark and logged `pdf_sealer:watermark` as `unchanged`.
 
 ## Setup

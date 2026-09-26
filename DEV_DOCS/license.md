@@ -1,3 +1,7 @@
+# Licensing implementation brief
+
+> Completed licensing implementation brief. For the resulting inventory and ongoing process, see [third-party notices](../THIRD_PARTY_NOTICES.md) and [release licensing](release_licensing.md). This brief is retained as development history.
+
 Please add complete and maintainable third-party licensing/attribution information to the PDF Sealer External Module.
 
 ## Goals

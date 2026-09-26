@@ -2,6 +2,9 @@
     "name": "PDF Sealer",
     "namespace": "DE\\RUB\\PDFSealerExternalModule",
     "description": "Reference implementation of terminal PDF sealing through the REDCap PDF finalization pipeline.",
+    "documentation": "README.md",
+    "documentation-project": "docs/PROJECT.md",
+    "documentation-system": "docs/ADMIN.md",
     "authors": [
         {
             "name": "Günther Rezniczek",

@@ -1,5 +1,7 @@
 # PR: Add a generic PDF finalization pipeline
 
+> Historical Core/Framework PR description. This is not the current PDF Sealer user guide; see the [developer index](README.md) for current references.
+
 ## Summary
 
 Introduce `redcap_module_pdf_finalize` so External Modules can apply ordered, final byte-level processing to REDCap-generated PDFs containing record data. Finalization runs after ordinary PDF construction and before REDCap stores, hashes, emails, archives, returns, or downloads the PDF. Core then uses the resulting bytes unchanged. The hook is purpose-neutral: watermarking, PDF/A conversion, metadata normalization, and sealing are module concerns, not Core behavior.
