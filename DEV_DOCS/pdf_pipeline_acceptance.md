@@ -38,4 +38,32 @@ The agent then uses `redcap_devctl` to identify and inspect the matching stored 
 
 A matching hash verifies that downloading preserved the stored artifact. A valid whole-document signature on those bytes verifies that storage/delivery did not invalidate the seal. It does not prove every other PDF pathway behaves identically. Attachment-heavy eConsent workflows and confirmation-email attachment delivery need separate acceptance if they are in the v1 deployment scope. Sending test email requires explicit authorization.
 
-**Status:** saved/downloaded artifact comparison is pending user input. No full PAdES/DSS validation is claimed by the CLI checks.
+## Record 18 stored/downloaded acceptance — passed
+
+On 2026-09-26 the user completed a test eConsent in PID 461, record 18, and supplied the saved snapshot download `pid461_formForm1_id18_2026-09-26_190215.pdf`. The user also confirmed that Acrobat accepted the file.
+
+Database inspection through `redcap_devctl` identified the archive entry as edoc **2335**, event **1423**, instance **1**, snapshot **266**, with `contains_completed_consent=1`. Its metadata reports **89,378 bytes**, MIME type `application/pdf`, stored at **2026-09-26 19:02:15** in the instance's local time. The downloaded file is also 89,378 bytes. Project Logging contains B-T success entries for record 18 associated with event 1423 at that time (log IDs 1328 and 1330).
+
+The downloaded file's SHA-256 is:
+
+```text
+f5d84731e23e4d15c73d9596457a381decd6f9d225b5613ebefef24e6e110594
+```
+
+The user ran `sudo sha256sum` on the stored archive file identified by the database metadata and returned **the same hash**. Thus the stored snapshot and download match; the stored-file digest was supplied by the user rather than obtained directly by the agent.
+
+Independent checks on the downloaded bytes passed:
+
+- qpdf found no syntax or stream-encoding errors.
+- pdfsig recognized one valid `ETSI.CAdES.detached` signature covering the complete file.
+- Structural checks confirmed DocMDP P=1 and the signature widget/field; the original unsigned revision is preserved.
+- OpenSSL verified the detached CMS and its chain against the embedded root whose SHA-256 matched the public certificate fingerprint read independently from the module's PKI records: `3b46357df86ae4d145fc2a4dc393c308cbb035a7857ecbe387c8fa7d39764734`.
+- OpenSSL verified the embedded RFC 3161 token and its message imprint against the actual CMS signature bytes. The TSA is `REDCap PDF Sealer Timestamp Authority`; generation time is **2026-09-26 17:02:15 UTC** and policy is the built-in `2.25.186172099785128831488612506224552954430`.
+- The one-page PDF contains the signature image and one HTTPS footer link. Poppler rendering at 72 dpi and extracted text match the preceding unsigned revision; the footer target and rectangle are preserved.
+- The user confirmed Acrobat acceptance for this exact download.
+
+No edocs, project data, or PKI settings were modified. Temporary verification files were removed, and the user's downloaded copy was retained. This completes the saved-snapshot/download acceptance for this eConsent pathway; it is not a full PAdES/DSS conformance claim or proof of email/other storage pathways.
+
+### Dev-control tool limitation encountered
+
+`edoc_inspect`, `edoc_hash`, and `edoc_export` failed with “The REDCap CLI did not return a valid JSON envelope.” Database queries remained available. Direct reads of the identified edoc were denied by filesystem permissions, and passwordless sudo was unavailable. The user's stored-file hash closed the comparison without changing permissions. The edoc tools should expose the underlying CLI error in a sanitized diagnostic so this failure can be investigated; their envelope/export failure remains unresolved.
