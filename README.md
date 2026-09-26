@@ -46,3 +46,12 @@ The PDF finalization hook uses the project sealing identity and in-process TSA f
 Seal successes and failures appear in the project's standard REDCap Logging page for users with the Logging right. The entry shows a brief outcome and profile or fallback status; when the PDF context has a record and event ID, REDCap associates the entry with them. A failure includes the generation ID as a reference to a detailed, system-scoped `seal_event` EM log entry. Invalid project context is recorded only in the EM log.
 
 On a disposable REDCap development instance, run `PDF_SEALER_LIVE_TEST=1 php tests/pki_live_framework.php` to verify Framework storage, the PDF finalization hook, project Logging, failure diagnostics, and alarm throttling. Its records and settings are rolled back, and its alarm sender is mocked. See [implementation status](DEV_DOCS/implementation_status.md) for completed work and remaining integration.
+
+To test the actual Core/Framework dispatch on an already initialized development project, use the preview-first harness:
+
+```sh
+PDF_SEALER_LIVE_TEST=1 PDF_SEALER_TEST_PID=461 php tests/pdf_pipeline_live.php --preview
+PDF_SEALER_LIVE_TEST=1 PDF_SEALER_TEST_PID=461 php tests/pdf_pipeline_live.php --run
+```
+
+It requires the existing project signer, healthy PKI, and a pipeline containing only `pdf_sealer:seal`. It tests five synthetic fixtures through both Core entry points using the configured timestamp mode, checks terminal adoption and final hashes, and covers document-type bypass and rejection of an already-certified PDF. It does not change settings or write edocs. Autocommit stays disabled because the Framework rolls back at each hook boundary; test log writes and project activity updates are rolled back. This differs from the older direct-hook harness, which requires an uninitialized PKI and cannot establish real dispatch behavior. See the [live acceptance guide](DEV_DOCS/pdf_pipeline_acceptance.md) for the separate stored/downloaded-PDF check.

@@ -43,4 +43,4 @@ Tools used: qpdf 11.9.0, Poppler 24.02.0, OpenSSL 3.0.13.
 
 This confirms local structure, cryptography, and content preservation. It does not establish complete PAdES compliance, viewer trust, revocation/LTV, or EU DSS acceptance. Existing live eConsent/Acrobat acceptance remains valid, but these particular multipage/merged synthetic outputs have not been checked in Acrobat or DSS. Chinese/Japanese backends and embedded Unicode font coverage remain outside this matrix.
 
-The next integration step is exercising representative signature-image and attachment PDFs through the real Framework finalization lifecycle, including checking the final stored/delivered bytes. Broader Acrobat/DSS acceptance should use explicitly disposable synthetic documents.
+The five fixtures now also pass through both real Core/Framework finalization entry points in `tests/pdf_pipeline_live.php` using PID 461 and the configured B-T mode. Final stored/delivered-byte comparison remains a separate browser acceptance step; see `pdf_pipeline_acceptance.md`. Broader Acrobat/DSS acceptance should use explicitly disposable synthetic documents.
