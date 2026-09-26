@@ -4,7 +4,7 @@
 
 The initial bundle `acceptance-20260926-01` failed the user's two initial Acrobat checks: multipage consent reported modifications; the merged/object-stream PDF showed an empty Signature Panel. Keep these results distinct from the local cryptographic checks, which passed.
 
-The replacement bundle is `DEV_DOCS/interop-artifacts/acceptance-20260926-02`. It externalizes inline links on every page and retains cross-reference streams when signing stream-based inputs. Local verification passes for all ten files. Repeat the two initial checks below using this new directory; Acrobat results for the replacement bundle and DSS results remain pending. Each bundle has its own disposable root.
+The replacement bundle is `DEV_DOCS/interop-artifacts/acceptance-20260926-02`. It externalizes inline links on every page and retains cross-reference streams when signing stream-based inputs. Local verification passes for all ten files. The user confirmed that Acrobat reports no modifications since certification for both initial B-T files. DSS v6.5 identifies both as PAdES-BASELINE-T and passes structure, signature and timestamp cryptography; overall validation is INDETERMINATE/NO_CERTIFICATE_CHAIN_FOUND because the disposable root is not trusted. See [recorded acceptance and report hashes](pdf_interop_acceptance.md). Other files' manual checks remain pending; each bundle has its own disposable root.
 
 ## Bundle and test order
 

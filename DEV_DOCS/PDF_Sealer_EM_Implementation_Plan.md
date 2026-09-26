@@ -1067,7 +1067,7 @@ If absent:
 
 ## 17.3 Page annotations
 
-Preserve existing annotations and actions. Before appending the invisible signature widget reference, write any direct `/Link` annotation on the first page as an equivalent indirect object in the signing revision. This preserves the original PDF bytes and clickable link while avoiding an Acrobat certification failure observed when REDCap's inline footer link and the widget share a rewritten page object.
+Preserve existing annotations and actions. Write any direct `/Link` annotation on every page as an equivalent indirect object in the signing revision, including pages reached through nested page-tree branches. Append the invisible signature widget only to the first page. Resolve shared indirect annotation arrays per page so the widget cannot appear on other pages. This preserves the original PDF bytes and clickable links while avoiding the Acrobat certification failures observed with REDCap's inline footer links. Multipage and merged/object-stream B-T acceptance is recorded in [pdf_interop_acceptance.md](pdf_interop_acceptance.md).
 
 ## 17.4 Certification / DocMDP
 
