@@ -91,7 +91,9 @@ $issuer = new CertificateIssuer(static function (): string {
     return $path;
 });
 $held = false;
-$lock = new ProjectIssueLock(static function (string $sql, array $params) use (&$held): FakeResult {
+$lockCalls = 0;
+$lock = new ProjectIssueLock(static function (string $sql, array $params) use (&$held, &$lockCalls): FakeResult {
+    $lockCalls++;
     if (str_contains($sql, 'GET_LOCK')) {
         if ($held) { return new FakeResult([[0]]); }
         $held = true;
@@ -103,11 +105,32 @@ $lock = new ProjectIssueLock(static function (string $sql, array $params) use (&
 });
 $health = new PkiHealthService($identities, $protector);
 $service = new ProjectIdentityService($bindings, $identities, $protector, $issuer, $health, $lock);
+$snapshot = [$framework->logs, $framework->settings, $lockCalls];
+check($service->inspect(461) === ['state' => 'not_issued', 'uuid' => null, 'certificate' => null],
+    'Unissued project status is unclear');
+check([$framework->logs, $framework->settings, $lockCalls] === $snapshot, 'Status issued an identity or acquired a lock');
 $root = $issuer->createRoot('Test Institution');
 $rootId = $identities->append('root', $root);
 $identities->activate('root', $rootId);
 
 $first = $service->getOrIssue(461);
+$snapshot = [$framework->logs, $framework->settings, $lockCalls];
+$status = $service->inspect(461);
+check($status['state'] === 'ready' && $status['uuid'] === $first->projectUuid
+    && $status['certificate']['fingerprint'] === hash('sha256', $first->certificateDer), 'Wrong active project status');
+check(array_keys($status['certificate']) === ['subject', 'fingerprint', 'valid_from', 'valid_until'],
+    'Status exposed non-public identity fields');
+check(!str_contains(json_encode($status), 'PRIVATE KEY') && !str_contains(json_encode($status), 'ciphertext'),
+    'Status exposed key material');
+check([$framework->logs, $framework->settings, $lockCalls] === $snapshot, 'Status mutated active identity');
+// Inspect validity boundaries without changing or renewing the stored identity.
+$snapshot = [$framework->logs, $framework->settings, $lockCalls];
+$expired = $service->inspect(461, $status['certificate']['valid_until'] + 1);
+check($expired['state'] === 'expired' && $expired['certificate'] === $status['certificate'],
+    'Expired identity status lost its public metadata');
+check($service->inspect(461, $status['certificate']['valid_from'] - 1)['state'] === 'not_yet_valid',
+    'Future certificate reported usable');
+check([$framework->logs, $framework->settings, $lockCalls] === $snapshot, 'Status renewed expired identity');
 $again = $service->getOrIssue(461);
 check($first->id === $again->id && $first->projectUuid === $again->projectUuid,
     'Repeated issuance changed the project identity');
@@ -119,6 +142,10 @@ check($other->id !== $first->id && $other->projectUuid !== $first->projectUuid,
 
 $uuid = $issuer->newProjectUuid();
 $bindings->bindUuid(463, $uuid);
+$snapshot = [$framework->logs, $framework->settings, $lockCalls];
+check($service->inspect(463) === ['state' => 'pending', 'uuid' => $uuid, 'certificate' => null],
+    'Incomplete issuance reported as usable');
+check([$framework->logs, $framework->settings, $lockCalls] === $snapshot, 'Status completed pending issuance');
 $unbound = $issuer->createProject('Test Institution', $uuid, $root);
 $unboundId = $identities->append('project', $unbound, $uuid);
 check($service->getOrIssue(463)->id === $unboundId,
@@ -141,6 +168,10 @@ try {
     check($e->getMessage() === 'REDCap decryption failed', 'Unexpected project-key failure');
 }
 check(count($framework->logs) === $before, 'Corrupt active identity caused reissuance');
+$snapshot = [$framework->logs, $framework->settings, $lockCalls];
+$status = $service->inspect(461);
+check($status['state'] === 'unusable' && $status['certificate'] !== null, 'Bad key status lost public certificate details');
+check([$framework->logs, $framework->settings, $lockCalls] === $snapshot, 'Status repaired corrupt identity');
 
 $framework->settings['active_root_identity_id'] = str_repeat('0', 32);
 try {
@@ -150,6 +181,7 @@ try {
     check($e->getMessage() === 'Root PKI is not usable for project issuance', 'Unexpected root failure');
 }
 check(count($framework->logs) === $before, 'Broken root created project PKI material');
+check($service->inspect(462)['state'] === 'unusable', 'Missing active root reported usable');
 $framework->settings['active_root_identity_id'] = $rootId;
 
 $unavailable = new ProjectIssueLock(static fn (): FakeResult => new FakeResult([[0]]));
@@ -171,4 +203,7 @@ try {
     check($e->getMessage() === 'Conflicting project identity binding', 'Unexpected binding failure');
 }
 
-echo "Project identity: stable UUIDs, single issuance, recovery, corruption, and lock timeout passed.\n";
+$snapshot = [$framework->logs, $framework->settings, $lockCalls];
+check($service->inspect(462)['state'] === 'unavailable', 'Conflicting binding was not reported');
+check([$framework->logs, $framework->settings, $lockCalls] === $snapshot, 'Status changed conflicting binding');
+echo "Project identity: issuance, recovery, corruption, locking, and read-only status passed.\n";

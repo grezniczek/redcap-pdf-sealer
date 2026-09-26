@@ -50,6 +50,8 @@ namespace {
     $framework->hideLink = false;
     check($module->redcap_module_link_check_display(461, $link) === $link,
         'Clearing the opt-out did not restore the trust link');
+    check($module->redcap_module_link_check_display(461, ['key' => 'project-status']) === null,
+        'Project status bypassed the normal Design-right permission check');
     check($module->redcap_module_link_check_display(461, ['key' => 'other']) === null,
         'Unrelated project link bypassed its normal permission check');
     check($module->redcap_module_link_check_display(null, $link) === null,

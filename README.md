@@ -16,6 +16,7 @@ php tests/admin_alarms.php
 php tests/pki_admin_ajax.php
 php tests/public_trust.php
 php tests/project_trust_link.php
+php tests/project_pipeline_status.php
 php tests/pdf_structure.php
 php tests/pdf_seal_bb.php
 php tests/pdf_seal_bt.php
@@ -26,6 +27,8 @@ To check a REDCap-generated PDF without adding its bytes to the repository, expo
 The superuser Control Center **PDF Sealer PKI** page provides explicit, one-time root and TSA initialization with a GET redirect after submission. Administrators configure PKI alarm email recipients and download the active public root certificate in PEM or DER there through JSMO AJAX requests. Downloading the self-signed root does not automatically make it trusted by PDF viewers. A public trust page, linked from the PKI page, lists the current and historical public roots with fingerprints and PEM/DER downloads at the configured survey URL (`/surveys/?pdf_sealer_certs` on a standard installation). The survey endpoint also handles the page's JSMO downloads, so public API access is not required.
 
 In projects where this EM is enabled, the project menu shows a trust certificate link to every signed-in project user by default. A project configuration checkbox hides it for that project. The link opens the public survey page in a new tab.
+
+The **PDF Sealer status** project page is available to administrators and users with Project Design rights. It shows sealing operation assignment and pipeline warnings, instance PKI readiness, the project seal UUID, and certificate subject, SHA-256 fingerprint, and UTC validity dates. Unissued, incomplete, expired, and unusable identities have distinct messages. Viewing the page never issues or repairs certificates or writes sealing logs. The page directs users to REDCap Logging for actual sealing outcomes; it does not validate existing PDFs.
 
 The PDF finalization hook uses the project sealing identity and in-process TSA for PAdES B-T. It uses the built-in PDF Sealer TSA Policy v1 (`2.25.186172099785128831488612506224552954430`) when `tsa_policy_oid` is unset, so a healthy TSA produces B-T by default. An explicit `tsa_policy_oid` overrides it. B-B fallback applies when timestamping fails or the TSA is unavailable; set `timestamp_mode` to `none` for B-B only, or `bb_fallback` to `0` to make timestamp failures fail the operation. These settings do not yet have UI controls.
 

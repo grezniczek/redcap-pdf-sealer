@@ -76,14 +76,71 @@ final class ProjectIdentityService
         });
     }
 
-    private function assertProjectIdentity(StoredIdentity $identity, string $uuid, StoredIdentity $root): void
+    /**
+     * Read-only status; never issues, activates, repairs, or logs an identity.
+     * Only public metadata leaves this method, even when validation fails.
+     * @return array{state: string, uuid: ?string, certificate: ?array}
+     */
+    public function inspect(int $pid, ?int $now = null): array
+    {
+        ProjectBindingRepository::assertPid($pid);
+        $now ??= time();
+        $status = ['state' => 'unavailable', 'uuid' => null, 'certificate' => null];
+        try {
+            $binding = $this->bindings->find($pid);
+            if ($binding === null) {
+                $status['state'] = 'not_issued';
+                return $status;
+            }
+            $status['uuid'] = $binding->uuid;
+            if ($binding->identityId === null) {
+                $status['state'] = 'pending';
+                return $status;
+            }
+            $identity = $this->identities->find($binding->identityId);
+            if ($identity === null || $identity->role !== 'project' || $identity->projectUuid !== $binding->uuid) {
+                return $status;
+            }
+            $details = openssl_x509_parse(Certificate::derToPem($identity->certificateDer));
+            if (!is_array($details) || !is_string($details['name'] ?? null)
+                || !is_int($details['validFrom_time_t'] ?? null) || !is_int($details['validTo_time_t'] ?? null)) {
+                return $status;
+            }
+            $status['certificate'] = [
+                'subject' => $details['name'],
+                'fingerprint' => hash('sha256', $identity->certificateDer),
+                'valid_from' => $details['validFrom_time_t'],
+                'valid_until' => $details['validTo_time_t'],
+            ];
+            if ($details['validTo_time_t'] < $now) {
+                $status['state'] = 'expired';
+                return $status;
+            }
+            if ($details['validFrom_time_t'] > $now) {
+                $status['state'] = 'not_yet_valid';
+                return $status;
+            }
+            $status['state'] = 'unusable';
+            $rootId = $this->identities->activeId('root');
+            $root = $rootId === null ? null : $this->identities->find($rootId);
+            if ($root !== null && $root->role === 'root') {
+                $this->assertProjectIdentity($identity, $binding->uuid, $root, $now);
+                $status['state'] = 'ready';
+            }
+        } catch (\Throwable) {
+            // Do not expose internal storage or key diagnostics in project UI.
+        }
+        return $status;
+    }
+
+    private function assertProjectIdentity(StoredIdentity $identity, string $uuid, StoredIdentity $root, ?int $now = null): void
     {
         if ($identity->role !== 'project' || $identity->projectUuid !== $uuid) {
             throw new RuntimeException('Project identity binding mismatch');
         }
         $der = $identity->certificateDer;
         $certificate = new Certificate();
-        $certificate->assertValidAt($der, time());
+        $certificate->assertValidAt($der, $now ?? time());
         $certificate->assertUsableForSigning($der);
         if ($certificate->isCertificateAuthority($der)
             || $certificate->extendedKeyUsageWithCriticality($der)[0] !== [self::DOCUMENT_SIGNING_EKU]) {

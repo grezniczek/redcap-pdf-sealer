@@ -62,6 +62,14 @@
                 "url": "project-trust-link.php",
                 "target": "_blank",
                 "show-header-and-footer": false
+            },
+            {
+                "key": "project-status",
+                "name": "PDF Sealer status",
+                "tt_name": "project_status_title",
+                "icon": "fas fa-file-signature",
+                "url": "project-status.php",
+                "show-header-and-footer": false
             }
         ]
     }
