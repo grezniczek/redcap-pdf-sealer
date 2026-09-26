@@ -13,6 +13,9 @@
         }
     ],
     "framework-version": 16,
+    "compatibility": {
+        "php-version-min": "8.2.0"
+    },
     "enable-no-auth-logging": true,
     "enable-every-page-hooks-on-system-pages": true,
     "enable-every-page-hooks-on-login-form": true,

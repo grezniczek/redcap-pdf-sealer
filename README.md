@@ -31,6 +31,10 @@ The installation needs PHP 8.2 or later in the PHP 8 series, the required PHP ex
 
 A failed sealing operation leaves the preceding PDF available for REDCap to store or deliver. A self-issued certificate is not automatically trusted by viewers, and an embedded timestamp does not by itself provide long-term validation. Automatic certificate renewal/rotation, revocation publication, and PAdES B-LT/B-LTA are not implemented.
 
+## Acknowledgment
+
+PDF Sealer was developed with assistance from OpenAI's ChatGPT and Codex, including planning, implementation, testing, and documentation.
+
 ## License
 
 PDF Sealer is licensed under the [MIT License](LICENSE). Bundled third-party software has separate licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the inventory, attribution, and original license locations.
