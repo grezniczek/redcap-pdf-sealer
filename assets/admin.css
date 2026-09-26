@@ -12,7 +12,7 @@
 .pdf-sealer-admin .nav-tabs { gap: 2px; }
 .pdf-sealer-admin .nav-link { font-size: inherit; }
 .pdf-sealer-admin .nav-link i { margin-right: 4px; }
-.pdf-sealer-panel { border: 1px solid #ddd; border-top: 0; border-radius: 0 0 4px 4px; padding: 20px 16px; }
+.pdf-sealer-panel { border: 1px solid #ddd; border-radius: 0 0 4px 4px; padding: 20px 16px; }
 .pdf-sealer-panel[hidden] { display: none; }
 .pdf-sealer-panel h5 { font-size: 1rem; font-weight: 600; margin-bottom: 10px; }
 .pdf-sealer-certificate { display: grid; grid-template-columns: 165px minmax(0, 1fr); gap: 10px 16px; margin: 18px 0; }
