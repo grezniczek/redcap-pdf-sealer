@@ -29,6 +29,7 @@ final class FakeFramework
     public array $settings = [];
 
     public function getSystemSetting(string $key): mixed { return $this->settings[$key] ?? null; }
+    public function tt(string $key): string { return $key; }
 
     public function log(string $message, array $parameters): int
     {
@@ -125,4 +126,21 @@ try {
 }
 check(!$held, 'Alarm lock was not released after failure');
 
-echo "Admin alarms: persistence, hourly throttling, retries, recipients, and locking passed.\n";
+$framework->settings['admin-alert-recipients'] = [];
+check($service->sendTest($base + 3603) === 'unconfigured', 'Test alarm sent without recipients');
+$framework->settings['admin-alert-recipients'] = ['admin@example.org'];
+check($failedService->sendTest($base + 3604) === 'failed', 'Test mail failure was hidden');
+check($service->sendTest($base + 3605) === 'sent', 'Test alarm did not allow retry after delivery failure');
+$testMail = end($sent);
+check($testMail['subject'] === 'alarm_test_subject' && str_contains($testMail['body'], 'alarm_test_body'),
+    'Test alarm was not clearly identified by its translated subject and body');
+check(end($framework->logs)['alarm_severity'] === 'test' && end($framework->logs)['alarm_code'] === 'TEST_ALARM',
+    'Test alarm was logged as an actual PKI failure');
+check($service->sendTest($base + 3606) === 'throttled', 'Repeated test email was not throttled');
+check($service->raise('ROOT_KEY_DECRYPT_FAILED', 'critical', $id, $base + 3607) === 'throttled',
+    'Test alarm reset an existing real-alarm throttle');
+check($service->raise('NEW_FAILURE', 'critical', $id, $base + 3607) === 'sent',
+    'Test alarm suppressed an unrelated real alarm');
+check($service->sendTest($base + 7205) === 'sent', 'Test alarm did not become available after one hour');
+
+echo "Admin alarms: persistence, hourly throttling, retries, recipients, locking, and isolated test sends passed.\n";

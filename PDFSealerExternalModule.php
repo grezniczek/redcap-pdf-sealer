@@ -4,6 +4,9 @@ namespace DE\RUB\PDFSealerExternalModule;
 
 use Com\Tecnick\Pdf\Sign\Cms\Certificate;
 use DE\RUB\PDFSealerExternalModule\Alerts\AdminAlarmService;
+use DE\RUB\PDFSealerExternalModule\Alerts\AlarmLock;
+use DE\RUB\PDFSealerExternalModule\Alerts\AlarmRepository;
+use DE\RUB\PDFSealerExternalModule\Diagnostics\DiagnosticSnapshot;
 use DE\RUB\PDFSealerExternalModule\Diagnostics\PkiDiagnosticService;
 use DE\RUB\PDFSealerExternalModule\Pki\CertificateIssuer;
 use DE\RUB\PDFSealerExternalModule\Pdf\PdfFinalizeService;
@@ -69,6 +72,9 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
         if ($action === 'run_diagnostic') {
             return $this->runDiagnostic($payload);
         }
+        if ($action === 'send_test_alarm') {
+            return $this->sendTestAlarm($payload);
+        }
         if ($action === 'save_alert_recipients') {
             return $this->saveAlertRecipients($payload);
         }
@@ -94,10 +100,32 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
                 new CertificateIssuer([$this->framework, 'createTempFile']),
                 new PrimarySystemSettingReader($this->framework),
             );
-            return ['ok' => true] + $service->run();
+            $result = $service->run();
+            $completedAt = time();
+            $saved = true;
+            try {
+                (new DiagnosticSnapshot($this->framework))->save($result, $completedAt);
+            } catch (\Throwable) {
+                $saved = false;
+            }
+            return ['ok' => true, 'completed_at' => $completedAt, 'saved' => $saved] + $result;
         } catch (\Throwable) {
             return ['ok' => false, 'message' => $this->framework->tt('diagnostic_unavailable')];
         }
+    }
+
+    private function sendTestAlarm(mixed $payload): array
+    {
+        if (!is_array($payload) || count($payload) !== 1 || ($payload['confirmed'] ?? null) !== true) {
+            return ['ok' => false, 'message' => $this->framework->tt('pki_invalid_request')];
+        }
+        try {
+            $status = (new AdminAlarmService($this->framework,
+                new AlarmRepository($this->framework), new AlarmLock()))->sendTest();
+        } catch (\Throwable) {
+            $status = 'failed';
+        }
+        return ['ok' => $status === 'sent', 'message' => $this->framework->tt('alarm_test_' . $status)];
     }
 
     /** @return array{ok: bool, message?: string, timestamp_mode?: string, bb_fallback?: bool} */

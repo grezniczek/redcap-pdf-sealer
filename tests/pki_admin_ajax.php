@@ -89,9 +89,15 @@ namespace {
         check($module->redcap_module_ajax('run_diagnostic', $payload, null)
             === ['ok' => false, 'message' => 'pki_invalid_request'], 'Diagnostic accepted caller-supplied data');
     }
+    foreach ([null, [], ['confirmed' => false], ['confirmed' => 'true'], ['confirmed' => true, 'to' => 'other@example.org']] as $payload) {
+        check($module->redcap_module_ajax('send_test_alarm', $payload, null)
+            === ['ok' => false, 'message' => 'pki_invalid_request'], 'Test alarm accepted missing confirmation or arbitrary recipients');
+    }
     $config = json_decode(file_get_contents(dirname(__DIR__) . '/config.json'), true, flags: JSON_THROW_ON_ERROR);
     check(in_array('run_diagnostic', $config['auth-ajax-actions'], true)
         && !in_array('run_diagnostic', $config['no-auth-ajax-actions'], true), 'Diagnostic AJAX authentication configuration is wrong');
+    check(in_array('send_test_alarm', $config['auth-ajax-actions'], true)
+        && !in_array('send_test_alarm', $config['no-auth-ajax-actions'], true), 'Test alarm is not authenticated');
 
     $defaults = TimestampSettings::fromStored(null, null);
     check($defaults->mode === 'internal' && $defaults->fallback, 'Default timestamp behavior changed');
@@ -158,6 +164,12 @@ namespace {
               ['superuser' => true, 'projectId' => 461, 'context' => null]] as $case) {
         $framework->superuser = $case['superuser'];
         $framework->projectId = $case['projectId'];
+        try {
+            $module->redcap_module_ajax('send_test_alarm', ['confirmed' => true], $case['context']);
+            throw new \RuntimeException('Unauthorized test alarm was accepted');
+        } catch (\RuntimeException $e) {
+            check($e->getMessage() === 'pki_access_denied', 'Unexpected test alarm authorization result');
+        }
         try {
             $module->redcap_module_ajax('save_alert_recipients', 'new@example.org', $case['context']);
             throw new \RuntimeException('Unauthorized AJAX request was accepted');

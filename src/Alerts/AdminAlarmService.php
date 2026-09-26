@@ -36,6 +36,17 @@ final class AdminAlarmService
             || ($identityId !== null && preg_match('/^[0-9a-f]{32}$/D', $identityId) !== 1)) {
             throw new RuntimeException('Invalid PKI alarm condition');
         }
+        return $this->deliver($code, $severity, $identityId, $now);
+    }
+
+    /** Uses a separate throttle condition so testing cannot suppress a real alarm. */
+    public function sendTest(?int $now = null): string
+    {
+        return $this->deliver('TEST_ALARM', 'test', null, $now);
+    }
+
+    private function deliver(string $code, string $severity, ?string $identityId, ?int $now): string
+    {
         $now ??= time();
         if ($now < 1) {
             throw new RuntimeException('Invalid alarm time');
@@ -56,6 +67,11 @@ final class AdminAlarmService
                         . '<br>Code: ' . $code
                         . '<br>Identity: ' . ($identityId ?? 'none')
                         . '<br>Time: ' . gmdate('c', $now) . '<br>';
+                    if ($severity === 'test') {
+                        $subject = $this->framework->tt('alarm_test_subject');
+                        $body = htmlspecialchars($this->framework->tt('alarm_test_body'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+                            . '<br>' . gmdate('c', $now);
+                    }
                     try {
                         $status = ($this->send)(implode(',', $recipients), $subject, $body) === true ? 'sent' : 'failed';
                     } catch (Throwable $e) {

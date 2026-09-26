@@ -1,0 +1,31 @@
+.pdf-sealer-admin { max-width: 1100px; margin: 12px 0 24px; }
+.pdf-sealer-admin .pdf-sealer-brand { font-size: .875rem; margin-bottom: 5px; }
+.pdf-sealer-summary { display: grid; grid-template-columns: 1fr 1.5fr 1fr; gap: 16px; margin: 16px 0; }
+.pdf-sealer-card { border: 1px solid #d9dfe5; border-radius: 5px; padding: 10px 12px; background: #fff; overflow-wrap: anywhere; }
+.pdf-sealer-health-ready, .pdf-sealer-snapshot.is-fresh { background: #edf7ee; }
+.pdf-sealer-health-degraded { background: #fff6e5; }
+.pdf-sealer-health-broken, .pdf-sealer-snapshot.is-failed { background: #fbe1e1; border-color: #d99b9b; }
+.pdf-sealer-snapshot.is-aging { background: #fff2f2; }
+.pdf-sealer-snapshot.is-stale { background: #fce8e8; }
+.pdf-sealer-snapshot.is-old { background: #f8d7da; border-color: #d99b9b; }
+.pdf-sealer-trust-link { margin: 0 0 16px; }
+.pdf-sealer-admin .nav-tabs { gap: 2px; }
+.pdf-sealer-admin .nav-link { font-size: inherit; }
+.pdf-sealer-admin .nav-link i { margin-right: 4px; }
+.pdf-sealer-panel { border: 1px solid #ddd; border-top: 0; border-radius: 0 0 4px 4px; padding: 20px 16px; }
+.pdf-sealer-panel[hidden] { display: none; }
+.pdf-sealer-panel h5 { font-size: 1rem; font-weight: 600; margin-bottom: 10px; }
+.pdf-sealer-certificate { display: grid; grid-template-columns: 165px minmax(0, 1fr); gap: 10px 16px; margin: 18px 0; }
+.pdf-sealer-certificate dt, .pdf-sealer-certificate dd { margin: 0; overflow-wrap: anywhere; }
+.pdf-sealer-fingerprint { color: #34495e; background: #f5f7f9; padding: 3px 5px; border-radius: 3px; word-break: break-all; }
+.pdf-sealer-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.pdf-sealer-snapshot { margin: 16px 0 8px; }
+.pdf-sealer-admin [role="status"]:not([hidden]) { margin-top: 12px; }
+.pdf-sealer-admin table { margin-top: 16px; }
+.pdf-sealer-admin .form-select, .pdf-sealer-admin textarea, .pdf-sealer-admin input[type="text"] { max-width: 720px; }
+.pdf-sealer-admin button:focus-visible { outline: 2px solid #3276b1; outline-offset: 2px; }
+@media (max-width: 700px) {
+    .pdf-sealer-summary { grid-template-columns: 1fr; gap: 8px; }
+    .pdf-sealer-certificate { grid-template-columns: 1fr; gap: 4px; }
+    .pdf-sealer-certificate dd { margin-bottom: 10px; }
+}

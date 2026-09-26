@@ -13,7 +13,7 @@
     "enable-no-auth-logging": true,
     "enable-every-page-hooks-on-system-pages": true,
     "enable-every-page-hooks-on-login-form": true,
-    "auth-ajax-actions": ["run_diagnostic", "save_timestamp_settings", "save_alert_recipients", "download_root_certificate", "download_public_root_certificate"],
+    "auth-ajax-actions": ["run_diagnostic", "send_test_alarm", "save_timestamp_settings", "save_alert_recipients", "download_root_certificate", "download_public_root_certificate"],
     "no-auth-ajax-actions": ["download_public_root_certificate"],
     "pdf-finalize": [
         {
@@ -46,7 +46,7 @@
     "links": {
         "control-center": [
             {
-                "name": "PDF Sealer PKI",
+                "name": "PDF Sealer administration",
                 "tt_name": "pki_link_name",
                 "icon": "fas fa-lock",
                 "url": "pki-admin.php",
