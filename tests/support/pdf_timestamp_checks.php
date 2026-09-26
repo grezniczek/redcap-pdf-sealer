@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use Com\Tecnick\Pdf\Sign\Cms\Asn1;
-use Com\Tecnick\Pdf\Sign\Cms\Certificate;
-use Com\Tecnick\Pdf\Sign\Cms\Oid;
-use Com\Tecnick\Pdf\Sign\Signer;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Asn1;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Oid;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Signer;
 
 use DE\RUB\PDFSealerExternalModule\Pdf\PdfSealResult;
 

@@ -7,7 +7,7 @@ use DE\RUB\PDFSealerExternalModule\Pdf\IncrementalRevisionWriter;
 use DE\RUB\PDFSealerExternalModule\Pdf\PdfStructureInspector;
 use DE\RUB\PDFSealerExternalModule\Pdf\UnsupportedPdf;
 
-require dirname(__DIR__) . '/vendor/autoload.php';
+require dirname(__DIR__) . '/autoload.php';
 
 function checkPdf(bool $condition, string $message): void
 {

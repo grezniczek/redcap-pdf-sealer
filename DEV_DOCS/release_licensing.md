@@ -1,61 +1,75 @@
-# Dependency notices and release packaging
+# Dependency builds, notices, and release packaging
 
-## Reviewed distribution
+## Distribution model
 
-The 2026-09-27 review found three production Composer packages: `tecnickcom/tc-lib-pdf-filter` 2.11.3, `tecnickcom/tc-lib-pdf-parser` 3.16.1, and `tecnickcom/tc-lib-pdf-sign` 2.0.4. All declare `LGPL-3.0-or-later`. Every installed file matched its corresponding cached Composer distribution archive; archive roots match the pinned Git revision prefixes. No namespace prefixing or other vendor edits exist. All original source headers and package `LICENSE` files are retained. No `MODIFICATIONS.md` is appropriate for these unmodified copies.
+The committed `libraries/` tree contains three source libraries: `tecnickcom/tc-lib-pdf-filter` 2.11.3, `tecnickcom/tc-lib-pdf-parser` 3.16.1, and `tecnickcom/tc-lib-pdf-sign` 2.0.4. All remain `LGPL-3.0-or-later`. `libraries/manifest.json` records versions, exact upstream revisions, attribution, and license fingerprints without including Composer metadata.
 
-Composer's generated installation support is also shipped, with its original MIT `vendor/composer/LICENSE`. Its generator version is not recorded by Composer; `ClassLoader.php` and `InstalledVersions.php` match this machine's Composer 2.7.1 runtime classes. This comparison does not establish the generator version. The review fingerprints these two classes so later edits require review.
+All library namespaces and references are prefixed with `DE\RUB\PDFSealerExternalModule\Dependencies\`. The module-owned root `autoload.php` loads both module classes and these private dependency classes. No global `Com\Tecnick` aliases are registered. The prefix is module-specific, not tied to the development directory version.
 
-The original Tecnick license files contain LGPLv3, which incorporates GPLv3. `licenses/GPL-3.0.txt` supplies the complete accompanying GPLv3 text required by [LGPLv3 section 4(b)](https://www.gnu.org/licenses/lgpl-3.0.html). It was copied unchanged from this development machine's `/usr/share/common-licenses/GPL-3`; the [FSF publishes the text](https://www.gnu.org/licenses/gpl-3.0.html). Root `LICENSE` remains byte-for-byte unchanged and applies to the module's MIT code.
+Composer is a development-only way to obtain the reviewed upstream source. Root `composer.json`, `composer.lock`, ignored `vendor/`, and `tools/` are excluded by `.gitattributes`. **No Composer runtime, autoloader, manifests, or lockfile is shipped.** Ordinary module use and standalone tests load the committed bundle without Composer. Do not copy `vendor/` into a release.
 
-The module's `src/Timestamp/PolicyOidAsn1.php` extends an upstream interface without changing vendor files. The UI uses REDCap-provided assets; `assets/admin.css` is module code. PHP/extensions, REDCap/Framework, and external test tools are not bundled. Development fixtures and their disposable certificates must never be included in release ZIPs.
+## Licensing and modifications
 
-## Check and update
+The original unmodified package contents were compared byte-for-byte with cached Composer distribution archives for their pinned revisions on 2026-09-27. Those input tree hashes remain in `tools/third-party-review.json`.
+
+The distributed copies are now **modified**. Each PHP source file retains its upstream copyright/license header and gains a dated PDF Sealer modification notice. Each package includes `MODIFICATIONS.md` describing namespace and reference prefixing, PHPDoc changes, and omission of upstream Composer metadata and installation README. No intentional functional changes are made. All upstream runtime PHP source is retained, including code not currently used by the module, along with original `LICENSE`, `VERSION`, and `SECURITY.md` files.
+
+The original license texts contain LGPLv3, which incorporates GPLv3. `licenses/GPL-3.0.txt` supplies the complete accompanying GPLv3 text required by [LGPLv3 section 4(b)](https://www.gnu.org/licenses/lgpl-3.0.html); it was copied unchanged from `/usr/share/common-licenses/GPL-3`. Root `LICENSE` remains the unchanged MIT license for PDF Sealer. Composer's MIT runtime notice was removed from the distribution inventory because its code is no longer shipped. Module code and its new autoloader are covered by the root MIT license.
+
+## Reproduce the bundle
+
+Run from the module root with PHP 8.2+ and Composer available for the development step:
 
 ```sh
+composer install --no-dev --prefer-dist --no-interaction --no-scripts --no-plugins
+php tools/build-dependencies.php
+```
+
+The default build command checks reproducibility without writing. It verifies the installed package set, versions, pinned revisions, complete upstream tree hashes, and package licensing against the reviewed development inputs. It then compares the expected output byte-for-byte with `libraries/`. It does not execute upstream code.
+
+For an intentional rebuild:
+
+```sh
+php tools/build-dependencies.php --write
 php tools/third-party-notices.php
 ```
 
-This reads files without loading vendor code or bootstrapping REDCap. It checks the production package set against installed metadata and reviewed packages, versions/revisions/licenses, original license text fingerprints, complete reviewed package trees, and the generated notice. Missing or altered package files fail, as do unlisted vendor packages. A package marked modified must contain `MODIFICATIONS.md`. This is a distribution consistency check, not a general license scanner or proof of legal compliance.
+The build is deterministic: it uses the reviewed modification date rather than the current clock, stable file ordering, and fixed input revisions. It tokenizes PHP to prefix qualified names while retaining global PHP classes/functions, adjusts PHPDoc references, and adds modification notices. It refuses unexpected dynamic Tecnick class strings, include/eval/resource-path constructs, and unknown package files. This is a small transformer for these pinned and audited packages, not a general-purpose PHP namespace isolation tool. New package versions require review.
 
-After a dependency upgrade or deliberate library edit:
+`--write` overwrites generated bundle files. Do not hand-edit `libraries/`; make deliberate source changes reproducible in the build first. Extra or stale files cause verification to fail and require inspection; the builder does not silently delete them.
 
-1. Review `composer.lock`, installed package metadata, upstream copyright/license files, and source differences against the exact pinned distribution. Include any newly bundled non-Composer components in the inventory/check too.
-2. If modified, preserve upstream notices, add a dated package `MODIFICATIONS.md`, and mark each changed source file appropriately. Keep a reproducible patch/build step outside ignored `vendor/` so a clean install retains the notices and edits. Do not label modified copies as pristine.
-3. Update `tools/third-party-review.json` only after this review: revision, modification status, copyright, and package tree SHA-256. The tree hash is SHA-256 of concatenated lines `file_sha256 + two spaces + relative_path + LF`, sorted by relative path in byte order, covering every package file. License and Composer runtime fingerprints are separate. This intentionally cannot be refreshed by the notice generator itself.
-4. Run `php tools/third-party-notices.php --write`, inspect the readable notice, then run the check again. Package names, versions, licenses, authors, and upstream URLs in the notice come from Composer metadata rather than a second version list.
+## Dependency upgrades and review
 
-## Release staging
+1. Update development dependencies deliberately. Compare the exact pinned distributions, their source, copyright/license terms, resource access, and dynamic loading behavior. Refresh the input revisions/tree hashes in `tools/third-party-review.json` only after review.
+2. Adjust the scoped transformer if necessary. Document any functional change in package modification records and source notices. Preserve original license texts. Update the modification date for the new build.
+3. Generate the bundle, review its diff, and update `bundled_tree_sha256` in `tools/third-party-review.json` only after that review. A tree hash is SHA-256 of concatenated lines `file_sha256 + two spaces + relative_path + LF`, sorted by relative path in byte order. The bundle hash covers every file under `libraries/`, including its manifest and modification records. `PDFSealerBuild\digest(PDFSealerBuild\files($directory))` in `tools/dependency-build.php` implements this calculation.
+4. Run `php tools/third-party-notices.php --write`, inspect the notice, then run both check commands again. Notice versions and attribution come from the generated bundle manifest and are checked against the matching checkout's lockfile/review metadata.
+5. Run the isolation test and affected signing/timestamp tests. Never relabel a modified library as pristine to make a check pass.
 
-No release builder or existing release ZIP was present at review time. `.gitattributes` excludes development docs, tests, tools, and editor files; it retains the root README, audience guides and technical references under `docs/`, the root notice, and `licenses/`. `vendor/` is Git-ignored, so **GitHub source ZIPs and `git archive` alone are not installable release packages** and do not contain the dependency license files.
+The notices checker checks package sets and metadata, retained license fingerprints, modification records, the entire reviewed bundle, and notice freshness. It accepts an unpacked release path and reads development review metadata from the calling checkout; it does not require Composer files inside that release. For an external package directory it rejects `vendor/`, `tools/`, and Composer manifests/lockfiles/PHARs anywhere in the tree. It is a consistency gate, not a general license scanner or proof of legal compliance.
 
-After committing the intended release files, stage a release from that commit, install the locked production dependencies in the staging directory, then check that directory. Run from the checkout with PHP, Composer, Git, tar, zip, and unzip available:
+## Release packaging
 
-```sh
-pdf_sealer_stage=$(mktemp -d)
-git archive HEAD | tar -x -C "$pdf_sealer_stage"
-composer install --working-dir="$pdf_sealer_stage" --no-dev --prefer-dist --no-interaction --no-scripts --no-plugins
-php tools/third-party-notices.php "$pdf_sealer_stage"
-```
-
-**Stop if any command fails.** Use a new absolute ZIP path and run the archive-content check before distribution:
+Commit the intended source, generated libraries, manifest, notices, and documentation together. Git archives now include the complete runtime. A small release procedure is sufficient:
 
 ```sh
+php tools/build-dependencies.php
+php tools/third-party-notices.php
 pdf_sealer_zip=/absolute/new/path/pdf_sealer.zip
-test ! -e "$pdf_sealer_zip" && (cd "$pdf_sealer_stage" && zip -qr "$pdf_sealer_zip" .)
+# Use a new output filename; stop if any command fails.
+test ! -e "$pdf_sealer_zip" && git archive --format=zip --output="$pdf_sealer_zip" HEAD
 pdf_sealer_verify=$(mktemp -d)
 unzip -q "$pdf_sealer_zip" -d "$pdf_sealer_verify"
 php tools/third-party-notices.php "$pdf_sealer_verify"
+PDF_SEALER_PACKAGE_ROOT="$pdf_sealer_verify" php tests/dependency_isolation.php
 ```
 
-Before distribution, also check that all three `config.json` documentation entries resolve inside the extracted ZIP: `README.md`, `docs/PROJECT.md`, and `docs/ADMIN.md`. Follow their relative links to the packaged technical references and confirm that links to developer documentation use GitHub URLs.
+Use the same commit's tooling to inspect the package. The archive must contain `autoload.php`, module source, all `libraries/` files and modification/license records, root `LICENSE`, `THIRD_PARTY_NOTICES.md`, `licenses/GPL-3.0.txt`, root README, and packaged `docs/`. Check all three configured documentation targets and their relative links.
 
-The ZIP contains module source, the audience guides and technical references, the unchanged root MIT license, generated third-party notices, complete GPLv3 text, all package source and original LGPL licenses, Composer metadata/runtime and MIT license, and applicable modification notices. Keep dependencies as editable PHP source. Any future obfuscation, namespace rewriting, binary bundling, or additional distribution restrictions need a fresh review.
+The archive must exclude Composer files/runtime, `vendor/`, developer tools/tests, `DEV_DOCS/`, generated PDF/certificate fixtures, and editor/Git files. The development directory remains `pdf_sealer_v9.9.9`; public release naming is separate. No release is published by these commands.
 
-The check requires a matching reviewed checkout; the development checker and review manifest are deliberately excluded from the release. Run this procedure with the same commit's tooling. Keep the development directory named `pdf_sealer_v9.9.9`; public release naming is separate.
+## Verification boundaries
 
-## Verification of this slice
+The original licensing slice tested a Composer-containing staging package. That packaging model has been superseded by the committed, prefixed source bundle described here. Current isolation tests use deliberately incompatible stand-ins for every upstream class name, in separate processes for both load orders, and check that all 48 bundled symbols come from `libraries/`. They also exercise the module adapter and can run against an extracted package with no Composer files.
 
-On 2026-09-27, a disposable staging directory was assembled from the current Git archive plus the new README, notices, and GPL text (not yet committed). A clean production Composer install passed the checker. Its 130-file ZIP was extracted and passed the same check; dependency licenses/source were present and development docs, tests, tools, and fixtures were absent. No release was published.
-
-Separate disposable mutations confirmed that the check rejects a missing package license, an undocumented source edit, stale notices, an installed-version mismatch, an unlisted vendor library, and a package marked modified without `MODIFICATIONS.md`. PHP lint and `git diff --check` passed; root `LICENSE` was verified identical to HEAD. The installed Composer 2.7.1 emitted deprecation notices under PHP 8.5 but completed successfully. PDF functionality was not changed or retested for this documentation/packaging slice.
+The standalone suites validate functionality through the same module-owned loader. The [testing guide](testing.md) and [implementation status](implementation_status.md) record current coverage and results. No changes to Core/Framework or stored PKI are needed for this dependency migration.

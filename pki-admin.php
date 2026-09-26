@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Com\Tecnick\Pdf\Sign\Cms\Certificate;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate;
 use DE\RUB\PDFSealerExternalModule\Diagnostics\DiagnosticSnapshot;
 use DE\RUB\PDFSealerExternalModule\Pki\CertificateIssuer;
 use DE\RUB\PDFSealerExternalModule\Pki\IdentityRepository;

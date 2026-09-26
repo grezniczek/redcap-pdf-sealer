@@ -9,7 +9,7 @@ if (getenv('PDF_SEALER_LIVE_TEST') !== '1') {
 
 $_SERVER['PHP_SELF'] = 'pdf_sealer_live_framework.php';
 require '/home/gr/redcap/codebase/Config/init_global.php';
-require dirname(__DIR__) . '/vendor/autoload.php';
+require dirname(__DIR__) . '/autoload.php';
 
 use DE\RUB\PDFSealerExternalModule\Alerts\AdminAlarmService;
 use DE\RUB\PDFSealerExternalModule\Alerts\AlarmLock;
@@ -89,7 +89,7 @@ try {
     }
     if ($stored === null || $stored->role !== 'root'
         || !openssl_x509_check_private_key(
-            \Com\Tecnick\Pdf\Sign\Cms\Certificate::derToPem($stored->certificateDer),
+            \DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate::derToPem($stored->certificateDer),
             $stored->privateKey($protector),
         )) {
         throw new RuntimeException('Stored identity did not round trip through the Framework');
@@ -285,7 +285,7 @@ try {
     if (count($failureRows) !== count($failureExpected)) {
         throw new RuntimeException('Expected detailed EM log entries only for failed seal attempts');
     }
-    $certificate = openssl_x509_parse(\Com\Tecnick\Pdf\Sign\Cms\Certificate::derToPem($project->certificateDer));
+    $certificate = openssl_x509_parse(\DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate::derToPem($project->certificateDer));
     if (!is_array($certificate)) {
         throw new RuntimeException('Could not parse project certificate for failure diagnostics check');
     }

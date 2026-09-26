@@ -6,9 +6,9 @@ PDF Sealer maintains an installation-specific certificate authority and timestam
 
 This is a reference implementation progressing toward v1. It requires:
 
-- PHP 8.2 or later in the PHP 8 series, with OpenSSL, hash, JSON, PCRE, and zlib support, as required by the locked dependencies.
+- PHP 8.2 or later in the PHP 8 series, with OpenSSL, hash, JSON, PCRE, and zlib support, as required by the bundled libraries.
 - REDCap Core and an External Module Framework that implement the PDF finalization pipeline and `redcap_module_pdf_finalize`. The module declares Framework version 16, but that number alone does not establish availability of these features in a particular checkout or release.
-- A complete module distribution, including its Composer `vendor/` directory and third-party licenses. GitHub's automatically generated source ZIP is not a complete installation package.
+- A complete module distribution, including `libraries/`, the module-owned `autoload.php`, and third-party licenses. Dependencies are already bundled with isolated namespaces; installation does not require Composer.
 - Working REDCap encryption, database storage, and temporary-file support. REDCap email delivery is needed if alarm emails are configured.
 
 Install and enable the module using REDCap's normal External Modules administration. The production sealing path uses PHP libraries and OpenSSL; it does not require qpdf, Poppler, or the OpenSSL command-line program. Those are development validation tools.

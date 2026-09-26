@@ -1,0 +1,48 @@
+{
+    "namespace_prefix": "DE\\RUB\\PDFSealerExternalModule\\Dependencies\\",
+    "modified_on": "2026-09-27",
+    "packages": {
+        "tecnickcom/tc-lib-pdf-filter": {
+            "version": "2.11.3",
+            "reference": "cefbf314e3c2749ede5470a8240535ff82646a06",
+            "upstream": "https://github.com/tecnickcom/tc-lib-pdf-filter",
+            "license": [
+                "LGPL-3.0-or-later"
+            ],
+            "authors": [
+                "Nicola Asuni"
+            ],
+            "copyright": "2011-2026 Nicola Asuni - Tecnick.com LTD",
+            "license_sha256": "0bb3083ac9b94a3d956b1cda7801ae48dccf3cd7d8dad1e61535b5ee8886f348",
+            "modified": true
+        },
+        "tecnickcom/tc-lib-pdf-parser": {
+            "version": "3.16.1",
+            "reference": "4c3596dc3bf2e86e435d4d8f6de782a0755d7b4f",
+            "upstream": "https://github.com/tecnickcom/tc-lib-pdf-parser",
+            "license": [
+                "LGPL-3.0-or-later"
+            ],
+            "authors": [
+                "Nicola Asuni"
+            ],
+            "copyright": "2011-2026 Nicola Asuni - Tecnick.com LTD",
+            "license_sha256": "6261de925cb87ba8bdfb48f41a65c25a9269bab17f2c6f7c31d2b4812b8c388f",
+            "modified": true
+        },
+        "tecnickcom/tc-lib-pdf-sign": {
+            "version": "2.0.4",
+            "reference": "78c8c20aae5a16ccd335e1c8f528f9335bdcc40f",
+            "upstream": "https://github.com/tecnickcom/tc-lib-pdf-sign",
+            "license": [
+                "LGPL-3.0-or-later"
+            ],
+            "authors": [
+                "Nicola Asuni"
+            ],
+            "copyright": "2011-2026 Nicola Asuni - Tecnick.com LTD",
+            "license_sha256": "62d185a30d936a2eed968dfade4a88357edc5d7d4eadfc578cfa4ef18daab8ba",
+            "modified": true
+        }
+    }
+}

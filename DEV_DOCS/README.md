@@ -7,7 +7,7 @@ Start here for implementation, testing, acceptance evidence, and release mainten
 1. [Current status and implementation history](implementation_status.md): begin with its current summary; older milestone sections record the work at that time.
 2. [Development and testing](testing.md): local setup, standalone suites, disposable fixtures, and live-test boundaries.
 3. [Fixture coverage](pdf_fixture_coverage.md), [Core pipeline and stored-PDF acceptance](pdf_pipeline_acceptance.md), and [Acrobat/DSS acceptance](pdf_interop_acceptance.md): what has actually been verified and what those results do not establish.
-4. [Dependency notices and release packaging](release_licensing.md): audit dependencies, regenerate notices, build a complete package, and check its contents.
+4. [Dependency notices and release packaging](release_licensing.md): rebuild prefixed dependencies, regenerate notices, build a complete package, and check its contents.
 
 ## Current working references
 

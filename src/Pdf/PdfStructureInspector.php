@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace DE\RUB\PDFSealerExternalModule\Pdf;
 
-use Com\Tecnick\Pdf\Parser\Parser;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Parser\Parser;
 
 final class PdfStructureInspector
 {

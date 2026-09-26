@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace DE\RUB\PDFSealerExternalModule\Pki;
 
-use Com\Tecnick\Pdf\Sign\Cms\Certificate;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate;
 use Closure;
 use OpenSSLAsymmetricKey;
 use OpenSSLCertificate;

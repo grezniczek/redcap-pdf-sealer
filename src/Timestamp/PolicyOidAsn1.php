@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace DE\RUB\PDFSealerExternalModule\Timestamp;
 
-use Com\Tecnick\Pdf\Sign\Cms\Asn1;
-use Com\Tecnick\Pdf\Sign\Exception;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Asn1;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Exception;
 
 /** Adds one UUID-sized 2.25 policy arc to Tecnick's otherwise integer-bounded OID codec. */
 final class PolicyOidAsn1 extends Asn1

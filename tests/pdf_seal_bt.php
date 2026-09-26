@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Com\Tecnick\Pdf\Sign\Signer;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Signer;
 use DE\RUB\PDFSealerExternalModule\Timestamp\InternalTimestampProvider;
 use DE\RUB\PDFSealerExternalModule\Timestamp\InternalTsaService;
 use DE\RUB\PDFSealerExternalModule\Timestamp\TimestampProvider;

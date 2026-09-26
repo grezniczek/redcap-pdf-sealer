@@ -11,7 +11,7 @@ use DE\RUB\PDFSealerExternalModule\Pki\PrimaryLogReader;
 use DE\RUB\PDFSealerExternalModule\Pki\PrimarySystemSettingReader;
 use DE\RUB\PDFSealerExternalModule\Pki\SecretProtector;
 
-require dirname(__DIR__) . '/vendor/autoload.php';
+require dirname(__DIR__) . '/autoload.php';
 
 // Disposable encryption shim; the browser diagnostic exercises actual REDCap encryption.
 function encrypt(string $plaintext): string|false

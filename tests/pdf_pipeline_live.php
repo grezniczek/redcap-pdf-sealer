@@ -17,9 +17,9 @@ require $core . '/Config/init_global.php';
 require __DIR__ . '/support/pdf_timestamp_checks.php';
 require __DIR__ . '/support/redcap_pdf_fixtures.php';
 
-use Com\Tecnick\Pdf\Sign\Cms\Asn1;
-use Com\Tecnick\Pdf\Sign\Cms\Certificate;
-use Com\Tecnick\Pdf\Sign\Signer;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Asn1;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Signer;
 use DE\RUB\PDFSealerExternalModule\Pki\CertificateIssuer;
 use DE\RUB\PDFSealerExternalModule\Pki\IdentityRepository;
 use DE\RUB\PDFSealerExternalModule\Pki\PkiHealth;

@@ -13,7 +13,7 @@ use DE\RUB\PDFSealerExternalModule\Pki\PrimarySystemSettingReader;
 use DE\RUB\PDFSealerExternalModule\Pki\ProjectBindingRepository;
 use DE\RUB\PDFSealerExternalModule\Pki\SecretProtector;
 
-require dirname(__DIR__) . '/vendor/autoload.php';
+require dirname(__DIR__) . '/autoload.php';
 
 function encrypt(string $plaintext): string|false { return base64_encode('test-encrypted:' . $plaintext); }
 function decrypt(string $ciphertext): string|false

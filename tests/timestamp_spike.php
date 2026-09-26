@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-use Com\Tecnick\Pdf\Sign\Cms\Asn1;
-use Com\Tecnick\Pdf\Sign\Cms\Certificate;
-use Com\Tecnick\Pdf\Sign\Cms\Oid;
-use Com\Tecnick\Pdf\Sign\Timestamp\Client;
-use Com\Tecnick\Pdf\Sign\Timestamp\Config;
-use Com\Tecnick\Pdf\Sign\Timestamp\Request;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Asn1;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Oid;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Timestamp\Client;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Timestamp\Config;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Timestamp\Request;
 use DE\RUB\PDFSealerExternalModule\Timestamp\InternalTsaService;
 use DE\RUB\PDFSealerExternalModule\Timestamp\TsaIdentity;
 use DE\RUB\PDFSealerExternalModule\Timestamp\PolicyOidAsn1;
 use DE\RUB\PDFSealerExternalModule\Timestamp\TsaPolicy;
 
-require dirname(__DIR__) . '/vendor/autoload.php';
+require dirname(__DIR__) . '/autoload.php';
 
 const POLICY_OID = TsaPolicy::DEFAULT_OID;
 

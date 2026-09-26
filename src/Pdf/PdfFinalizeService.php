@@ -98,7 +98,7 @@ final class PdfFinalizeService
                 new ProjectBindingRepository($this->framework), $identities, $protector,
                 new CertificateIssuer([$this->framework, 'createTempFile']), $health, new ProjectIssueLock(),
             ))->getOrIssue((int) $pid);
-            $certificate = openssl_x509_parse(\Com\Tecnick\Pdf\Sign\Cms\Certificate::derToPem($project->certificateDer));
+            $certificate = openssl_x509_parse(\DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate::derToPem($project->certificateDer));
             if (!is_array($certificate) || !is_string($certificate['serialNumberHex'] ?? null)) {
                 throw new RuntimeException('Project certificate serial is unavailable');
             }

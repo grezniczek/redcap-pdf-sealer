@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-use Com\Tecnick\Pdf\Sign\Cms\Certificate;
-use Com\Tecnick\Pdf\Sign\Timestamp\Client;
-use Com\Tecnick\Pdf\Sign\Timestamp\Config;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Timestamp\Client;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Timestamp\Config;
 use DE\RUB\PDFSealerExternalModule\Pki\CertificateIssuer;
 use DE\RUB\PDFSealerExternalModule\Pki\GeneratedIdentity;
 use DE\RUB\PDFSealerExternalModule\Timestamp\InternalTsaService;
 use DE\RUB\PDFSealerExternalModule\Timestamp\TsaIdentity;
 
-require dirname(__DIR__) . '/vendor/autoload.php';
+require dirname(__DIR__) . '/autoload.php';
 
 function check(bool $condition, string $message): void
 {

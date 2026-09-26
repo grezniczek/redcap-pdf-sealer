@@ -7,7 +7,7 @@ use DE\RUB\PDFSealerExternalModule\Pki\PrimaryLogReader;
 use DE\RUB\PDFSealerExternalModule\Pki\PrimarySystemSettingReader;
 use DE\RUB\PDFSealerExternalModule\Pki\PublicTrustRepository;
 
-require dirname(__DIR__) . '/vendor/autoload.php';
+require dirname(__DIR__) . '/autoload.php';
 
 function check(bool $condition, string $message): void
 {

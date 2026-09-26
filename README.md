@@ -27,7 +27,7 @@ A seal identifies the issuing project and organization; it does not establish th
 
 ## Before using it
 
-The installation needs PHP 8.2 or later in the PHP 8 series, the required PHP extensions and bundled Composer dependencies, and REDCap Core/Framework support for the PDF finalization pipeline. See the [administrator guide](docs/ADMIN.md) for the full prerequisites. The module must be enabled and its sealing operation assigned to the project's pipeline.
+The installation needs PHP 8.2 or later in the PHP 8 series, the required PHP extensions and bundled PHP libraries, and REDCap Core/Framework support for the PDF finalization pipeline. See the [administrator guide](docs/ADMIN.md) for the full prerequisites. The module must be enabled and its sealing operation assigned to the project's pipeline.
 
 A failed sealing operation leaves the preceding PDF available for REDCap to store or deliver. A self-issued certificate is not automatically trusted by viewers, and an embedded timestamp does not by itself provide long-term validation. Automatic certificate renewal/rotation, revocation publication, and PAdES B-LT/B-LTA are not implemented.
 

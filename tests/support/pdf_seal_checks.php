@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use Com\Tecnick\Pdf\Parser\Parser;
-use Com\Tecnick\Pdf\Sign\Cms\Certificate;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Parser\Parser;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate;
 use DE\RUB\PDFSealerExternalModule\Pdf\PdfStructureInspector;
 use DE\RUB\PDFSealerExternalModule\Pdf\UnsupportedPdf;
 
-require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
+require_once dirname(__DIR__, 2) . '/autoload.php';
 
 function checkSeal(bool $condition, string $message): void
 {

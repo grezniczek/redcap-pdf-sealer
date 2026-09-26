@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace DE\RUB\PDFSealerExternalModule\Diagnostics;
 
-use Com\Tecnick\Pdf\Sign\Cms\SignedDataVerifier;
-use Com\Tecnick\Pdf\Sign\Timestamp\Client;
-use Com\Tecnick\Pdf\Sign\Timestamp\Config;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\SignedDataVerifier;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Timestamp\Client;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Timestamp\Config;
 use DE\RUB\PDFSealerExternalModule\Pdf\PdfSealBuilder;
 use DE\RUB\PDFSealerExternalModule\Pki\CertificateIssuer;
 use DE\RUB\PDFSealerExternalModule\Pki\IdentityRepository;

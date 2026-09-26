@@ -12,7 +12,7 @@ use DE\RUB\PDFSealerExternalModule\Pki\ProjectIdentityService;
 use DE\RUB\PDFSealerExternalModule\Pki\ProjectIssueLock;
 use DE\RUB\PDFSealerExternalModule\Pki\SecretProtector;
 
-require dirname(__DIR__) . '/vendor/autoload.php';
+require dirname(__DIR__) . '/autoload.php';
 
 function encrypt(string $plaintext): string|false
 {

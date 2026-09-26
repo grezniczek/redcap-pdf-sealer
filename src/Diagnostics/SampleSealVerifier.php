@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace DE\RUB\PDFSealerExternalModule\Diagnostics;
 
-use Com\Tecnick\Pdf\Parser\Parser;
-use Com\Tecnick\Pdf\Sign\Cms\Asn1;
-use Com\Tecnick\Pdf\Sign\Cms\Certificate;
-use Com\Tecnick\Pdf\Sign\Cms\SignedDataVerifier;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Parser\Parser;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Asn1;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\SignedDataVerifier;
 use DE\RUB\PDFSealerExternalModule\Pdf\PdfStructureInspector;
 use RuntimeException;
 

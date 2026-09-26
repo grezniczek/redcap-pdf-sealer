@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Com\Tecnick\Pdf\Sign\Cms\Certificate;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate;
 use DE\RUB\PDFSealerExternalModule\Pdf\PdfSealBuilder;
 use DE\RUB\PDFSealerExternalModule\Pdf\PdfStructureInspector;
 use DE\RUB\PDFSealerExternalModule\Pdf\UnsupportedPdf;

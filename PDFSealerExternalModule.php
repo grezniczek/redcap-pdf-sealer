@@ -2,7 +2,7 @@
 
 namespace DE\RUB\PDFSealerExternalModule;
 
-use Com\Tecnick\Pdf\Sign\Cms\Certificate;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate;
 use DE\RUB\PDFSealerExternalModule\Alerts\AdminAlarmService;
 use DE\RUB\PDFSealerExternalModule\Alerts\AlarmLock;
 use DE\RUB\PDFSealerExternalModule\Alerts\AlarmRepository;
@@ -16,7 +16,7 @@ use DE\RUB\PDFSealerExternalModule\Pki\PrimarySystemSettingReader;
 use DE\RUB\PDFSealerExternalModule\Pki\PublicTrustRepository;
 use DE\RUB\PDFSealerExternalModule\Pki\SecretProtector;
 
-require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/autoload.php';
 
 class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
 {

@@ -7,5 +7,8 @@
 /SUPPORT.md export-ignore
 /tests export-ignore
 /tools export-ignore
+/composer.json export-ignore
+/composer.lock export-ignore
+/vendor export-ignore
 EM.code-workspace export-ignore
 package-lock.json export-ignore

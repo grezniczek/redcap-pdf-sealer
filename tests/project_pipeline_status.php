@@ -21,7 +21,7 @@ namespace {
     use ExternalModules\PdfFinalize;
     use DE\RUB\PDFSealerExternalModule\Pdf\ProjectPipelineStatus;
 
-    require dirname(__DIR__) . '/vendor/autoload.php';
+    require dirname(__DIR__) . '/autoload.php';
     function check(bool $condition, string $message): void
     {
         if (!$condition) { throw new RuntimeException($message); }

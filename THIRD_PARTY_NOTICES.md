@@ -2,7 +2,7 @@
 
 PDF Sealer is licensed under the MIT License. This distribution also includes third-party software that is licensed separately. The licenses listed below apply to their respective components and not to PDF Sealer as a whole.
 
-PDF Sealer uses the libraries below under LGPL-3.0-or-later. Their original license texts and copyright notices are retained alongside their complete PHP source. The accompanying [GNU GPL version 3](licenses/GPL-3.0.txt) is also included, as required by LGPLv3 section 4(b). Neither these notices nor PDF Sealer's MIT license restrict modification of the libraries or reverse engineering to debug those modifications. The libraries remain separate, replaceable PHP sources in `vendor/`; the module source is supplied too.
+PDF Sealer uses the libraries below under LGPL-3.0-or-later. Their original license texts and copyright notices are retained alongside their complete PHP source. The accompanying [GNU GPL version 3](licenses/GPL-3.0.txt) is also included, as required by LGPLv3 section 4(b). Neither these notices nor PDF Sealer's MIT license restrict modification of the libraries or reverse engineering to debug those modifications. The libraries remain separate, replaceable PHP sources in `libraries/`; the module source and its own autoloader are supplied too.
 
 ## tecnickcom/tc-lib-pdf-filter
 
@@ -12,8 +12,8 @@ PDF Sealer uses the libraries below under LGPL-3.0-or-later. Their original lice
 - License: LGPL-3.0-or-later
 - Author: Nicola Asuni
 - Copyright: 2011-2026 Nicola Asuni - Tecnick.com LTD
-- Original license: [vendor/tecnickcom/tc-lib-pdf-filter/LICENSE](vendor/tecnickcom/tc-lib-pdf-filter/LICENSE)
-- Bundled copy: unmodified (including original namespaces).
+- Original license: [libraries/tecnickcom/tc-lib-pdf-filter/LICENSE](libraries/tecnickcom/tc-lib-pdf-filter/LICENSE)
+- Bundled copy: modified; see [libraries/tecnickcom/tc-lib-pdf-filter/MODIFICATIONS.md](libraries/tecnickcom/tc-lib-pdf-filter/MODIFICATIONS.md).
 
 ## tecnickcom/tc-lib-pdf-parser
 
@@ -23,8 +23,8 @@ PDF Sealer uses the libraries below under LGPL-3.0-or-later. Their original lice
 - License: LGPL-3.0-or-later
 - Author: Nicola Asuni
 - Copyright: 2011-2026 Nicola Asuni - Tecnick.com LTD
-- Original license: [vendor/tecnickcom/tc-lib-pdf-parser/LICENSE](vendor/tecnickcom/tc-lib-pdf-parser/LICENSE)
-- Bundled copy: unmodified (including original namespaces).
+- Original license: [libraries/tecnickcom/tc-lib-pdf-parser/LICENSE](libraries/tecnickcom/tc-lib-pdf-parser/LICENSE)
+- Bundled copy: modified; see [libraries/tecnickcom/tc-lib-pdf-parser/MODIFICATIONS.md](libraries/tecnickcom/tc-lib-pdf-parser/MODIFICATIONS.md).
 
 ## tecnickcom/tc-lib-pdf-sign
 
@@ -34,21 +34,11 @@ PDF Sealer uses the libraries below under LGPL-3.0-or-later. Their original lice
 - License: LGPL-3.0-or-later
 - Author: Nicola Asuni
 - Copyright: 2011-2026 Nicola Asuni - Tecnick.com LTD
-- Original license: [vendor/tecnickcom/tc-lib-pdf-sign/LICENSE](vendor/tecnickcom/tc-lib-pdf-sign/LICENSE)
-- Bundled copy: unmodified (including original namespaces).
-
-## Composer autoloader and runtime
-
-- Upstream: [Composer](https://github.com/composer/composer)
-- Version: generated installation support; Composer does not record the generator version in the shipped metadata. These files are not a separately locked package.
-- License: MIT
-- Copyright: Nils Adermann, Jordi Boggiano
-- ClassLoader authors: Fabien Potencier, Jordi Boggiano
-- Original license: [vendor/composer/LICENSE](vendor/composer/LICENSE)
-- Bundled copy: Composer-generated autoload maps and installation metadata, with upstream runtime classes; no PDF Sealer source edits.
+- Original license: [libraries/tecnickcom/tc-lib-pdf-sign/LICENSE](libraries/tecnickcom/tc-lib-pdf-sign/LICENSE)
+- Bundled copy: modified; see [libraries/tecnickcom/tc-lib-pdf-sign/MODIFICATIONS.md](libraries/tecnickcom/tc-lib-pdf-sign/MODIFICATIONS.md).
 
 ## Distribution scope
 
-PHP and its extensions, REDCap, the External Module Framework, and development validation tools such as qpdf and Poppler are host dependencies, not bundled components of this distribution. No third-party browser library is bundled.
+The libraries' PHP namespaces and references are prefixed with `DE\RUB\PDFSealerExternalModule\Dependencies\` to isolate them from other REDCap modules. Modified source files carry dated notices; package-level modification records describe the changes and omitted upstream installation metadata. No intentional functional changes were made.
 
-Package contents were compared byte-for-byte with the Composer source-distribution archives for the pinned revisions on 2026-09-27. No library is namespace-prefixed or otherwise modified, so no library modification notices are needed. PDF Sealer's `PolicyOidAsn1` adapter resides in the module's own source; the upstream library remains unchanged.
+Composer is used only during development to obtain pinned upstream source. No Composer autoloader, runtime, manifests, or lockfile is included in the module distribution. PHP and its extensions, REDCap, the External Module Framework, and development validation tools such as qpdf and Poppler are host dependencies, not bundled components. No third-party browser library is bundled.

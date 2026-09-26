@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace DE\RUB\PDFSealerExternalModule\Pdf;
 
-use Com\Tecnick\Pdf\Sign\Cms\Certificate;
-use Com\Tecnick\Pdf\Sign\Cms\Oid;
-use Com\Tecnick\Pdf\Sign\Config;
-use Com\Tecnick\Pdf\Sign\Output\Signature;
-use Com\Tecnick\Pdf\Sign\Output\Widget;
-use Com\Tecnick\Pdf\Sign\Signer;
-use Com\Tecnick\Pdf\Sign\Timestamp\Client as TimestampClient;
-use Com\Tecnick\Pdf\Sign\Timestamp\Config as TimestampConfig;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Oid;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Config;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Output\Signature;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Output\Widget;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Signer;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Timestamp\Client as TimestampClient;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Timestamp\Config as TimestampConfig;
 use DateTimeImmutable;
 use DateTimeZone;
 use DE\RUB\PDFSealerExternalModule\Timestamp\PolicyOidAsn1;

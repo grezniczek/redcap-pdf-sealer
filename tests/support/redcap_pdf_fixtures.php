@@ -85,7 +85,7 @@ function createRedcapFixtures(string $core, string $directory): array
 /** Ordered page/link inventory; resolves both inline and indirect annotations. */
 function fixtureLinks(string $bytes): array
 {
-    [$xref, $objects] = (new \Com\Tecnick\Pdf\Parser\Parser(['decode_streams' => false, 'strict_limits' => true]))->parse($bytes);
+    [$xref, $objects] = (new \DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Parser\Parser(['decode_streams' => false, 'strict_limits' => true]))->parse($bytes);
     $resolve = static fn(array $value): array => $value[0] === 'objref' ? $objects[$value[1]][0] : $value;
     $walk = static function (array $node) use (&$walk, $resolve): array {
         $node = $resolve($node);

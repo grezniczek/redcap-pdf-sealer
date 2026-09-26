@@ -1,32 +1,26 @@
 {
-  "reviewed_on": "2026-09-27",
-  "packages": {
-    "tecnickcom/tc-lib-pdf-filter": {
-      "reference": "cefbf314e3c2749ede5470a8240535ff82646a06",
-      "tree_sha256": "72d072ce20571108b4d63d19584926ea730efbc06b267452233975015f148e6c",
-      "modified": false,
-      "copyright": "2011-2026 Nicola Asuni - Tecnick.com LTD"
+    "reviewed_on": "2026-09-27",
+    "packages": {
+        "tecnickcom/tc-lib-pdf-filter": {
+            "reference": "cefbf314e3c2749ede5470a8240535ff82646a06",
+            "tree_sha256": "72d072ce20571108b4d63d19584926ea730efbc06b267452233975015f148e6c",
+            "copyright": "2011-2026 Nicola Asuni - Tecnick.com LTD"
+        },
+        "tecnickcom/tc-lib-pdf-parser": {
+            "reference": "4c3596dc3bf2e86e435d4d8f6de782a0755d7b4f",
+            "tree_sha256": "448352b63786d29e7629acbd9a157bbaf65a5860c66d19bd81c3428007757729",
+            "copyright": "2011-2026 Nicola Asuni - Tecnick.com LTD"
+        },
+        "tecnickcom/tc-lib-pdf-sign": {
+            "reference": "78c8c20aae5a16ccd335e1c8f528f9335bdcc40f",
+            "tree_sha256": "26dcc1f3e5506ac28c74e2a05c6bbc261031973007314d50631affe05e77269b",
+            "copyright": "2011-2026 Nicola Asuni - Tecnick.com LTD"
+        }
     },
-    "tecnickcom/tc-lib-pdf-parser": {
-      "reference": "4c3596dc3bf2e86e435d4d8f6de782a0755d7b4f",
-      "tree_sha256": "448352b63786d29e7629acbd9a157bbaf65a5860c66d19bd81c3428007757729",
-      "modified": false,
-      "copyright": "2011-2026 Nicola Asuni - Tecnick.com LTD"
+    "license_sha256": {
+        "LICENSE": "24e454287fc30bc02eadfd49bf3fbbd5a96695344b68d3688eb9b8bfff715fb3",
+        "licenses/GPL-3.0.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
     },
-    "tecnickcom/tc-lib-pdf-sign": {
-      "reference": "78c8c20aae5a16ccd335e1c8f528f9335bdcc40f",
-      "tree_sha256": "26dcc1f3e5506ac28c74e2a05c6bbc261031973007314d50631affe05e77269b",
-      "modified": false,
-      "copyright": "2011-2026 Nicola Asuni - Tecnick.com LTD"
-    }
-  },
-  "license_sha256": {
-    "LICENSE": "24e454287fc30bc02eadfd49bf3fbbd5a96695344b68d3688eb9b8bfff715fb3",
-    "licenses/GPL-3.0.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
-    "vendor/composer/LICENSE": "7855ac293067aebe7e51afdd23b9dea54b8be24187dbecc9b9142581c37f596c"
-  },
-  "runtime_sha256": {
-    "vendor/composer/ClassLoader.php": "d4b2313e562edf942838ec316d983c1a3459ca67da3e5658e861200b0b3693c2",
-    "vendor/composer/InstalledVersions.php": "21f4ba19e7859cb3f85b8b1680c970ee25d972546c1606dcae0e7e5f43f626f0"
-  }
+    "modified_on": "2026-09-27",
+    "bundled_tree_sha256": "3592437629a5151bad65c5c22137625b99c3e7bcf84c0f5404cefca3f24bb4b8"
 }

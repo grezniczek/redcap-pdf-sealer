@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use DE\RUB\PDFSealerExternalModule\Diagnostics\DiagnosticSnapshot;
 
-require dirname(__DIR__) . '/vendor/autoload.php';
+require dirname(__DIR__) . '/autoload.php';
 
 function check(bool $value, string $message): void
 {
