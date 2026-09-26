@@ -1,1 +1,4 @@
 /vendor/
+
+# Disposable PDFs/certificates for manual interoperability checks
+/DEV_DOCS/interop-artifacts/

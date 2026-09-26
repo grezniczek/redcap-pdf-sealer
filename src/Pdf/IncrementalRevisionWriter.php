@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace DE\RUB\PDFSealerExternalModule\Pdf;
 
-/** Writes changed and new indirect objects in one classic-xref revision. */
+/** Writes changed and new indirect objects, retaining the latest revision's xref format. */
 final class IncrementalRevisionWriter
 {
     public function __construct(private readonly CosSerializer $cos = new CosSerializer())
@@ -60,6 +60,28 @@ final class IncrementalRevisionWriter
             $output .= $number . ' ' . $generation . " obj\n" . $body . "\nendobj\n";
         }
         $xrefOffset = strlen($output);
+        if (substr($pdf->bytes, $pdf->startXref, 4) !== 'xref') {
+            // Continue an xref-stream file with a stream, including its own entry.
+            // Keep signature discovery compatible with readers expecting that format.
+            if ($highest >= PHP_INT_MAX - 2) {
+                throw new \LengthException('No object number available for the xref stream');
+            }
+            $xrefNumber = $highest + 1;
+            $entries[$xrefNumber] = [0];
+            $offsets[$xrefNumber] = $xrefOffset;
+            $index = [];
+            $stream = '';
+            foreach ($entries as $number => [$generation]) {
+                $index[] = $number . ' 1';
+                // Type 1, unsigned big-endian 64-bit offset, 16-bit generation.
+                $stream .= pack('CJn', 1, $offsets[$number], $generation);
+            }
+            $output .= $xrefNumber . " 0 obj\n<< /Type /XRef /W [1 8 2] /Index ["
+                . implode(' ', $index) . '] /Length ' . strlen($stream)
+                . $this->trailerEntries($pdf, $xrefNumber + 1)
+                . " >>\nstream\n" . $stream . "\nendstream\nendobj\n";
+            return $output . "startxref\n" . $xrefOffset . "\n%%EOF\n";
+        }
         $output .= "xref\n";
         foreach ($entries as $number => [$generation]) {
             if ($offsets[$number] > 9999999999) {
@@ -67,7 +89,14 @@ final class IncrementalRevisionWriter
             }
             $output .= $number . " 1\n" . sprintf('%010d %05d n ', $offsets[$number], $generation) . "\n";
         }
-        $output .= "trailer\n<< /Size " . ($highest + 1)
+        $output .= "trailer\n<<" . $this->trailerEntries($pdf, $highest + 1)
+            . " >>\nstartxref\n" . $xrefOffset . "\n%%EOF\n";
+        return $output;
+    }
+
+    private function trailerEntries(ExistingPdf $pdf, int $size): string
+    {
+        $output = ' /Size ' . $size
             . ' /Root ' . $this->cos->serialize(CosSerializer::reference($pdf->rootRef))
             . ' /Prev ' . $pdf->startXref;
         if ($pdf->infoRef !== null) {
@@ -76,7 +105,6 @@ final class IncrementalRevisionWriter
         if ($pdf->documentIds !== []) {
             $output .= ' /ID [<' . $pdf->documentIds[0] . '> <' . $pdf->documentIds[1] . '>]';
         }
-        $output .= " >>\nstartxref\n" . $xrefOffset . "\n%%EOF\n";
         return $output;
     }
 }

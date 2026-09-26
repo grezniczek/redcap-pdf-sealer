@@ -56,13 +56,17 @@ final class PdfStructureInspector
             throw new UnsupportedPdf('Invalid page tree');
         }
 
-        [$firstPageRef, $firstPage] = self::firstPage($objects, $pagesRef, $pageTree);
+        $pages = self::pages($objects, $pagesRef);
+        $firstPageRef = array_key_first($pages);
+        $firstPage = $pages[$firstPageRef];
 
         $acroFormToken = self::value($catalog, 'AcroForm');
         $acroForm = $acroFormToken === null ? null : self::resolveDictionary($objects, $acroFormToken, 'AcroForm');
         $acroFormRef = $acroFormToken === null ? null : self::reference($acroFormToken, false);
         $indirectArrays = [];
-        foreach ([$acroForm === null ? null : self::value($acroForm, 'Fields'), self::value($firstPage, 'Annots')] as $token) {
+        $arrayTokens = array_map(static fn(array $page): ?array => self::value($page, 'Annots'), $pages);
+        $arrayTokens[] = $acroForm === null ? null : self::value($acroForm, 'Fields');
+        foreach ($arrayTokens as $token) {
             if (($token[0] ?? null) !== 'objref') {
                 continue;
             }
@@ -117,23 +121,28 @@ final class PdfStructureInspector
 
         return new ExistingPdf(
             $bytes, $startXref, $nextObjectNumber, array_fill_keys(array_keys($xref['xref']), true), $rootRef, $infoRef, $ids,
-            $catalog, $pagesRef, $pageTree, $permsDictionary, $permsRef, $indirectArrays,
+            $catalog, $pagesRef, $pageTree, $permsDictionary, $permsRef, $indirectArrays, $pages,
             $firstPageRef, $firstPage, $acroForm, $acroFormRef, $hasSignatureFields, $hasExistingSignatures,
         );
     }
 
-    private static function firstPage(array $objects, string $pagesRef, array $pageTree): array
+    /** @return array<string, array> All page dictionaries, in document order. */
+    private static function pages(array $objects, string $pagesRef): array
     {
-        $currentRef = $pagesRef;
-        $current = $pageTree;
         $seen = [];
-        for ($depth = 0; $depth < 64; ++$depth) {
-            if (isset($seen[$currentRef])) {
-                throw new UnsupportedPdf('Cyclic page tree');
+        $pages = [];
+        $walk = static function (string $ref, int $depth) use (&$walk, &$seen, &$pages, $objects): void {
+            if ($depth >= 64) {
+                throw new UnsupportedPdf('Page tree depth exceeded');
             }
-            $seen[$currentRef] = true;
+            if (isset($seen[$ref])) {
+                throw new UnsupportedPdf('Cyclic or repeated page tree node');
+            }
+            $seen[$ref] = true;
+            $current = self::objectDictionary($objects, $ref, 'page tree node');
             if (self::name(self::value($current, 'Type')) === 'Page') {
-                return [$currentRef, $current];
+                $pages[$ref] = $current;
+                return;
             }
             if (self::name(self::value($current, 'Type')) !== 'Pages') {
                 throw new UnsupportedPdf('Invalid page tree node');
@@ -142,10 +151,12 @@ final class PdfStructureInspector
             if (($kids[0] ?? null) !== '[' || !is_array($kids[1] ?? null) || $kids[1] === []) {
                 throw new UnsupportedPdf('Empty or invalid page tree');
             }
-            $currentRef = self::reference($kids[1][0]);
-            $current = self::objectDictionary($objects, $currentRef, 'page tree node');
-        }
-        throw new UnsupportedPdf('Page tree depth exceeded');
+            foreach ($kids[1] as $kid) {
+                $walk(self::reference($kid), $depth + 1);
+            }
+        };
+        $walk($pagesRef, 0);
+        return $pages;
     }
 
     public static function value(array $dictionary, string $key): ?array

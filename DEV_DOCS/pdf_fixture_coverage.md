@@ -32,7 +32,7 @@ Every case is sealed separately as B-B and B-T with disposable root, project-pro
 - The B-T request imprint hashes the actual CMS signature bytes; returned token serial/time match the seal result.
 - OpenSSL independently verifies the RFC 3161 response against the request and, separately, the timestamp token extracted from the finished PDF against the CMS signature bytes.
 - Poppler confirms the synthetic signature image exists in every input. Every page renders pixel-identically at 72 dpi before and after sealing; extracted text is identical.
-- Page order, footer URI targets, and link rectangles are unchanged. Link storage may change from inline to indirect on the first page under the existing sealer workaround.
+- Page order, footer URI targets, and link rectangles are unchanged. Inline Link annotations become indirect on every page, including nested page trees. Shared indirect annotation arrays are resolved per page so only the first page receives the signature widget.
 - Fixture PDFs, image files, certificate configuration files, and render outputs are removed in cleanup. Private keys remain in memory.
 
 Verification helpers under `tests/support/` are shared with `tests/pdf_seal_bb.php` and `tests/pdf_seal_bt.php`. The original suite also passed on its eight available generated/local inputs after extraction of those helpers.
@@ -41,6 +41,14 @@ Tools used: qpdf 11.9.0, Poppler 24.02.0, OpenSSL 3.0.13.
 
 ## Remaining acceptance boundaries
 
-This confirms local structure, cryptography, and content preservation. It does not establish complete PAdES compliance, viewer trust, revocation/LTV, or EU DSS acceptance. Existing live eConsent/Acrobat acceptance remains valid, but these particular multipage/merged synthetic outputs have not been checked in Acrobat or DSS. Chinese/Japanese backends and embedded Unicode font coverage remain outside this matrix.
+This confirms local structure, cryptography, and content preservation. It does not establish complete PAdES compliance, viewer trust, revocation/LTV, or EU DSS acceptance. Existing one-page live eConsent/Acrobat acceptance remains valid. Acrobat checks of the initial synthetic bundle exposed a multipage modification warning and an empty signature panel for the merged/object-stream PDF; the follow-up bundle tests the corrections described below. DSS acceptance remains outstanding. Chinese/Japanese backends and embedded Unicode font coverage remain outside this matrix.
 
 The five fixtures now also pass through both real Core/Framework finalization entry points in `tests/pdf_pipeline_live.php` using PID 461 and the configured B-T mode. Stored/downloaded-byte comparison and Acrobat acceptance also passed for the user-generated record 18 eConsent snapshot; see `pdf_pipeline_acceptance.md`. This does not extend Acrobat acceptance to every synthetic multipage/merged fixture. Broader Acrobat/DSS acceptance should use explicitly disposable synthetic documents.
+
+## Manual acceptance artifacts
+
+Use the optional `--export-dir /absolute/new-directory` argument to preserve a verified bundle for Acrobat/DSS. Each manifest identifies the files and disposable root. See `pdf_manual_validation.md` for the test order and reports to return. Exported `local_checks: passed` is not external-validator acceptance.
+
+On 2026-09-26 the user reported that bundle `acceptance-20260926-01` produced a modification warning for `consent-multipage-BT.pdf` and no Signature Panel contents for `merged-object-streams-BT.pdf`. The sealer had externalized inline links only on page 1 and appended a classic xref table even to xref-stream inputs.
+
+Bundle `DEV_DOCS/interop-artifacts/acceptance-20260926-02` uses all-page link normalization and retains the input's latest xref format (stream or table). All ten outputs pass the local checks, including unchanged page rendering/text, preserved links, and independent CMS/timestamp verification. Acrobat confirmation of these new outputs is pending; the xref change is a candidate fix until that check succeeds.

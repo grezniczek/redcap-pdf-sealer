@@ -21,6 +21,8 @@ final class ExistingPdf
         public readonly ?array $permissions,
         public readonly ?string $permissionsRef,
         public readonly array $indirectArrays,
+        /** @var array<string, array> Page dictionaries in document order, keyed by reference. */
+        public readonly array $pages,
         public readonly string $firstPageRef,
         public readonly array $firstPage,
         public readonly ?array $acroForm,

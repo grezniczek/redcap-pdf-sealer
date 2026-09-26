@@ -89,12 +89,25 @@ final class PdfSealBuilder
         $widgetRef = $widgetNumber . '_0';
         $objects = [];
 
-        $page = $pdf->firstPage;
-        $annots = $this->appendArrayReference(
-            PdfStructureInspector::value($page, 'Annots'), $widgetRef, $pdf, $objects,
-        );
-        $annots = $this->externalizeInlineLinks($annots, $objects, $next);
-        $objects[$pdf->firstPageRef] = self::put($page, 'Annots', $annots);
+        foreach ($pdf->pages as $pageRef => $page) {
+            $annots = PdfStructureInspector::value($page, 'Annots');
+            if (($annots[0] ?? null) === 'objref') {
+                $annots = $pdf->indirectArrays[$annots[1]];
+            }
+            $originalAnnots = $annots;
+            if ($pageRef === $pdf->firstPageRef) {
+                $annots = $this->appendArrayReference($annots, $widgetRef, $pdf, $objects);
+            }
+            if ($annots === null) {
+                continue;
+            }
+            $annots = $this->externalizeInlineLinks($annots, $objects, $next);
+            if ($annots !== $originalAnnots) {
+                // Use a page-local array so a shared indirect Annots array cannot
+                // attach our first-page widget to other pages as well.
+                $objects[$pageRef] = self::put($page, 'Annots', $annots);
+            }
+        }
 
         $acroForm = $pdf->acroForm ?? CosSerializer::dictionary([]);
         $fields = $this->appendArrayReference(
@@ -223,10 +236,8 @@ final class PdfSealBuilder
     /** @param array<string, array|string> $objects */
     private function externalizeInlineLinks(array $annots, array &$objects, int &$next): array
     {
-        if (($annots[0] ?? null) === 'objref') {
-            $ref = $annots[1];
-            $objects[$ref] = $this->externalizeInlineLinks($objects[$ref], $objects, $next);
-            return $annots;
+        if (($annots[0] ?? null) !== '[' || !is_array($annots[1] ?? null)) {
+            throw new UnsupportedPdf('Annots is not an array');
         }
         foreach ($annots[1] as &$annotation) {
             if (($annotation[0] ?? null) !== '<<') {

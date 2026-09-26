@@ -105,6 +105,10 @@ try {
     throw new RuntimeException('Writer reused an unobserved generation');
 } catch (InvalidArgumentException $expected) {
 }
+rejectPdf(static fn() => $inspector->inspect($writer->append($parsed, [
+    '2_0' => '<< /Type /Pages /Kids [3 0 R 5 0 R] /Count 2 >>',
+    '5_0' => '<< /Type /Pages /Kids [5 0 R] /Count 1 >>',
+])), 'A cycle after the first page was accepted');
 
 // Local development fixtures provide additional xref-stream, ObjStm and AcroForm coverage.
 $localFixtures = [
@@ -131,8 +135,12 @@ foreach ($localFixtures as $path) {
         $input->nextObjectNumber . '_0' => $probe,
     ]);
     checkPdf(str_starts_with($revision, $source), 'Local PDF source bytes changed');
-    checkPdf($inspector->inspect($revision)->nextObjectNumber === $input->nextObjectNumber + 1,
+    $streamXref = substr($source, $input->startXref, 4) !== 'xref';
+    $reparsed = $inspector->inspect($revision);
+    checkPdf($reparsed->nextObjectNumber === $input->nextObjectNumber + ($streamXref ? 2 : 1),
         'Local PDF revision did not parse');
+    checkPdf((substr($revision, $reparsed->startXref, 4) !== 'xref') === $streamXref,
+        'Revision changed the source cross-reference format');
     checkWithQpdf($revision);
     ++$tested;
 }

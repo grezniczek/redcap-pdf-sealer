@@ -31,7 +31,7 @@ try {
 } catch (UnsupportedPdf $expected) {
 }
 $cases = [testPdf(), testPdfWithUriLink(false), testPdfWithUriLink(true),
-    testPdfWithIndirectArrays(), testPdfWithExistingSignature(false)];
+    testPdfWithIndirectArrays(), testPdfWithExistingSignature(false), testPdfWithNestedPages()];
 $redcapPdfPath = getenv('PDF_SEALER_REDCAP_PDF_PATH');
 if ($redcapPdfPath !== false && $redcapPdfPath !== '') {
     checkSeal(str_starts_with($redcapPdfPath, '/') && is_file($redcapPdfPath),

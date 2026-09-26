@@ -96,6 +96,23 @@ function testPdfWithExistingSignature(bool $signed): string
     ]);
 }
 
+/** Later leaves, nested Pages, and a shared indirect annotation array. */
+function testPdfWithNestedPages(): string
+{
+    $link = '<< /Type /Annot /Subtype /Link /Rect [1 2 30 40]'
+        . ' /A << /S /URI /URI (https://example.org/consent) >> >>';
+    return assemblePdf([
+        1 => '<< /Type /Catalog /Pages 2 0 R >>',
+        2 => '<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 3 /MediaBox [0 0 100 100] >>',
+        3 => '<< /Type /Page /Parent 2 0 R /Annots 7 0 R >>',
+        4 => '<< /Type /Pages /Parent 2 0 R /Kids [5 0 R 6 0 R] /Count 2 >>',
+        5 => '<< /Type /Page /Parent 4 0 R /Annots 7 0 R >>',
+        6 => '<< /Type /Page /Parent 4 0 R /Annots [' . $link . '] >>',
+        7 => '[' . $link . ' 8 0 R]',
+        8 => '<< /Type /Annot /Subtype /Text /Rect [0 0 10 10] /Contents (Keep me) >>',
+    ]);
+}
+
 function dictionaryValue(array $dictionary, string $key): ?array
 {
     return PdfStructureInspector::value($dictionary, $key);
@@ -136,7 +153,25 @@ function verifySeal(string $source, string $sealed, string $rootPem): string
     $widget = $objects[$lastField[1]][0];
     checkSeal(dictionaryValue($widget, 'FT')[1] === 'Sig'
         && dictionaryValue($widget, 'V')[1] === $sigRef[1], 'Widget does not point to the signature');
-    $firstPageRef = (new PdfStructureInspector())->inspect($source)->firstPageRef;
+    $sourcePdf = (new PdfStructureInspector())->inspect($source);
+    $firstPageRef = $sourcePdf->firstPageRef;
+    $cos = new \DE\RUB\PDFSealerExternalModule\Pdf\CosSerializer();
+    foreach ($sourcePdf->pages as $pageRef => $sourcePage) {
+        $before = dictionaryValue($sourcePage, 'Annots');
+        if (($before[0] ?? null) === 'objref') { $before = $sourcePdf->indirectArrays[$before[1]]; }
+        $after = dictionaryValue($objects[$pageRef][0], 'Annots');
+        if (($after[0] ?? null) === 'objref') { $after = $objects[$after[1]][0]; }
+        checkSeal(count($after[1] ?? []) === count($before[1] ?? []) + ($pageRef === $firstPageRef ? 1 : 0),
+            'Annotations were lost or the signature widget appeared on another page');
+        foreach ($after[1] ?? [] as $index => $annotation) {
+            $resolved = $annotation[0] === 'objref' ? $objects[$annotation[1]][0] : $annotation;
+            if ((dictionaryValue($resolved, 'Subtype')[1] ?? null) !== 'Link') { continue; }
+            checkSeal($annotation[0] === 'objref', 'Inline Link remains on page ' . $pageRef);
+            $prior = $before[1][$index];
+            $prior = $prior[0] === 'objref' ? $objects[$prior[1]][0] : $prior;
+            checkSeal($cos->serialize($resolved) === $cos->serialize($prior), 'Link dictionary changed');
+        }
+    }
     $page = $objects[$firstPageRef][0];
     $annots = dictionaryValue($page, 'Annots');
     if (($annots[0] ?? null) === 'objref') {
