@@ -23,6 +23,14 @@ php tests/pdf_seal_bb.php
 php tests/pdf_seal_bt.php
 ```
 
+A repeatable synthetic consent/attachment suite uses the installed REDCap PDF backend and footer method without bootstrapping REDCap or accessing project data:
+
+```sh
+PDF_SEALER_REDCAP_ROOT=/home/gr/redcap/codebase php tests/pdf_redcap_fixtures.php
+```
+
+It requires PHP GD, qpdf, OpenSSL, and Poppler's `pdfsig`, `pdfimages`, `pdftoppm`, and `pdftotext`. Five fixtures cover transparent signature images, multiple pages, footer links enabled/disabled, a landscape attachment merged with qpdf, and rotated pages in compressed object streams. Both B-B and B-T undergo independent signature/timestamp checks; all pages must render identically at 72 dpi and retain their text and footer links. Temporary PDFs and synthetic keys are discarded. This is backend/structural coverage, not a complete eConsent workflow or a REDCap merge-path test. See [fixture coverage](DEV_DOCS/pdf_fixture_coverage.md) for limits and remaining acceptance checks.
+
 To check a REDCap-generated PDF without adding its bytes to the repository, export it to a local file and run `PDF_SEALER_REDCAP_PDF_PATH=/absolute/path/to/exported.pdf php tests/pdf_structure.php`, `PDF_SEALER_REDCAP_PDF_PATH=/absolute/path/to/exported.pdf php tests/pdf_seal_bb.php`, or the same command with `tests/pdf_seal_bt.php`. The seal tests sign in memory with disposable test certificates, then check the detached CMS and root chain with OpenSSL. The B-T test also validates the RFC 3161 response with OpenSSL. All PDF tests use `qpdf`; the seal tests also use Poppler `pdfsig` to confirm PDF signature recognition, signed ranges, and full-document coverage. Its `-nocert` option skips trust validation for the disposable test root; OpenSSL verifies that chain separately.
 
 The superuser Control Center **PDF Sealer PKI** page provides explicit, one-time root and TSA initialization with a GET redirect after submission. Administrators configure PKI alarm email recipients and download the active public root certificate in PEM or DER there through JSMO AJAX requests. Downloading the self-signed root does not automatically make it trusted by PDF viewers. A public trust page, linked from the PKI page, lists the current and historical public roots with fingerprints and PEM/DER downloads at the configured survey URL (`/surveys/?pdf_sealer_certs` on a standard installation). The survey endpoint also handles the page's JSMO downloads, so public API access is not required.
