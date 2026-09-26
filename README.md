@@ -2,6 +2,14 @@
 
 A reference implementation in progress for cryptographically sealing REDCap-generated PDFs through the `redcap_module_pdf_finalize` hook.
 
+## License
+
+PDF Sealer is licensed under the [MIT License](LICENSE). This distribution includes third-party software under separate licenses. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the bundled components, attribution, and original license locations.
+
+Release maintainers: see [dependency notices and packaging](DEV_DOCS/release_licensing.md). Run `php tools/third-party-notices.php` after installing dependencies and before packaging.
+
+## Implementation and checks
+
 The module declares one terminal `seal` operation for e-Consent PDFs. If the source page contains a direct PDF Link annotation, the signing revision preserves its clickable action in an indirect object before adding the invisible signature widget; the original PDF bytes remain intact. When it is assigned to a project PDF finalization pipeline and the PKI is ready, the hook seals the Framework working copy and returns a terminal modified result. The Framework keeps the prior PDF on failure.
 
 The standalone RFC 3161 timestamp responder, PKI components, and PDF seal builder are under `src/`. After `composer install`, run the standalone checks (`tests/pdf_structure.php` requires `qpdf`; the PDF seal tests also require `pdfsig` on `PATH`):
