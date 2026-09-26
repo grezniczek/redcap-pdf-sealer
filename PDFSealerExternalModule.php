@@ -27,6 +27,16 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
         return APP_PATH_SURVEY_FULL . '?' . self::PUBLIC_TRUST_QUERY;
     }
 
+    /** Escaped display HTML, with each slash-delimited subject attribute on its own line. */
+    public static function certificateSubjectHtml(string $subject): string
+    {
+        $parts = preg_split('~(?<!\\\\)(?=/[A-Za-z0-9.]+=)~', $subject, -1, PREG_SPLIT_NO_EMPTY);
+        return implode("<br>\n", array_map(
+            static fn(string $part): string => htmlspecialchars($part, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+            $parts === false ? [$subject] : $parts,
+        ));
+    }
+
     public function redcap_every_page_before_render($project_id): void
     {
         if ($project_id !== null

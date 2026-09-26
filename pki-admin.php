@@ -77,7 +77,7 @@ foreach (['root', 'tsa'] as $role) {
         }
     } catch (Throwable) { /* The tab will show an explicit unavailable state. */ }
 }
-$renderCertificate = static function (string $role) use ($certificates, $framework, $escape): void {
+$renderCertificate = static function (string $role) use ($certificates, $framework, $escape, $module): void {
     $certificate = $certificates[$role] ?? null;
     if ($certificate === null) {
         ?><p class="alert alert-warning"><?= $escape($framework->tt('pki_certificate_unavailable')) ?></p><?php
@@ -86,7 +86,7 @@ $renderCertificate = static function (string $role) use ($certificates, $framewo
     $details = $certificate['details'];
     ?>
     <dl class="pdf-sealer-certificate">
-        <dt><?= $escape($framework->tt('pki_subject')) ?></dt><dd><?= $escape($details['name'] ?? '') ?></dd>
+        <dt><?= $escape($framework->tt('pki_subject')) ?></dt><dd><?= $module::certificateSubjectHtml($details['name'] ?? '') ?></dd>
         <dt><?= $escape($framework->tt('trust_valid_from')) ?></dt><dd><?= $escape(gmdate('Y-m-d H:i:s \U\T\C', $details['validFrom_time_t'] ?? 0)) ?></dd>
         <dt><?= $escape($framework->tt('pki_valid_until')) ?></dt><dd><?= $escape(gmdate('Y-m-d H:i:s \U\T\C', $details['validTo_time_t'] ?? 0)) ?></dd>
         <dt><?= $escape($framework->tt('pki_fingerprint')) ?></dt><dd><code class="pdf-sealer-fingerprint"><?= $escape($certificate['fingerprint']) ?></code></dd>

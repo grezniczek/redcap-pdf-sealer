@@ -14,6 +14,7 @@
 .pdf-sealer-admin .nav-link i { margin-right: 4px; }
 .pdf-sealer-panel { border: 1px solid #ddd; border-radius: 0 0 4px 4px; padding: 20px 16px; }
 .pdf-sealer-panel[hidden] { display: none; }
+.pdf-sealer-section { border-radius: 4px; margin-bottom: 16px; }
 .pdf-sealer-panel h5 { font-size: 1rem; font-weight: 600; margin-bottom: 10px; }
 .pdf-sealer-certificate { display: grid; grid-template-columns: 165px minmax(0, 1fr); gap: 10px 16px; margin: 18px 0; }
 .pdf-sealer-certificate dt, .pdf-sealer-certificate dd { margin: 0; overflow-wrap: anywhere; }
@@ -29,3 +30,4 @@
     .pdf-sealer-certificate { grid-template-columns: 1fr; gap: 4px; }
     .pdf-sealer-certificate dd { margin-bottom: 10px; }
 }
+.pdf-sealer-status { max-width: 850px; }
