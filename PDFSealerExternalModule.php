@@ -67,10 +67,43 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
         if ($action === 'save_alert_recipients') {
             return $this->saveAlertRecipients($payload);
         }
+        if ($action === 'save_timestamp_settings') {
+            return $this->saveTimestampSettings($payload);
+        }
         if ($action === 'download_root_certificate') {
             return $this->downloadRootCertificate($payload);
         }
         throw new \RuntimeException($this->framework->tt('pki_invalid_request'));
+    }
+
+    /** @return array{ok: bool, message?: string, timestamp_mode?: string, bb_fallback?: bool} */
+    private function saveTimestampSettings(mixed $payload): array
+    {
+        if (!is_array($payload) || count($payload) !== 2
+            || !in_array($payload['timestamp_mode'] ?? null, ['internal', 'none'], true)
+            || !is_bool($payload['bb_fallback'] ?? null)) {
+            return ['ok' => false, 'message' => $this->framework->tt('timestamp_settings_invalid')];
+        }
+        $started = false;
+        try {
+            if ($this->framework->query('START TRANSACTION', []) === false) {
+                throw new \RuntimeException('Could not start settings transaction');
+            }
+            $started = true;
+            $this->framework->setSystemSetting('timestamp_mode', $payload['timestamp_mode']);
+            // Keep string storage compatible with the primary-connection settings reader.
+            $this->framework->setSystemSetting('bb_fallback', $payload['bb_fallback'] ? '1' : '0');
+            if ($this->framework->query('COMMIT', []) === false) {
+                throw new \RuntimeException('Could not commit settings transaction');
+            }
+        } catch (\Throwable $e) {
+            if ($started) {
+                try { $this->framework->query('ROLLBACK', []); } catch (\Throwable) {}
+            }
+            error_log('PDF Sealer timestamp settings update failed (' . get_class($e) . ')');
+            return ['ok' => false, 'message' => $this->framework->tt('timestamp_settings_save_failed')];
+        }
+        return ['ok' => true, 'timestamp_mode' => $payload['timestamp_mode'], 'bb_fallback' => $payload['bb_fallback']];
     }
 
     /** @return array{ok: bool, message?: string, recipients?: string} */

@@ -83,3 +83,11 @@ The rollback-contained live test verifies project Logging entries for B-T, B-B f
 `tests/project_identity.php` checks read-only status for missing, active, pending, expired, and corrupt identities, including unchanged storage and no issuance lock calls. `tests/project_pipeline_status.php` checks configuration availability, assignment, document type, and warnings. `tests/project_trust_link.php` confirms that the new status link retains normal permissions while the public-root link keeps its broader project visibility. These focused checks pass. Browser acceptance of the new status page is pending.
 
 The user confirmed live sealing after the hook rename to `redcap_module_pdf_finalize`, with PDFs looking correct in Acrobat. The renamed CA/TSA were initialized and the project identity was issued on the next eligible seal after restoring the Core checkout containing the PDF finalization integration.
+
+## Control Center timestamp settings
+
+The PKI page now offers instance-wide timestamp mode (`internal` for B-T, `none` for B-B) and the B-B fallback policy. A superuser-only, non-project JSMO AJAX action validates both choices, writes their existing system-setting keys through Framework helpers in one transaction, and rolls back on failure. The fallback setting remains stored as `"1"` or `"0"`, matching the primary-connection reader. Its preference is retained in B-B-only mode and applies again when internal timestamping is selected. No settings are written on page load.
+
+`TimestampSettings` supplies the same strict parsing and defaults to the page and finalization service: internal timestamping and enabled B-B fallback when unset, with existing string forms still supported. Unreadable or invalid persisted values produce an explicit warning and empty selectors instead of pretending defaults are active. The page explains the instance-wide scope and that a failed seal leaves the preceding PDF available to REDCap. The policy OID override is unchanged and has no UI control in this slice.
+
+`tests/pki_admin_ajax.php` covers all four mode/fallback combinations, defaults and legacy string forms, exact stored types, malformed requests, authentication scope, and rollback after first/second-write and transaction failures. These checks pass. Browser acceptance of the controls and persistence after refresh remains pending.

@@ -12,6 +12,7 @@ use DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationService;
 use DE\RUB\PDFSealerExternalModule\Pki\PrimarySystemSettingReader;
 use DE\RUB\PDFSealerExternalModule\Pki\ProjectBindingRepository;
 use DE\RUB\PDFSealerExternalModule\Pki\SecretProtector;
+use DE\RUB\PDFSealerExternalModule\Timestamp\TimestampSettings;
 
 /** @var \DE\RUB\PDFSealerExternalModule\PDFSealerExternalModule $module */
 $framework = $module->framework;
@@ -50,7 +51,14 @@ $error = $notice === 'invalid' ? $framework->tt('pki_invalid_request')
     : ($notice === 'init_failed' ? $framework->tt('pki_init_failed') : null);
 $success = $notice === 'initialized';
 $report = $health->inspect(time());
-$organization = (new PrimarySystemSettingReader($framework))->get('organization');
+$settings = new PrimarySystemSettingReader($framework);
+$organization = $settings->get('organization');
+$timestampSettings = null;
+try {
+    $timestampSettings = TimestampSettings::fromStored($settings->get('timestamp_mode'), $settings->get('bb_fallback'));
+} catch (Throwable) {
+    // Show an explicit unknown state; do not silently replace invalid stored settings with defaults.
+}
 $recipients = $framework->getSystemSetting('admin-alert-recipients');
 $recipients = is_array($recipients) ? implode(', ', array_filter($recipients, 'is_string')) : (is_string($recipients) ? $recipients : '');
 require_once APP_PATH_DOCROOT . 'ControlCenter/header.php';
@@ -102,6 +110,36 @@ $framework->initializeJavascriptModuleObject();
         <?php endforeach; ?>
     <?php endif; ?>
     <p><a href="<?= $escape($module::publicTrustUrl()) ?>"><?= $escape($framework->tt('pki_public_trust_page')) ?></a></p>
+    <h3><?= $escape($framework->tt('timestamp_settings_title')) ?></h3>
+    <p><?= $escape($framework->tt('timestamp_settings_scope')) ?></p>
+    <?php if ($timestampSettings === null): ?>
+        <p id="pdf-sealer-timestamp-warning" class="alert alert-warning"><?= $escape($framework->tt('timestamp_settings_unavailable')) ?></p>
+    <?php endif; ?>
+    <form id="pdf-sealer-timestamp-form">
+        <fieldset id="pdf-sealer-timestamp-fields">
+            <div class="form-group">
+                <label for="pdf-sealer-timestamp-mode"><?= $escape($framework->tt('timestamp_mode_label')) ?></label>
+                <select id="pdf-sealer-timestamp-mode" class="form-control" required aria-describedby="pdf-sealer-timestamp-help">
+                    <option value="" disabled <?= $timestampSettings === null ? 'selected' : '' ?>><?= $escape($framework->tt('timestamp_settings_choose')) ?></option>
+                    <option value="internal" <?= $timestampSettings?->mode === 'internal' ? 'selected' : '' ?>><?= $escape($framework->tt('timestamp_mode_internal')) ?></option>
+                    <option value="none" <?= $timestampSettings?->mode === 'none' ? 'selected' : '' ?>><?= $escape($framework->tt('timestamp_mode_none')) ?></option>
+                </select>
+                <p id="pdf-sealer-timestamp-help" class="text-muted"><?= $escape($framework->tt('timestamp_mode_help')) ?></p>
+            </div>
+            <div class="form-group">
+                <label for="pdf-sealer-timestamp-fallback"><?= $escape($framework->tt('timestamp_fallback_label')) ?></label>
+                <select id="pdf-sealer-timestamp-fallback" class="form-control" required aria-describedby="pdf-sealer-fallback-help">
+                    <option value="" disabled <?= $timestampSettings === null ? 'selected' : '' ?>><?= $escape($framework->tt('timestamp_settings_choose')) ?></option>
+                    <option value="1" <?= $timestampSettings?->fallback === true ? 'selected' : '' ?>><?= $escape($framework->tt('timestamp_fallback_allow')) ?></option>
+                    <option value="0" <?= $timestampSettings?->fallback === false ? 'selected' : '' ?>><?= $escape($framework->tt('timestamp_fallback_fail')) ?></option>
+                </select>
+                <p id="pdf-sealer-fallback-help" class="text-muted"><?= $escape($framework->tt('timestamp_fallback_help')) ?></p>
+            </div>
+            <p><?= $escape($framework->tt('timestamp_failure_help')) ?></p>
+            <button type="submit" class="btn btn-primary"><?= $escape($framework->tt('timestamp_settings_save')) ?></button>
+        </fieldset>
+    </form>
+    <div id="pdf-sealer-timestamp-message" role="status" hidden></div>
     <h3><?= $escape($framework->tt('admin_alert_recipients')) ?></h3>
     <p><?= $escape($framework->tt('admin_alert_recipients_help')) ?></p>
     <div id="pdf-sealer-recipient-message" role="status" hidden></div>
@@ -138,6 +176,41 @@ $framework->initializeJavascriptModuleObject();
             button.disabled = false;
         });
     });
+    const timestampForm = document.getElementById('pdf-sealer-timestamp-form');
+    const timestampFields = document.getElementById('pdf-sealer-timestamp-fields');
+    const timestampMode = document.getElementById('pdf-sealer-timestamp-mode');
+    const timestampFallback = document.getElementById('pdf-sealer-timestamp-fallback');
+    const timestampMessage = document.getElementById('pdf-sealer-timestamp-message');
+    const timestampSaved = <?= json_encode($framework->tt('timestamp_settings_saved'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    const timestampFailed = <?= json_encode($framework->tt('timestamp_settings_save_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    const showTimestampMessage = (success, text) => {
+        timestampMessage.className = 'alert ' + (success ? 'alert-success' : 'alert-danger');
+        timestampMessage.textContent = text;
+        timestampMessage.hidden = false;
+    };
+    timestampForm.addEventListener('submit', event => {
+        event.preventDefault();
+        if (timestampFields.disabled) return;
+        const payload = {timestamp_mode: timestampMode.value, bb_fallback: timestampFallback.value === '1'};
+        timestampFields.disabled = true;
+        timestampMessage.hidden = true;
+        module.ajax('save_timestamp_settings', payload).then(response => {
+            if (response && response.ok) {
+                timestampMode.value = response.timestamp_mode;
+                timestampFallback.value = response.bb_fallback ? '1' : '0';
+                const warning = document.getElementById('pdf-sealer-timestamp-warning');
+                if (warning) warning.hidden = true;
+                showTimestampMessage(true, timestampSaved);
+            } else {
+                showTimestampMessage(false, response && response.message ? response.message : timestampFailed);
+            }
+        }).catch(() => showTimestampMessage(false, timestampFailed)).finally(() => {
+            timestampFields.disabled = false;
+        });
+    });
+    [timestampMode, timestampFallback].forEach(control => control.addEventListener('change', () => {
+        timestampMessage.hidden = true;
+    }));
     const downloadMessage = document.getElementById('pki-root-download-message');
     const downloadFailedMessage = <?= json_encode($framework->tt('pki_root_download_unavailable'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     document.querySelectorAll('[data-pki-root-download]').forEach(downloadButton => {

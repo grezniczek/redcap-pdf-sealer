@@ -21,6 +21,7 @@ use DE\RUB\PDFSealerExternalModule\Timestamp\InternalTimestampProvider;
 use DE\RUB\PDFSealerExternalModule\Timestamp\InternalTsaService;
 use DE\RUB\PDFSealerExternalModule\Timestamp\TsaIdentity;
 use DE\RUB\PDFSealerExternalModule\Timestamp\TsaPolicy;
+use DE\RUB\PDFSealerExternalModule\Timestamp\TimestampSettings;
 use ExternalModules\PdfFinalizeResult;
 use RuntimeException;
 use Throwable;
@@ -77,11 +78,11 @@ final class PdfFinalizeService
             }
 
             $settings = new PrimarySystemSettingReader($this->framework);
-            $mode = $settings->get('timestamp_mode') ?? 'internal';
-            if (!in_array($mode, ['internal', 'none'], true)) {
-                throw new RuntimeException('Invalid timestamp mode setting');
-            }
-            $fallback = self::fallbackEnabled($settings->get('bb_fallback'));
+            $timestampSettings = TimestampSettings::fromStored(
+                $settings->get('timestamp_mode'), $settings->get('bb_fallback'),
+            );
+            $mode = $timestampSettings->mode;
+            $fallback = $timestampSettings->fallback;
             $source = file_get_contents($path);
             if (!is_string($source)) {
                 return $this->failed($events, $event, $context, (int) $pid, 'INPUT_READ_FAILED', 'PDF working copy is unreadable');
@@ -239,17 +240,6 @@ final class PdfFinalizeService
             $sealed = $this->builder->seal($source, $projectCert, $key, [$rootCert], $now);
             return new PdfSealResult($sealed, 'pades-b-b');
         }
-    }
-
-    private static function fallbackEnabled(mixed $setting): bool
-    {
-        if ($setting === null || $setting === '' || $setting === '1' || $setting === 'true') {
-            return true;
-        }
-        if ($setting === '0' || $setting === 'false') {
-            return false;
-        }
-        throw new RuntimeException('Invalid B-B fallback setting');
     }
 
     private static function requestTime(): int
