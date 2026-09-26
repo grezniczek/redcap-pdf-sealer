@@ -4,9 +4,24 @@
 
 The initial bundle `acceptance-20260926-01` failed the user's two initial Acrobat checks: multipage consent reported modifications; the merged/object-stream PDF showed an empty Signature Panel. Keep these results distinct from the local cryptographic checks, which passed.
 
-The replacement bundle is `DEV_DOCS/interop-artifacts/acceptance-20260926-02`. It externalizes inline links on every page and retains cross-reference streams when signing stream-based inputs. Local verification passes for all ten files. The user confirmed that Acrobat reports no modifications since certification for both initial B-T files. DSS v6.5 identifies both as PAdES-BASELINE-T and passes structure, signature and timestamp cryptography; overall validation is INDETERMINATE/NO_CERTIFICATE_CHAIN_FOUND because the disposable root is not trusted. See [recorded acceptance and report hashes](pdf_interop_acceptance.md). Other files' manual checks remain pending; each bundle has its own disposable root.
+The replacement bundle is `DEV_DOCS/interop-artifacts/acceptance-20260926-02`. It externalizes inline links on every page and retains cross-reference streams when signing stream-based inputs. Local verification passes for all ten files. The selected six-fixture manual round is complete: Acrobat reports no modifications for multipage consent, merged/object-stream output and the unrotated attachment, each in B-B and B-T. DSS v6.5 identifies the expected Baseline B/T profiles and passes structure and cryptography, including B-T timestamp verification. Overall validation remains INDETERMINATE/NO_CERTIFICATE_CHAIN_FOUND because the disposable root is not trusted. See [recorded acceptance and report hashes](pdf_interop_acceptance.md). Single-page/no-footer controls have local coverage only.
 
-## Bundle and test order
+## Completed follow-up: four additional variants
+
+The following PDFs from `DEV_DOCS/interop-artifacts/acceptance-20260926-02` have user-confirmed Acrobat no-modification results and correlated DSS reports. Their hashes and sizes match the original manifest. No PDFs or certificates were regenerated.
+
+| File | Pages / footer links | Expected timestamp | Coverage |
+| --- | --- | --- | --- |
+| `consent-multipage-BB.pdf` | 3 / 3 | None | Multipage certification without a TSA token |
+| `merged-object-streams-BB.pdf` | 2 / 1 | None | Xref/object streams and rotated attachment without a TSA token |
+| `merged-attachment-BB.pdf` | 2 / 1 | None | Unrotated landscape attachment, classic xref, B-B |
+| `merged-attachment-BT.pdf` | 2 / 1 | 2026-09-26 17:20:56 UTC | Same unrotated layout with a signature timestamp |
+
+DSS confirmed PAdES-BASELINE-B with no timestamps for the first three files, and PAdES-BASELINE-T with one valid signature timestamp for the last. Structure, signature and applicable timestamp cryptographic checks pass. The existing disposable root remains untrusted by the public DSS demo. Acrobat's page appearance, manual link clicks and timestamp display were not separately reported; local rendering/text/link preservation checks passed.
+
+Together with the previously accepted `consent-multipage-BT.pdf` and `merged-object-streams-BT.pdf`, this closes the selected round. No repeat checks are needed now. The single-page and no-footer fixtures remain optional comparison controls if a new failure occurs. The procedure below is retained for future runs.
+
+## Generating a future bundle and initial test order
 
 Generate an isolated bundle from the module root:
 
@@ -52,4 +67,4 @@ No LT/LTA, qualified-signature status, or revocation availability is claimed by 
 
 ## Minimal reply
 
-For the initial two BT files, send Acrobat's modification/timestamp findings and the DSS Detailed Report + Diagnostic Data paths. Screenshots are helpful for unexpected Acrobat messages. If Windows supplies a local path, provide it as-is; it can be read through `/mnt/c` when accessible.
+For a future requested run, send Acrobat's modification/timestamp and page/link findings, plus the DSS Detailed Report + Diagnostic Data paths. A grouped reply is sufficient if all files behave as expected; identify any exception by filename. Screenshots are helpful for unexpected Acrobat messages. If Windows supplies a local path, provide it as-is; it can be read through `/mnt/c` when accessible. No further reply is needed for the completed six-fixture round.
