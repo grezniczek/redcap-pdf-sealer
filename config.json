@@ -13,7 +13,7 @@
     "enable-no-auth-logging": true,
     "enable-every-page-hooks-on-system-pages": true,
     "enable-every-page-hooks-on-login-form": true,
-    "auth-ajax-actions": ["save_timestamp_settings", "save_alert_recipients", "download_root_certificate", "download_public_root_certificate"],
+    "auth-ajax-actions": ["run_diagnostic", "save_timestamp_settings", "save_alert_recipients", "download_root_certificate", "download_public_root_certificate"],
     "no-auth-ajax-actions": ["download_public_root_certificate"],
     "pdf-finalize": [
         {

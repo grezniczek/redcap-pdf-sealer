@@ -4,6 +4,8 @@ namespace DE\RUB\PDFSealerExternalModule;
 
 use Com\Tecnick\Pdf\Sign\Cms\Certificate;
 use DE\RUB\PDFSealerExternalModule\Alerts\AdminAlarmService;
+use DE\RUB\PDFSealerExternalModule\Diagnostics\PkiDiagnosticService;
+use DE\RUB\PDFSealerExternalModule\Pki\CertificateIssuer;
 use DE\RUB\PDFSealerExternalModule\Pdf\PdfFinalizeService;
 use DE\RUB\PDFSealerExternalModule\Pki\IdentityRepository;
 use DE\RUB\PDFSealerExternalModule\Pki\PrimaryLogReader;
@@ -64,6 +66,9 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             || $this->framework->getProjectId() !== null) {
             throw new \RuntimeException($this->framework->tt('pki_access_denied'));
         }
+        if ($action === 'run_diagnostic') {
+            return $this->runDiagnostic($payload);
+        }
         if ($action === 'save_alert_recipients') {
             return $this->saveAlertRecipients($payload);
         }
@@ -74,6 +79,25 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             return $this->downloadRootCertificate($payload);
         }
         throw new \RuntimeException($this->framework->tt('pki_invalid_request'));
+    }
+
+    private function runDiagnostic(mixed $payload): array
+    {
+        if ($payload !== null) {
+            return ['ok' => false, 'message' => $this->framework->tt('pki_invalid_request')];
+        }
+        try {
+            $protector = new SecretProtector();
+            $service = new PkiDiagnosticService(
+                new IdentityRepository($this->framework, $protector),
+                $protector,
+                new CertificateIssuer([$this->framework, 'createTempFile']),
+                new PrimarySystemSettingReader($this->framework),
+            );
+            return ['ok' => true] + $service->run();
+        } catch (\Throwable) {
+            return ['ok' => false, 'message' => $this->framework->tt('diagnostic_unavailable')];
+        }
     }
 
     /** @return array{ok: bool, message?: string, timestamp_mode?: string, bb_fallback?: bool} */

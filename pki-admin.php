@@ -140,6 +140,19 @@ $framework->initializeJavascriptModuleObject();
         </fieldset>
     </form>
     <div id="pdf-sealer-timestamp-message" role="status" hidden></div>
+    <h3><?= $escape($framework->tt('diagnostic_title')) ?></h3>
+    <p><?= $escape($framework->tt('diagnostic_help')) ?></p>
+    <p class="text-muted"><?= $escape($framework->tt('diagnostic_limits')) ?></p>
+    <button id="pdf-sealer-diagnostic" type="button" class="btn btn-default"><?= $escape($framework->tt('diagnostic_run')) ?></button>
+    <div id="pdf-sealer-diagnostic-message" role="status" hidden></div>
+    <table id="pdf-sealer-diagnostic-results" class="table table-sm" hidden>
+        <thead><tr><th scope="col"><?= $escape($framework->tt('diagnostic_check')) ?></th><th scope="col"><?= $escape($framework->tt('diagnostic_result')) ?></th></tr></thead>
+        <tbody>
+        <?php foreach (['encryption', 'root', 'tsa', 'signer', 'bb', 'timestamp', 'bt'] as $check): ?>
+            <tr><th scope="row"><?= $escape($framework->tt('diagnostic_' . $check)) ?></th><td data-diagnostic-check="<?= $escape($check) ?>"></td></tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
     <h3><?= $escape($framework->tt('admin_alert_recipients')) ?></h3>
     <p><?= $escape($framework->tt('admin_alert_recipients_help')) ?></p>
     <div id="pdf-sealer-recipient-message" role="status" hidden></div>
@@ -211,6 +224,41 @@ $framework->initializeJavascriptModuleObject();
     [timestampMode, timestampFallback].forEach(control => control.addEventListener('change', () => {
         timestampMessage.hidden = true;
     }));
+    const diagnosticButton = document.getElementById('pdf-sealer-diagnostic');
+    const diagnosticMessage = document.getElementById('pdf-sealer-diagnostic-message');
+    const diagnosticResults = document.getElementById('pdf-sealer-diagnostic-results');
+    const diagnosticText = <?= json_encode(array_combine(
+        ['running', 'complete', 'incomplete', 'unavailable', 'passed', 'failed', 'skipped'],
+        array_map(static fn(string $key): string => $framework->tt('diagnostic_' . $key),
+            ['running', 'complete', 'incomplete', 'unavailable', 'passed', 'failed', 'skipped'])
+    ), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    const showDiagnosticMessage = (style, text) => {
+        diagnosticMessage.className = 'alert alert-' + style;
+        diagnosticMessage.textContent = text;
+        diagnosticMessage.hidden = false;
+    };
+    diagnosticButton.addEventListener('click', () => {
+        if (diagnosticButton.disabled) return;
+        diagnosticButton.disabled = true;
+        diagnosticResults.hidden = true;
+        showDiagnosticMessage('info', diagnosticText.running);
+        module.ajax('run_diagnostic', null).then(response => {
+            if (!response || response.ok !== true || typeof response.passed !== 'boolean' || !response.checks) {
+                throw new Error('Diagnostic unavailable');
+            }
+            diagnosticResults.querySelectorAll('[data-diagnostic-check]').forEach(cell => {
+                const status = response.checks[cell.dataset.diagnosticCheck];
+                if (!['passed', 'failed', 'skipped'].includes(status)) throw new Error('Invalid diagnostic result');
+                cell.textContent = diagnosticText[status];
+                cell.className = status === 'passed' ? 'text-success' : status === 'failed' ? 'text-danger' : 'text-muted';
+            });
+            diagnosticResults.hidden = false;
+            showDiagnosticMessage(response.passed ? 'success' : 'warning',
+                response.passed ? diagnosticText.complete : diagnosticText.incomplete);
+        }).catch(() => showDiagnosticMessage('danger', diagnosticText.unavailable)).finally(() => {
+            diagnosticButton.disabled = false;
+        });
+    });
     const downloadMessage = document.getElementById('pki-root-download-message');
     const downloadFailedMessage = <?= json_encode($framework->tt('pki_root_download_unavailable'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     document.querySelectorAll('[data-pki-root-download]').forEach(downloadButton => {

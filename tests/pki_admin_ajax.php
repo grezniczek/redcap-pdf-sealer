@@ -85,6 +85,14 @@ namespace {
     check($result === ['ok' => false, 'message' => 'pki_invalid_request'],
         'Unsupported certificate format was accepted');
 
+    foreach (['pdf bytes', [], ['project_id' => 461]] as $payload) {
+        check($module->redcap_module_ajax('run_diagnostic', $payload, null)
+            === ['ok' => false, 'message' => 'pki_invalid_request'], 'Diagnostic accepted caller-supplied data');
+    }
+    $config = json_decode(file_get_contents(dirname(__DIR__) . '/config.json'), true, flags: JSON_THROW_ON_ERROR);
+    check(in_array('run_diagnostic', $config['auth-ajax-actions'], true)
+        && !in_array('run_diagnostic', $config['no-auth-ajax-actions'], true), 'Diagnostic AJAX authentication configuration is wrong');
+
     $defaults = TimestampSettings::fromStored(null, null);
     check($defaults->mode === 'internal' && $defaults->fallback, 'Default timestamp behavior changed');
     foreach (['', '1', 'true'] as $value) {
@@ -155,6 +163,12 @@ namespace {
             throw new \RuntimeException('Unauthorized AJAX request was accepted');
         } catch (\RuntimeException $e) {
             check($e->getMessage() === 'pki_access_denied', 'Unexpected unauthorized request outcome');
+        }
+        try {
+            $module->redcap_module_ajax('run_diagnostic', null, $case['context']);
+            throw new \RuntimeException('Unauthorized diagnostic accepted');
+        } catch (\RuntimeException $e) {
+            check($e->getMessage() === 'pki_access_denied', 'Unexpected diagnostic authorization outcome');
         }
         $before = [$framework->settings, $framework->queries];
         try {

@@ -14,6 +14,7 @@ php tests/pki_initialization.php
 php tests/project_identity.php
 php tests/admin_alarms.php
 php tests/pki_admin_ajax.php
+php tests/pki_diagnostic.php
 php tests/public_trust.php
 php tests/project_trust_link.php
 php tests/project_pipeline_status.php
@@ -25,6 +26,8 @@ php tests/pdf_seal_bt.php
 To check a REDCap-generated PDF without adding its bytes to the repository, export it to a local file and run `PDF_SEALER_REDCAP_PDF_PATH=/absolute/path/to/exported.pdf php tests/pdf_structure.php`, `PDF_SEALER_REDCAP_PDF_PATH=/absolute/path/to/exported.pdf php tests/pdf_seal_bb.php`, or the same command with `tests/pdf_seal_bt.php`. The seal tests sign in memory with disposable test certificates, then check the detached CMS and root chain with OpenSSL. The B-T test also validates the RFC 3161 response with OpenSSL. All PDF tests use `qpdf`; the seal tests also use Poppler `pdfsig` to confirm PDF signature recognition, signed ranges, and full-document coverage. Its `-nocert` option skips trust validation for the disposable test root; OpenSSL verifies that chain separately.
 
 The superuser Control Center **PDF Sealer PKI** page provides explicit, one-time root and TSA initialization with a GET redirect after submission. Administrators configure PKI alarm email recipients and download the active public root certificate in PEM or DER there through JSMO AJAX requests. Downloading the self-signed root does not automatically make it trusted by PDF viewers. A public trust page, linked from the PKI page, lists the current and historical public roots with fingerprints and PEM/DER downloads at the configured survey URL (`/surveys/?pdf_sealer_certs` on a standard installation). The survey endpoint also handles the page's JSMO downloads, so public API access is not required.
+
+The PKI page also provides **Run diagnostic self-test** through a superuser-only JSMO AJAX action. It checks stored root/TSA keys, an in-memory encryption round-trip, temporary signer issuance, the RFC 3161 responder, and B-B/B-T sealing with local structure and cryptographic checks. Each check reports passed, failed, or skipped. Both profiles are tested regardless of the saved timestamp mode, using the configured or built-in TSA policy, with no fallback hiding a failed B-T check. The test saves no identities or PDFs, changes no settings, and produces no project sealing logs or alarm emails. It does not validate project pipeline assignment, existing PDFs, viewer trust, revocation/LTV, or full PAdES compliance.
 
 In projects where this EM is enabled, the project menu shows a trust certificate link to every signed-in project user by default. A project configuration checkbox hides it for that project. The link opens the public survey page in a new tab.
 
