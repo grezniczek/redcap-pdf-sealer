@@ -59,3 +59,7 @@ PDF_SEALER_LIVE_TEST=1 PDF_SEALER_TEST_PID=461 php tests/pdf_pipeline_live.php -
 ```
 
 It requires the existing project signer, healthy PKI, and a pipeline containing only `pdf_sealer:seal`. It tests five synthetic fixtures through both Core entry points using the configured timestamp mode, checks terminal adoption and final hashes, and covers document-type bypass and rejection of an already-certified PDF. It does not change settings or write edocs. Autocommit stays disabled because the Framework rolls back at each hook boundary; test log writes and project activity updates are rolled back. This differs from the older direct-hook harness, which requires an uninitialized PKI and cannot establish real dispatch behavior. See the [live acceptance guide](DEV_DOCS/pdf_pipeline_acceptance.md) for the separate stored/downloaded-PDF check.
+
+## EU Validator
+
+https://ec.europa.eu/digital-building-blocks/DSS/webapp-demo/validation
