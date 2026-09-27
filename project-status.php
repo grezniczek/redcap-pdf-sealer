@@ -32,6 +32,7 @@ $identity = (new ProjectIdentityService(
 ))->inspect((int) $pid);
 $certificate = $identity['certificate'];
 $provider = null;
+$binding = null;
 $providerName = $framework->tt('pki_not_configured');
 $providerRetired = false;
 try {
@@ -43,9 +44,20 @@ try {
         $providerRetired = $identities->providers()->isRetired($provider['id']);
         $providerName = $provider['name'] ?? $framework->tt('provider_builtin');
     }
-} catch (Throwable) { $provider = null; /* Keep the explicit unavailable label. */ }
+} catch (Throwable) { $provider = null; $binding = null; /* Keep the explicit unavailable label. */ }
+$enrollmentProvider = $provider;
+$enrollmentProviderName = $providerName;
+$enrollmentRetired = $providerRetired;
+$transitionPending = ($binding?->pendingProviderId ?? null) !== null;
+if ($transitionPending) {
+    try {
+        $enrollmentProvider = $identities->providers()->provider($binding->pendingProviderId);
+        $enrollmentProviderName = $enrollmentProvider['name'] ?? $framework->tt('provider_builtin');
+        $enrollmentRetired = $identities->providers()->isRetired($binding->pendingProviderId);
+    } catch (Throwable) { $enrollmentProvider = null; $enrollmentProviderName = $framework->tt('provider_unavailable'); }
+}
 $enrollment = null;
-$enrollmentAvailable = ($provider['kind'] ?? null) === 'external';
+$enrollmentAvailable = ($enrollmentProvider['kind'] ?? null) === 'external';
 $enrollmentFailed = false;
 if ($enrollmentAvailable) {
     try {
@@ -59,7 +71,7 @@ $pipelineTone = $pipeline['state'] === 'assigned' ? 'ready' : 'degraded';
 $identityTone = match ($identity['state']) {
     'ready' => 'ready',
     'unusable', 'expired', 'not_yet_valid' => 'broken',
-    'pending', 'ca_retired', 'awaiting_certificate', 'assignment_required', 'unavailable' => 'degraded',
+    'pending', 'transition_pending', 'ca_retired', 'awaiting_certificate', 'assignment_required', 'unavailable' => 'degraded',
     default => 'uninitialized',
 };
 require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';
@@ -102,6 +114,10 @@ if ($enrollmentAvailable) { $framework->initializeJavascriptModuleObject(); }
         <h5 id="pdf-sealer-project-certificate"><i class="fas fa-certificate" aria-hidden="true"></i> <?= $escape($framework->tt('project_status_certificate')) ?></h5>
         <p><?= $escape($framework->tt('project_identity_' . $identity['state'])) ?></p>
         <?php if ($providerRetired): ?><p class="alert alert-warning"><?= $escape($framework->tt('provider_retired_project')) ?></p><?php endif; ?>
+        <?php if ($transitionPending): ?>
+            <p class="alert alert-info"><?= $escape($framework->tt('transition_project_help')) ?></p>
+            <p><strong><?= $escape($framework->tt('transition_target_label')) ?>:</strong> <?= $escape($enrollmentProviderName) ?></p>
+        <?php endif; ?>
         <dl class="pdf-sealer-certificate">
             <dt><?= $escape($framework->tt('provider_label')) ?></dt><dd><?= $escape($providerName) ?></dd>
             <dt><?= $escape($framework->tt('project_status_uuid')) ?></dt>
@@ -123,6 +139,8 @@ if ($enrollmentAvailable) { $framework->initializeJavascriptModuleObject(); }
     <section class="pdf-sealer-panel pdf-sealer-section" aria-labelledby="enrollment-title">
         <h5 id="enrollment-title"><i class="fas fa-file-signature" aria-hidden="true"></i> <?= $escape($framework->tt('enrollment_title')) ?></h5>
         <p><?= $escape($framework->tt('enrollment_help')) ?></p>
+        <p><strong><?= $escape($framework->tt('provider_label')) ?>:</strong> <?= $escape($enrollmentProviderName) ?></p>
+        <?php if ($enrollmentRetired): ?><p class="alert alert-warning"><?= $escape($framework->tt('enrollment_provider_retired')) ?></p><?php endif; ?>
         <?php if ($enrollmentFailed): ?>
             <p class="alert alert-warning"><?= $escape($framework->tt('enrollment_failed')) ?></p>
         <?php else: ?>
@@ -132,11 +150,11 @@ if ($enrollmentAvailable) { $framework->initializeJavascriptModuleObject(); }
                 <dt><?= $escape($framework->tt('enrollment_digest')) ?></dt><dd><code id="enrollment-digest" class="pdf-sealer-fingerprint"><?= $escape($enrollment['csr_sha256'] ?? '') ?></code></dd>
             </dl>
             <div class="pdf-sealer-actions">
-                <button type="button" class="btn btn-primaryrc btn-sm" id="enrollment-generate" <?= $providerRetired ? 'disabled' : '' ?> <?= $enrollment === null ? '' : 'hidden' ?>><?= $escape($framework->tt('enrollment_generate')) ?></button>
+                <button type="button" class="btn btn-primaryrc btn-sm" id="enrollment-generate" <?= $enrollmentRetired ? 'disabled' : '' ?> <?= $enrollment === null ? '' : 'hidden' ?>><?= $escape($framework->tt('enrollment_generate')) ?></button>
                 <button type="button" class="btn btn-primaryrc btn-sm" id="enrollment-download" <?= $enrollment === null ? 'hidden' : '' ?>><?= $escape($framework->tt('enrollment_download')) ?></button>
                 <button type="button" class="btn btn-outline-danger btn-sm" id="enrollment-cancel" <?= $enrollment === null ? 'hidden' : '' ?>><?= $escape($framework->tt('enrollment_cancel')) ?></button>
             </div>
-            <form id="enrollment-certificate-form" class="mt-3" <?= $providerRetired || $enrollment === null ? 'hidden' : '' ?>>
+            <form id="enrollment-certificate-form" class="mt-3" <?= $enrollmentRetired || $enrollment === null ? 'hidden' : '' ?>>
                 <fieldset>
                     <label for="enrollment-certificate-file"><?= $escape($framework->tt('enrollment_certificate_label')) ?></label>
                     <input class="form-control form-control-sm mb-2" type="file" accept=".pem,.crt,.cer" id="enrollment-certificate-file" required>
@@ -166,7 +184,7 @@ if ($enrollmentAvailable) { $framework->initializeJavascriptModuleObject(); }
 <script>
 (() => {
     const module = <?= $framework->getJavascriptModuleObjectName() ?>;
-    const providerRetired = <?= json_encode($providerRetired) ?>;
+    const providerRetired = <?= json_encode($enrollmentRetired) ?>;
     let pending = <?= json_encode($enrollment, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     const enrollmentDateTimeFormat = <?= json_encode(\DateTimeRC::get_user_format_full(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     const formatEnrollmentTime = date => {

@@ -58,7 +58,7 @@ On **CA providers**, enable **Require explicit CA assignment for new project ide
 
 **This deliberately blocks sealing, not eConsent completion.** When assignment is missing, the sealing operation fails with `CA_ASSIGNMENT_REQUIRED`; project Logging says **PDF seal failed: CA assignment required**, with record/event context where available. REDCap can still complete the workflow and store or deliver the preceding **unsealed PDF**. Later assignment does not retroactively seal that archive.
 
-For a busy project, enable the switch and **wait for the successful save confirmation before enabling or assigning the sealing pipeline**. Saving synchronizes with automatic first issuance. An automatic issuance that started earlier may finish before the save succeeds and retain its binding; after a successful save, an unbound project cannot automatically select the default CA. Inspect the project's status before assigning its provider. Existing bindings cannot currently be switched through this UI.
+For a busy project, enable the switch and **wait for the successful save confirmation before enabling or assigning the sealing pipeline**. Saving synchronizes with automatic first issuance. An automatic issuance that started earlier may finish before the save succeeds and retain its binding; after a successful save, an unbound project cannot automatically select the default CA. Inspect the project's status before assigning its provider. Use **Change project provider** for an existing binding.
 
 ## External CA registration and project assignment
 
@@ -66,7 +66,7 @@ On **CA providers**, register a named external provider by uploading its public 
 
 Choose **No timestamp** or explicitly choose the **internal TSA** if initialized. B-B fallback is unchecked initially. These choices belong to this provider; changing the built-in provider's TSA-tab settings does not change external providers. External TSA endpoints and editing an external provider's saved policy are not available yet.
 
-To assign a provider, choose a project by title or PID in the searchable selector and select an active provider. Retired providers are excluded. The selector lists active projects with PDF Sealer enabled that have no provider binding, excluding pending issuance/enrollment as well as active signers. Successfully assigned projects disappear from the list immediately. The server still checks for assignments made after the page was loaded. After success, the confirmation names both the provider and project and clears the selections for another assignment. Failed requests retain your selections. PDF Sealer must be enabled there. Assignment reserves a project UUID; it does not issue a certificate or assign a PDF pipeline operation. A project with a different existing provider binding cannot be reassigned in this version. Registration does not change the installation default: unassigned projects use the built-in provider when initialized only if the explicit-assignment gate is off. An external-only setup requires explicit project assignments.
+To assign a provider, choose a project by title or PID in the searchable selector and select an active provider. Retired providers are excluded. The selector lists active projects with PDF Sealer enabled that have no provider binding, excluding pending issuance/enrollment as well as active signers. Successfully assigned projects disappear from the list immediately. The server still checks for assignments made after the page was loaded. After success, the confirmation names both the provider and project and clears the selections for another assignment. Failed requests retain your selections. PDF Sealer must be enabled there. Assignment reserves a project UUID; it does not issue a certificate or assign a PDF pipeline operation. An existing binding uses the separate **Change project provider** workflow below. Registration does not change the installation default: unassigned projects use the built-in provider when initialized only if the explicit-assignment gate is off. An external-only setup requires explicit project assignments.
 
 **External enrollment supports CSR preparation, certificate review, and activation.** An externally assigned project shows **Awaiting signing certificate**. Until activation, sealing reports `PROJECT_CERTIFICATE_REQUIRED` and does not issue a built-in certificate. REDCap's existing finalization failure behavior can still store/deliver the preceding unsealed PDF; this is not a delivery-blocking policy. Use a test project to verify the full enrollment and sealing workflow before operational use. The built-in health summary and diagnostic continue to describe the built-in CA/TSA.
 
@@ -74,17 +74,36 @@ Registration and assignment use authenticated CC-only AJAX and system-scoped aud
 
 ## Retire or reactivate a CA
 
-On **CA providers**, select **Retire CA** for a built-in or external provider. Review the affected project IDs, active signers, and pending CSRs, then confirm. The list includes projects where the module is disabled. If assignments or enrollments change before confirmation, the operation fails and requires a fresh review.
+On **CA providers**, select **Retire CA** for a built-in or external provider. Review the affected project IDs, active signers, and pending CSRs/transitions, then confirm. The list includes projects where the module is disabled. If assignments or enrollments change before confirmation, the operation fails and requires a fresh review.
 
 Retirement blocks new assignments, built-in issuance, CSR generation, and returned-certificate activation—including certificates for requests already pending. Existing active signers continue sealing while otherwise valid. Pending CSRs remain downloadable and cancelable; their encrypted keys are retained until cancellation or later activation after reactivation. Certificates, bindings, keys, prior PDFs, and audit history are not deleted. The public trust page retains downloads and labels the provider as retired.
 
 Retiring the default CA requires the explicit-assignment gate to be enabled. If it is currently off, the confirmation requires checking **Also enable required explicit CA assignment**; both changes are saved atomically. No alternative default is chosen. The gate cannot be disabled while the default is retired. Unassigned projects must be assigned an active provider; already assigned projects without a signer remain blocked by retirement.
 
-**Blocked sealing does not block eConsent completion.** REDCap may still store or deliver an unsealed PDF. For a bound project without a signer, project Logging records **PDF seal failed: CA provider retired** with record/event context where available. Existing bindings cannot yet transition to another provider; consider this before retirement.
+**Blocked sealing does not block eConsent completion.** REDCap may still store or deliver an unsealed PDF. For a bound project without a signer, project Logging records **PDF seal failed: CA provider retired** with record/event context where available. A CC administrator can prepare a transition to an active provider; the existing signer remains available until replacement activation.
 
 **Reactivate CA** uses the same review/confirmation flow. It restores eligibility for assignments and enrollment, subject to validity checks, and leaves the assignment gate unchanged. These CC-only actions are audited. An issuance or activation already holding the configuration lock may finish before retirement completes; a changed impact requires reviewing again.
 
 Retirement does not revoke certificates or provide an emergency stop for existing signing. Retiring the built-in CA leaves its existing TSA operational subject to normal validity checks. The built-in diagnostic cannot issue its temporary signer while this CA is retired: signer issuance fails and B-B/B-T sealing checks are skipped, while TSA checks can still pass. A cached diagnostic predating retirement is historical evidence only.
+
+## Change a project’s CA provider
+
+On **CA providers → Change project provider**, select a project and choose **Review project provider**. The selector lists projects with PDF Sealer enabled and an existing binding. The review shows the current provider and whether an active signing identity is assigned; this is not a certificate-health check.
+
+Choose a different **active** replacement provider, then confirm the action:
+
+- **External CA:** **Prepare provider change** authorizes enrollment with that CA. A designer or administrator then uses the project status page to generate a fresh CSR, obtain its certificate, and activate it. The current signer and its provider's timestamp policy remain in use until activation. The project displays both current and replacement providers.
+- **Built-in CA:** **Issue and activate built-in replacement** creates a new key/certificate and atomically switches provider and signer. The built-in CA must be active and usable for issuance. Issuance or audit failure leaves the previous binding and signer unchanged.
+
+The project UUID remains unchanged. New signing keys are used; historical identities and public CA certificates are retained. Switching back to a previous provider creates a new identity rather than reactivating its old certificate. Subsequent seals follow the new provider's timestamp policy; an already running seal may finish using its previous signer/policy.
+
+Only one transition and one pending CSR are permitted per project. Cancel an existing CSR on the project page before starting a provider change. To withdraw a prepared external transition, review the project in CC and select **Cancel provider change**. This explicitly discards its pending CSR/encrypted key, if any, and keeps the current provider/signer. Backups may retain canceled material. Canceling only a CSR on the project page leaves the administrator's target-provider assignment in place so a new CSR can be generated.
+
+Transitions can move away from a retired provider. If the target is retired during enrollment, new CSR generation and activation are blocked, but existing signing and pending CSR download/cancellation remain available. CC cancellation is still allowed. Retirement reviews include pending transition assignments even before a CSR exists.
+
+Without an active signer, a pending transition blocks sealing until activation; the old provider does not automatically issue a certificate in the meantime. Project Logging records **PDF seal failed: provider transition pending**. REDCap can still store/deliver an unsealed PDF. Canceling the transition restores the original assignment's behavior. Previously generated PDFs are unchanged.
+
+All transition actions are CC-only, audited, and synchronized with retirement and enrollment. Confirmation rechecks the reviewed binding/pending-request state. A stale review is rejected; refresh and review again. Initial assignment policy and the installation default are unchanged by a project transition.
 
 ## Diagnostic: capability check and saved result
 

@@ -14,6 +14,16 @@ Project-copy and metadata-only XML export/import acceptance passed on this insta
 
 The [provider-aware foundation](#provider-and-timestamp-source-foundation) is implemented for built-in operation: explicit CA/source configuration, provider-pinned project bindings, recorded issuer certificates, and separate issuance/signing/timestamp checks. The dev PKI was reset and freshly initialized under the new model. Daily [expiry monitoring and advance alarms](#scheduled-expiry-monitoring-and-advance-alarms) are implemented. CC external CA registration, public chain distribution, expiry inventory, initial project assignment, and an optional explicit-assignment gate are implemented. The user confirmed successful external CA registration and passed the assignment-gate browser checks. Local encrypted project-key/CSR preparation is implemented; the user confirmed CSR download/refresh behavior and expected sealing failure; returned-certificate validation/activation and external-chain sealing are implemented, with user-reported Acrobat acceptance of the first external-CA-signed PDF, while external timestamp sources and built-in/automatic renewal remain planned in the [lifecycle design](provider_lifecycle_design.md). No legacy migration or compatibility layer is required for this sole deployment.
 
+## Controlled project provider transitions — 2026-09-27
+
+Implemented CC-only review/start/cancel actions and a separate searchable selector for enabled projects with existing bindings. An external transition records a pending provider/transition ID while preserving the active provider/signer; project enrollment uses the pending target. Returned-certificate activation atomically switches provider and signer, consumes enrollment, and retains UUID/history. A built-in target issues and activates a fresh identity in the CC transaction. Failure leaves the existing signer intact. The review is invalidated by binding/enrollment changes; one existing CSR/transition must be canceled explicitly before another can start.
+
+CC cancellation removes pending CSR/key material with its audit and clears the target in one transaction; project CSR cancellation alone keeps the target. Source retirement does not block moving away; target retirement blocks new enrollment/activation. Retirement impact now includes pending transition assignments, and active signing/expiry dependencies remain with the current signer until activation. A project without a signer cannot issue under its previous provider during enrollment (`PROVIDER_TRANSITION_PENDING`). Timestamp policy changes with activation, not preparation.
+
+Standalone transition tests cover built-in/external directions, UUID/history preservation, stale review/activation/cancellation, retired targets, cancellation and activation rollback, locking, no-signer projects, and actual finalizer output before/after switching B-B to B-T. Transition tests passed on PHP 8.2 and 8.5; retirement, project identity, storage, and AJAX regressions passed on PHP 8.5. Changed PHP lint, page JavaScript syntax, JSON/INI parsing, language keys, packaged-guide links, and diff checks passed. Browser/Acrobat acceptance is pending. No live settings, certificates, or project data were changed by this slice.
+
+Next: browser transition/cancellation and PDF acceptance; then external TSA integration.
+
 ## CA retirement and reactivation — 2026-09-27
 
 Implemented CC-only AJAX retirement/reactivation for built-in and external CA providers. The review lists affected PIDs, active signers, and pending enrollments, including disabled projects. Confirmation rechecks the public impact/state digest under the configuration lock. Stale review or audit failure leaves state unchanged. Retirement excludes providers from new assignment and blocks issuance, CSR generation, and certificate review/activation; pending requests can still be downloaded/canceled. Existing active signers keep sealing while otherwise valid.
@@ -22,7 +32,7 @@ Default retirement explicitly enables required assignment in the same transactio
 
 Standalone `tests/provider_retirement.php` covers public/read-only impact, stale review, rollback, default/gate atomicity, pending retention/cancellation, mutation/retirement lock interleavings, reactivation, expiry dependencies, and actual B-T sealing with both issuing providers retired. PHP 8.2/8.5 and relevant regression checks are recorded in the testing guide. No live settings, certificates, or project data were changed by the agent. The user subsequently confirmed that the browser retirement/reactivation test passes. The final retirement confirmation uses warning styling; reactivation retains primary styling.
 
-Next: controlled project provider transition, followed by external TSA integration.
+Controlled provider transitions were implemented in the subsequent slice above; external TSA integration follows its acceptance.
 
 ## External certificate activation and sealing — 2026-09-27
 

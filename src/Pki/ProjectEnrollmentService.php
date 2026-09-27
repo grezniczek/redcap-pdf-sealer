@@ -30,7 +30,8 @@ final class ProjectEnrollmentService
     /** Public-only metadata; viewing a page never generates or decrypts a key. */
     public function inspect(int $pid): ?array
     {
-        $binding = $this->externalBinding($pid);
+        $binding = $this->bindings->find($pid);
+        if ($binding === null) { throw new RuntimeException('Project assignment required'); }
         $pending = $this->load($pid, $binding);
         return $pending === null ? null : $this->publicDetails($pending);
     }
@@ -40,7 +41,7 @@ final class ProjectEnrollmentService
     {
         return $this->withMutationLocks($pid, function () use ($pid): array {
             $binding = $this->externalBinding($pid);
-            $this->providers->assertActive($binding->providerId);
+            $this->providers->assertActive($binding->enrollmentProviderId());
             $pending = $this->load($pid, $binding);
             if ($pending === null) {
                 $path = $this->framework->createTempFile();
@@ -63,7 +64,7 @@ final class ProjectEnrollmentService
                         throw new RuntimeException('Pending key encryption verification failed');
                     }
                     unset($privatePem, $key, $roundTrip);
-                    $pending = ['id' => bin2hex(random_bytes(16)), 'uuid' => $binding->uuid, 'provider_id' => $binding->providerId,
+                    $pending = ['id' => bin2hex(random_bytes(16)), 'uuid' => $binding->uuid, 'provider_id' => $binding->enrollmentProviderId(),
                         'created_at' => time(), 'csr_pem' => $pem, 'csr_sha256' => hash('sha256', $pem), 'private_key_ciphertext' => $ciphertext];
                     $this->transaction(function () use ($pid, $pending): void {
                         $this->framework->setSystemSetting($this->key($pid), json_encode($pending, JSON_THROW_ON_ERROR));
@@ -85,12 +86,16 @@ final class ProjectEnrollmentService
     public function cancel(int $pid, string $id): void
     {
         $this->withMutationLocks($pid, function () use ($pid, $id): void {
-            $pending = $this->expected($pid, $id);
-            $this->transaction(function () use ($pid, $pending): void {
-                $this->framework->removeSystemSetting($this->key($pid));
-                $this->audit('cancel', $pid, $pending);
-            });
+            $this->transaction(fn() => $this->cancelWithinTransaction($pid, $id));
         });
+    }
+
+    /** Internal service entry: caller holds project/configuration locks and an open transaction. */
+    public function cancelWithinTransaction(int $pid, string $id): void
+    {
+        $pending = $this->expected($pid, $id);
+        $this->framework->removeSystemSetting($this->key($pid));
+        $this->audit('cancel', $pid, $pending);
     }
 
     /** Validate without persisting the uploaded certificate or changing the active signer. */
@@ -113,12 +118,13 @@ final class ProjectEnrollmentService
             $pending = $candidate['pending'];
             $generated = new GeneratedIdentity($candidate['der'], $this->protector->decrypt($pending['private_key_ciphertext']));
             $this->transaction(function () use ($pid, $binding, $candidate, $pending, $generated): void {
-                $identityId = $this->identities->append('project', $generated, $binding->uuid, $binding->providerId,
+                $identityId = $this->identities->append('project', $generated, $binding->uuid, $pending['provider_id'],
                     hash('sha256', $candidate['chain'][0]), $candidate['chain']);
-                $this->bindings->replace($pid, $binding->uuid, $binding->identityId, $identityId);
+                $this->bindings->replace($pid, $binding->uuid, $binding->identityId, $identityId, $pending['provider_id']);
                 $this->framework->removeSystemSetting($this->key($pid));
                 $this->audit('activate', $pid, $pending, ['identity_id' => $identityId,
-                    'previous_identity_id' => $binding->identityId, 'certificate_sha256' => $candidate['details']['fingerprint']]);
+                    'previous_identity_id' => $binding->identityId, 'previous_provider_id' => $binding->providerId,
+                    'transition_id' => $binding->transitionId, 'certificate_sha256' => $candidate['details']['fingerprint']]);
             });
         });
     }
@@ -154,7 +160,7 @@ final class ProjectEnrollmentService
     {
         ProjectBindingRepository::assertPid($pid);
         $binding = $this->bindings->find($pid);
-        if ($binding === null || $this->providers->provider($binding->providerId)['kind'] !== 'external') {
+        if ($binding === null || $this->providers->provider($binding->enrollmentProviderId())['kind'] !== 'external') {
             throw new RuntimeException('External CA assignment required for enrollment');
         }
         return $binding;
@@ -173,7 +179,7 @@ final class ProjectEnrollmentService
         if ($raw === null) { return null; }
         $p = is_string($raw) ? json_decode($raw, true, 8, JSON_THROW_ON_ERROR) : null;
         if (!is_array($p) || count($p) !== 7 || !is_string($p['id'] ?? null) || preg_match('/^[a-f0-9]{32}$/D', $p['id']) !== 1
-            || ($p['uuid'] ?? null) !== $binding->uuid || ($p['provider_id'] ?? null) !== $binding->providerId
+            || ($p['uuid'] ?? null) !== $binding->uuid || ($p['provider_id'] ?? null) !== $binding->enrollmentProviderId()
             || !is_int($p['created_at'] ?? null) || $p['created_at'] < 1
             || !is_string($p['csr_pem'] ?? null) || strlen($p['csr_pem']) > 16384
             || !is_string($p['csr_sha256'] ?? null) || !hash_equals(hash('sha256', $p['csr_pem']), $p['csr_sha256'])

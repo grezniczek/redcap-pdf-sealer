@@ -96,6 +96,9 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             || $this->framework->getProjectId() !== null) {
             throw new \RuntimeException($this->framework->tt('pki_access_denied'));
         }
+        if (in_array($action, ['preview_provider_transition', 'start_provider_transition', 'cancel_provider_transition'], true)) {
+            return $this->manageProviderTransition($action, $payload);
+        }
         if (in_array($action, ['register_ca_provider', 'assign_ca_provider', 'save_assignment_policy', 'preview_ca_retirement', 'set_ca_retirement'], true)) {
             return $this->manageCaProvider($action, $payload);
         }
@@ -155,9 +158,43 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             $service->cancel($pid, $payload['id']);
             return ['ok' => true];
         } catch (\DE\RUB\PDFSealerExternalModule\Pki\CaProviderRetired) {
-            return ['ok' => false, 'message' => $this->framework->tt('provider_retired_project')];
+            return ['ok' => false, 'message' => $this->framework->tt('enrollment_provider_retired')];
         } catch (\Throwable) {
             return ['ok' => false, 'message' => $this->framework->tt($certificateAction ? 'enrollment_certificate_failed' : 'enrollment_failed')];
+        }
+    }
+
+    private function manageProviderTransition(string $action, mixed $payload): array
+    {
+        $fields = match ($action) { 'preview_provider_transition' => 1, 'start_provider_transition' => 3, default => 2 };
+        if (!is_array($payload) || count($payload) !== $fields || !is_int($payload['pid'] ?? null) || $payload['pid'] < 1
+            || ($action !== 'preview_provider_transition' && (!is_string($payload['review_hash'] ?? null)
+                || preg_match('/^[a-f0-9]{64}$/D', $payload['review_hash']) !== 1))
+            || ($action === 'start_provider_transition' && (!is_string($payload['provider'] ?? null)
+                || preg_match('/^[a-z][a-z0-9-]{0,63}$/D', $payload['provider']) !== 1))) {
+            return ['ok' => false, 'message' => $this->framework->tt('pki_invalid_request')];
+        }
+        try {
+            $protector = new SecretProtector();
+            $identities = new IdentityRepository($this->framework, $protector);
+            $bindings = new \DE\RUB\PDFSealerExternalModule\Pki\ProjectBindingRepository($this->framework);
+            $providers = $identities->providers();
+            $projectLock = new \DE\RUB\PDFSealerExternalModule\Pki\ProjectIssueLock();
+            $configurationLock = new \DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationLock();
+            $enrollment = new \DE\RUB\PDFSealerExternalModule\Pki\ProjectEnrollmentService(
+                $this->framework, $bindings, $providers, $protector, $projectLock, null, $identities, $configurationLock);
+            $projects = new \DE\RUB\PDFSealerExternalModule\Pki\ProjectIdentityService($bindings, $identities, $protector,
+                CertificateIssuer::forFramework($this->framework), new PkiHealthService($identities, $protector), $projectLock, $configurationLock);
+            $service = new \DE\RUB\PDFSealerExternalModule\Pki\ProviderTransitionService(
+                $this->framework, $providers, $bindings, $enrollment, $projects, $projectLock, $configurationLock);
+            if ($action === 'preview_provider_transition') { return ['ok' => true] + $service->preview($payload['pid']); }
+            if ($action === 'start_provider_transition') {
+                return ['ok' => true, 'state' => $service->start($payload['pid'], $payload['provider'], $payload['review_hash'])];
+            }
+            $service->cancel($payload['pid'], $payload['review_hash']);
+            return ['ok' => true, 'state' => 'canceled'];
+        } catch (\Throwable) {
+            return ['ok' => false, 'message' => $this->framework->tt('transition_failed')];
         }
     }
 

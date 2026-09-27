@@ -54,6 +54,7 @@ final class ProjectIdentityService
             return $identity;
         }
 
+        if ($binding?->pendingProviderId !== null) { throw new ProviderTransitionPending('Provider transition awaits certificate activation'); }
         $providers->assertActive($providerId);
         if ($provider['kind'] === 'external') {
             throw new ProjectCertificateRequired('The assigned external CA requires a project signing certificate');
@@ -91,6 +92,28 @@ final class ProjectIdentityService
         return $identity;
     }
 
+    /** Internal service entry: caller holds project/configuration locks and transaction. Always creates a new key. */
+    public function issueBuiltinReplacement(string $uuid, string $providerId): StoredIdentity
+    {
+        $providers = $this->identities->providers();
+        $providers->assertActive($providerId);
+        $provider = $providers->provider($providerId);
+        if ($provider['kind'] !== 'internal'
+            || $this->health->inspectIssuance($provider['issuer_identity_id'], time())->status !== PkiHealth::Ready) {
+            throw new RuntimeException('Target CA is not usable for local issuance');
+        }
+        $root = $this->identities->find($provider['issuer_identity_id']);
+        $details = openssl_x509_parse(Certificate::derToPem($root->certificateDer));
+        $organization = $details['subject']['O'] ?? null;
+        if (!is_string($organization) || $organization === '') { throw new RuntimeException('Issuer organization missing'); }
+        $generated = $this->issuer->createProject($organization, $uuid, $root->asGeneratedIdentity($this->protector));
+        $id = $this->identities->append('project', $generated, $uuid, $providerId, $root->id);
+        $identity = $this->identities->find($id);
+        if ($identity === null) { throw new RuntimeException('Replacement identity missing'); }
+        $this->assertProjectIdentity($identity, $uuid, $providerId);
+        return $identity;
+    }
+
     /**
      * Read-only status; never issues, activates, repairs, or logs an identity.
      * Only public metadata leaves this method, even when validation fails.
@@ -109,6 +132,7 @@ final class ProjectIdentityService
             }
             $status['uuid'] = $binding->uuid;
             if ($binding->identityId === null) {
+                if ($binding->pendingProviderId !== null) { $status['state'] = 'transition_pending'; return $status; }
                 if ($this->identities->providers()->isRetired($binding->providerId)) {
                     $status['state'] = 'ca_retired';
                     return $status;

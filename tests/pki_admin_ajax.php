@@ -208,7 +208,7 @@ namespace {
         } catch (\RuntimeException $e) {
             check($e->getMessage() === 'pki_access_denied', 'Unexpected timestamp settings authorization result');
         }
-        foreach (['register_ca_provider', 'assign_ca_provider', 'save_assignment_policy', 'preview_ca_retirement', 'set_ca_retirement'] as $action) {
+        foreach (['register_ca_provider', 'assign_ca_provider', 'save_assignment_policy', 'preview_ca_retirement', 'set_ca_retirement', 'preview_provider_transition', 'start_provider_transition', 'cancel_provider_transition'] as $action) {
             try {
                 $module->redcap_module_ajax($action, [], $case['context']);
                 throw new \RuntimeException('Unauthorized provider request accepted');
@@ -245,11 +245,19 @@ namespace {
 
     $framework->superuser = true;
     $framework->projectId = null;
-    foreach (['preview_ca_retirement', 'set_ca_retirement'] as $action) {
+    foreach (['preview_ca_retirement', 'set_ca_retirement', 'preview_provider_transition', 'start_provider_transition', 'cancel_provider_transition'] as $action) {
         check(in_array($action,$config['auth-ajax-actions'],true) && !in_array($action,$config['no-auth-ajax-actions'],true), 'Retirement action exposed without authentication');
         foreach ([null, [], ['provider'=>'bad id'], ['provider'=>'builtin-ca','retired'=>'true','enable_assignment_gate'=>false,'review_hash'=>str_repeat('a',64)],
             ['provider'=>'builtin-ca','retired'=>true,'enable_assignment_gate'=>false,'review_hash'=>'bad']] as $payload) {
             check($module->redcap_module_ajax($action,$payload,null) === ['ok'=>false,'message'=>'pki_invalid_request'], 'Malformed retirement request accepted');
+        }
+    }
+    foreach (['preview_provider_transition', 'start_provider_transition', 'cancel_provider_transition'] as $action) {
+        check(in_array($action,$config['auth-ajax-actions'],true) && !in_array($action,$config['no-auth-ajax-actions'],true), 'Transition exposed without authentication');
+        foreach ([[], ['pid'=>'461'], ['pid'=>0], ['pid'=>461,'review_hash'=>'bad'],
+            ['pid'=>461,'review_hash'=>str_repeat('a',64),'provider'=>'bad id'],
+            ['pid'=>461,'review_hash'=>str_repeat('a',64),'provider'=>'builtin-ca','extra'=>true]] as $payload) {
+            check($module->redcap_module_ajax($action,$payload,null) === ['ok'=>false,'message'=>'pki_invalid_request'], 'Invalid transition payload accepted');
         }
     }
     $framework->failWrite = true;

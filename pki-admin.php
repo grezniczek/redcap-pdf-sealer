@@ -79,6 +79,8 @@ $assignableProviders = array_values(array_filter($providerCatalog, static fn(arr
 $builtinRetired = false;
 foreach ($providerCatalog as $p) { if ($p['id'] === $providers::BUILTIN_CA) { $builtinRetired = $p['retired'] ?? false; } }
 $assignmentProjects = [];
+$transitionProjects = [];
+$assignedPids = [];
 $assignmentProjectsUnavailable = false;
 try {
     // Unlike the settings dialog's project-id choices, CC must also include
@@ -93,13 +95,17 @@ try {
         if ($bindings === false) { throw new RuntimeException('Project bindings unavailable'); }
         $assignedPids = [];
         while ($binding = $bindings->fetch_assoc()) { $assignedPids[] = $binding['redcap_pid']; }
-        $enabledPids = array_values(array_diff($enabledPids, $assignedPids));
+        // The same enabled-project query feeds separate assignment/transition lists.
     }
+    $assignedPids = array_map('strval', $assignedPids);
     if ($enabledPids !== []) {
         $rows = $framework->query('SELECT project_id, app_title FROM redcap_projects WHERE project_id IN ('
             . implode(',', array_fill(0, count($enabledPids), '?')) . ') ORDER BY app_title, project_id', $enabledPids);
         if ($rows === false) { throw new RuntimeException('Project selector unavailable'); }
-        while ($row = $rows->fetch_assoc()) { $assignmentProjects[] = $row; }
+        while ($row = $rows->fetch_assoc()) {
+            if (in_array((string) $row['project_id'], $assignedPids, true)) { $transitionProjects[] = $row; }
+            else { $assignmentProjects[] = $row; }
+        }
     }
 } catch (Throwable) { $assignmentProjectsUnavailable = true; }
 $recipients = $framework->getSystemSetting('admin-alert-recipients');
@@ -143,6 +149,7 @@ require_once APP_PATH_DOCROOT . 'ControlCenter/header.php';
 $framework->initializeJavascriptModuleObject();
 $framework->tt_transferToJavascriptModuleObject('provider_assigned');
 $framework->tt_transferToJavascriptModuleObject('provider_retirement_counts');
+foreach (['transition_current', 'transition_target', 'transition_saved_pending', 'transition_saved_activated', 'transition_saved_canceled'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
 ?>
 <link rel="stylesheet" href="<?= $escape($framework->getUrl('assets/admin.css')) ?>">
 <div class="pdf-sealer-admin">
@@ -229,7 +236,7 @@ $framework->tt_transferToJavascriptModuleObject('provider_retirement_counts');
                         <p class="provider-lifecycle-explanation"></p>
                         <div style="max-height:18rem;overflow:auto">
                             <table class="table table-sm">
-                                <thead><tr><th><?= $escape($framework->tt('provider_pid')) ?></th><th><?= $escape($framework->tt('provider_active_signer')) ?></th><th><?= $escape($framework->tt('provider_pending_enrollment')) ?></th></tr></thead>
+                                <thead><tr><th><?= $escape($framework->tt('provider_pid')) ?></th><th><?= $escape($framework->tt('provider_active_signer')) ?></th><th><?= $escape($framework->tt('provider_pending_enrollment')) ?></th><th><?= $escape($framework->tt('transition_pending_label')) ?></th></tr></thead>
                                 <tbody></tbody>
                             </table>
                         </div>
@@ -282,6 +289,36 @@ $framework->tt_transferToJavascriptModuleObject('provider_retirement_counts');
                         <?php foreach ($assignableProviders as $provider): ?><option value="<?= $escape($provider['id']) ?>"><?= $escape($provider['name'] ?? $framework->tt('provider_builtin')) ?></option><?php endforeach; ?>
                     </select>
                     <button class="btn btn-primaryrc btn-sm" type="submit"><?= $escape($framework->tt('provider_assign')) ?></button>
+                </fieldset>
+                <p class="alert mt-3" role="status" hidden></p>
+            </form>
+            <hr>
+            <h5><?= $escape($framework->tt('transition_title')) ?></h5>
+            <p class="small text-muted"><?= $escape($framework->tt('transition_intro')) ?></p>
+            <form id="pdf-sealer-transition">
+                <fieldset <?= $assignmentProjectsUnavailable || $transitionProjects === [] ? 'disabled' : '' ?>>
+                    <label for="transition-pid"><?= $escape($framework->tt('provider_pid')) ?></label>
+                    <div class="mb-3"><select class="form-select form-select-sm" id="transition-pid" required>
+                        <option value="" selected><?= $escape($framework->tt('provider_choose_project')) ?></option>
+                        <?php foreach ($transitionProjects as $project): ?>
+                            <option value="<?= $escape($project['project_id']) ?>"><?= $escape('(' . $project['project_id'] . ') ' . $project['app_title']) ?></option>
+                        <?php endforeach; ?>
+                    </select></div>
+                    <button type="submit" class="btn btn-outline-secondary btn-sm"><?= $escape($framework->tt('transition_review')) ?></button>
+                    <div id="transition-review" class="mt-3" hidden>
+                        <p id="transition-current"></p>
+                        <p id="transition-pending"></p>
+                        <p id="transition-csr" class="alert alert-warning" hidden><?= $escape($framework->tt('transition_cancel_csr_first')) ?></p>
+                        <div id="transition-target-choice">
+                            <label for="transition-provider"><?= $escape($framework->tt('transition_target_label')) ?></label>
+                            <select class="form-select form-select-sm mb-3" id="transition-provider">
+                                <option value="" selected><?= $escape($framework->tt('timestamp_settings_choose')) ?></option>
+                                <?php foreach ($assignableProviders as $provider): ?><option value="<?= $escape($provider['id']) ?>"><?= $escape($provider['name'] ?? $framework->tt('provider_builtin')) ?></option><?php endforeach; ?>
+                            </select>
+                        </div>
+                        <p id="transition-action-help"></p>
+                        <button type="button" class="btn btn-warning btn-sm" id="transition-confirm"></button>
+                    </div>
                 </fieldset>
                 <p class="alert mt-3" role="status" hidden></p>
             </form>
@@ -465,7 +502,7 @@ $framework->tt_transferToJavascriptModuleObject('provider_retirement_counts');
                 const body = review.querySelector('tbody'); body.replaceChildren();
                 projects.forEach(project => {
                     const row = document.createElement('tr');
-                    [project.pid, project.identity_id !== null ? '✓' : '—', project.enrollment_id !== null ? '✓' : '—'].forEach(value => {
+                    [project.pid, project.identity_id !== null ? '✓' : '—', project.enrollment_id !== null ? '✓' : '—', project.transition_id ? '✓' : '—'].forEach(value => {
                         const cell = document.createElement('td'); cell.textContent = value; row.appendChild(cell);
                     });
                     body.appendChild(row);
@@ -513,6 +550,72 @@ $framework->tt_transferToJavascriptModuleObject('provider_retirement_counts');
             message.textContent = failed;
         } finally { fields.disabled = false; message.hidden = false; }
     });
+    const transitionForm = document.getElementById('pdf-sealer-transition');
+    if (transitionForm) {
+        const fields = transitionForm.querySelector('fieldset');
+        const project = $('#transition-pid');
+        project.prop('disabled', fields.disabled).select2({width: '100%', minimumResultsForSearch: 0});
+        const target = document.getElementById('transition-provider');
+        const review = document.getElementById('transition-review');
+        const confirm = document.getElementById('transition-confirm');
+        const message = transitionForm.querySelector('[role="status"]');
+        const catalog = <?= json_encode(array_column(array_map(static fn(array $p): array => ['id' => $p['id'], 'name' => $p['name'] ?? $framework->tt('provider_builtin'), 'kind' => $p['kind']], $providerCatalog), null, 'id'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        const failed = <?= json_encode($framework->tt('transition_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        let preview = null;
+        const updateAction = () => {
+            const cancel = Boolean(preview?.transition_id);
+            const internal = catalog[target.value]?.kind === 'internal';
+            confirm.textContent = cancel ? <?= json_encode($framework->tt('transition_cancel'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
+                : internal ? <?= json_encode($framework->tt('transition_activate_builtin'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
+                : <?= json_encode($framework->tt('transition_prepare'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+            document.getElementById('transition-action-help').textContent = cancel
+                ? <?= json_encode($framework->tt('transition_cancel_help'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
+                : internal ? <?= json_encode($framework->tt('transition_builtin_help'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
+                : <?= json_encode($framework->tt('transition_external_help'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+            confirm.disabled = !preview || (!cancel && (Boolean(preview.enrollment_id) || !target.value || target.value === preview.provider_id));
+        };
+        target.addEventListener('change', updateAction);
+        project.on('change', () => { preview = null; review.hidden = true; message.hidden = true; });
+        transitionForm.addEventListener('submit', async event => {
+            event.preventDefault(); fields.disabled = true; project.prop('disabled', true); review.hidden = true; message.hidden = true;
+            try {
+                const response = await module.ajax('preview_provider_transition', {pid: Number(project.val())});
+                if (!response?.ok) throw new Error('Preview failed');
+                preview = response; target.value = '';
+                Array.from(target.options).forEach(option => { option.disabled = option.value === response.provider_id; });
+                document.getElementById('transition-current').textContent = module.tt('transition_current', catalog[response.provider_id]?.name || response.provider_id)
+                    + ' ' + (response.identity_id ? <?= json_encode($framework->tt('transition_has_signer'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?> : <?= json_encode($framework->tt('transition_no_signer'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>);
+                document.getElementById('transition-pending').textContent = response.pending_provider_id
+                    ? module.tt('transition_target', catalog[response.pending_provider_id]?.name || response.pending_provider_id) : '';
+                document.getElementById('transition-target-choice').hidden = Boolean(response.transition_id);
+                document.getElementById('transition-csr').hidden = !response.enrollment_id || Boolean(response.transition_id);
+                review.hidden = false; updateAction();
+            } catch (error) { preview = null; message.className = 'alert alert-danger mt-3'; message.textContent = failed; message.hidden = false; }
+            finally { fields.disabled = false; project.prop('disabled', false); }
+        });
+        confirm.addEventListener('click', async () => {
+            if (!preview) return;
+            const cancel = Boolean(preview.transition_id);
+            const pid = preview.pid;
+            const provider = cancel ? preview.pending_provider_id : target.value;
+            const projectName = project[0].selectedOptions[0].textContent;
+            fields.disabled = true; project.prop('disabled', true); message.hidden = true;
+            try {
+                const payload = {pid, review_hash: preview.review_hash};
+                if (!cancel) payload.provider = provider;
+                const response = await module.ajax(cancel ? 'cancel_provider_transition' : 'start_provider_transition', payload);
+                if (!response?.ok) throw new Error('Transition failed');
+                transitionForm.reset(); project.trigger('change'); preview = null; review.hidden = true;
+                message.className = 'alert alert-success mt-3';
+                message.textContent = module.tt('transition_saved_' + response.state, catalog[provider]?.name || provider, projectName);
+                message.hidden = false;
+            } catch (error) {
+                preview = null; review.hidden = true;
+                message.className = 'alert alert-danger mt-3'; message.textContent = failed; message.hidden = false;
+            } finally { fields.disabled = false; project.prop('disabled', false); }
+        });
+    }
+
     const assignmentProject = $('#provider-pid');
     $(function () {
         assignmentProject.prop('disabled', assignmentProject.closest('fieldset').prop('disabled'));
@@ -555,6 +658,12 @@ $framework->tt_transferToJavascriptModuleObject('provider_retirement_counts');
                 message.textContent = response?.ok ? <?= json_encode($framework->tt('provider_saved'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?> : response?.message;
                 if (response?.ok && action === 'assign') {
                     message.textContent = module.tt('provider_assigned', assignedProviderName, assignedProjectName);
+                    const transitionProject = document.getElementById('transition-pid');
+                    if (transitionProject && !Array.from(transitionProject.options).some(option => option.value === String(payload.pid))) {
+                        transitionProject.add(new Option(assignedProjectName, String(payload.pid)));
+                        transitionProject.closest('fieldset').disabled = false;
+                        $(transitionProject).prop('disabled', false);
+                    }
                     form.reset();
                     assignmentProject.find('option').filter(function () { return this.value === String(payload.pid); }).remove();
                     if (assignmentProject[0].options.length === 1) {

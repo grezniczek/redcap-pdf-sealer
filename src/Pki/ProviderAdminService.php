@@ -49,7 +49,7 @@ final class ProviderAdminService
                 $binding = $this->bindings->find($pid);
                 if ($binding !== null) {
                     if ($binding->providerId === $providerId) { return; }
-                    throw new RuntimeException('This project already has a provider binding; provider transitions are not available yet');
+                    throw new RuntimeException('This project already has a provider binding; use the provider transition workflow');
                 }
                 $uuid = CertificateIssuer::forFramework($this->framework)->newProjectUuid();
                 $this->bindings->bindUuid($pid, $uuid, $providerId);

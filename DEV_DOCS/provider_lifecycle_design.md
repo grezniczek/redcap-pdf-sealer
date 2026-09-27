@@ -157,3 +157,9 @@ Built-in and external providers now support CC-only retirement/reactivation with
 Project/configuration locks synchronize all new identity mutations and pending cancellation with retirement. Audit failure rolls back both lifecycle state and policy changes. Public downloads retain retired labels; expiry monitoring retains active signer/TSA dependencies and excludes unused retired CA chains. Diagnostic temporary issuance obeys retirement too. The user confirmed the browser retirement/reactivation test passes; see the implementation status and testing guide.
 
 Next sequence: controlled project provider transition, then external TSA integration. Emergency blocking and revocation remain separate future decisions.
+
+## Controlled provider transitions implemented — 2026-09-27
+
+CC can prepare an external target while retaining the current provider/signer, or issue and activate a built-in replacement atomically. Project UUIDs and historical identities remain. External enrollment uses the pending target, and activation switches both provider and signer; timestamp policy follows the new provider only after activation. A no-signer project stays blocked during pending enrollment instead of issuing under its old provider.
+
+One existing CSR or transition must be explicitly canceled before another is started. CC cancellation transactionally discards its pending request/key and clears the target; designer CSR cancellation leaves the selected target in place. Retirement accounts for pending assignments, blocks new enrollment against retired targets, and permits moving away from a retired source. The CC review is checked again under project/configuration locks. Browser acceptance remains pending; see testing. Imported keys, same-provider built-in renewal, root rotation, and external TSA integration remain separate work.

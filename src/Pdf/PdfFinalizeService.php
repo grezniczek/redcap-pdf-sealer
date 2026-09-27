@@ -128,6 +128,8 @@ final class PdfFinalizeService
                 'timestamp_serial' => $result->timestampSerialHex,
                 'timestamp_time' => $result->timestampTime,
             ]);
+        } catch (\DE\RUB\PDFSealerExternalModule\Pki\ProviderTransitionPending) {
+            return $this->failed($events, $event, $context, (int) $pid, 'PROVIDER_TRANSITION_PENDING', 'Provider transition awaits certificate activation');
         } catch (\DE\RUB\PDFSealerExternalModule\Pki\CaProviderRetired) {
             return $this->failed($events, $event, $context, (int) $pid, 'CA_PROVIDER_RETIRED', 'CA provider retired');
         } catch (\DE\RUB\PDFSealerExternalModule\Pki\CaAssignmentRequired) {
@@ -163,6 +165,7 @@ final class PdfFinalizeService
                     $projectLogPid, $context, match ($code) {
                         'CA_ASSIGNMENT_REQUIRED' => 'PDF seal failed: CA assignment required',
                         'CA_PROVIDER_RETIRED' => 'PDF seal failed: CA provider retired',
+                        'PROVIDER_TRANSITION_PENDING' => 'PDF seal failed: provider transition pending',
                         default => 'PDF seal failed',
                     },
                     $event['generation_id'] === null ? '' : 'Reference: ' . $event['generation_id'],

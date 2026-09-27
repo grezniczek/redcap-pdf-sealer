@@ -112,7 +112,7 @@ Run `RANDFILE=/tmp/pdf-sealer-activation-random php -d xdebug.mode=off tests/ext
 
 For browser acceptance, `tools/external_ca_fixture.php --create` prepares an explicitly disposable CA under ignored `DEV_DOCS/interop-artifacts/external-ca-acceptance/`. It retains only the test issuing CA's private key locally with owner-only permissions so it can issue responses; never upload that key or use this fixture in production. The helper is excluded from packages. The public `chain.pem` is ready to register as a **new** provider; the earlier registration-only fixture cannot issue responses.
 
-1. Register the new public `chain.pem`, choose timestamp policy, then assign a fresh unbound test project to it. Existing assignments cannot be switched.
+1. Register the new public `chain.pem`, choose timestamp policy, then assign a fresh unbound test project to it. Use a fresh project for this first-enrollment procedure; existing assignments use the separate transition workflow.
 2. Generate/download that project's CSR.
 3. Run `RANDFILE=/tmp/pdf-sealer-fixture-random php -d xdebug.mode=off tools/external_ca_fixture.php --sign /path/to/downloaded.csr`. Windows Downloads paths are accessible under `/mnt/c/Users/grezn/Downloads/` on this instance. The command prints the returned certificate path.
 4. Upload the returned PEM, validate/review, activate, and confirm ready status. A mismatched certificate should leave the pending request unchanged.
@@ -136,4 +136,16 @@ The user confirmed that the browser retirement/reactivation test passes. Separat
 4. Select **Reactivate CA**, review and confirm. Enrollment becomes available again; the assignment policy remains unchanged.
 5. For the built-in default, retirement with the assignment gate off must require the explicit gate checkbox. After confirmation, the gate is on and cannot be turned off until reactivation. The existing TSA remains operational. A new diagnostic should report failed temporary signer issuance and skipped sealing checks, as explained in the page. Reactivate afterward and restore the desired assignment policy explicitly.
 
-No live retirements or provider transitions were performed by the automated suite. Existing bindings cannot yet move to another CA. These checks do not claim certificate revocation or an emergency stop for existing signing.
+No live retirements or provider transitions were performed by the automated suite. Existing bindings can move through the separately tested controlled provider transition workflow. These checks do not claim certificate revocation or an emergency stop for existing signing.
+
+### Controlled project provider transitions
+
+Run `RANDFILE=/tmp/pdf-sealer-transition-random php -d xdebug.mode=off tests/provider_transitions.php` (also with `php8.2`). The suite uses real disposable crypto and fake persistence: current signer/UUID/history preservation, builtin/external target activation, pending cancellation and rollback, stale reviews, retirement on either side, one pending operation, no-signer transitions, and lock interleavings. The actual finalizer and sample verifier check that B-B remains effective during preparation and B-T becomes effective only after activation. Transition tests passed on PHP 8.2 and 8.5. Existing retirement, project identity, storage, and AJAX regression suites passed on PHP 8.5. Changed PHP files passed PHP 8.2 lint; page JavaScript syntax, JSON/INI parsing, language keys, packaged-guide links, and diff checks also passed. No live data is changed.
+
+Browser acceptance (pending):
+
+1. In CC **CA providers → Change project provider**, review the working external test project. Select the built-in CA and **Issue and activate built-in replacement**. Confirm the project retains its UUID, shows the new certificate/provider, and a new eConsent PDF is accepted in Acrobat.
+2. Prepare a change back to the disposable external CA. The project should show its current built-in signer and the external replacement provider. Generate/download a fresh CSR; the current signer must remain usable before activation. Supply the CSR path for signing with the existing disposable CA helper, then upload/review/activate its returned certificate. Confirm another eConsent PDF is accepted and the provider switches only on activation.
+3. Prepare another external transition with a pending CSR, review it in CC, and cancel. The pending request/key should disappear, the prior signer should remain, and an old returned certificate should not activate. Canceling only a CSR on the project page should instead retain the pending target. Restore the desired provider afterward through the normal transition workflow.
+
+The automated suite also covers retired targets, no-signer projects, and stale pages; these are not separate browser acceptance claims. Existing PDFs, default provider, and assignment policy must remain unchanged. A transition can change the effective timestamp policy, so note each provider's policy when checking output.

@@ -64,9 +64,9 @@ Until assignment, the sealing operation fails and project Logging records **PDF 
 
 ## When your CA is retired
 
-The status page displays a retirement notice. Existing active signing certificates continue to seal PDFs while valid, but you cannot generate a new CSR or activate a returned certificate—even for a pending request. You can still download or cancel that request. Cancellation removes the pending key; it does not remove an active signer.
+The status page displays a retirement notice. Existing active signing certificates continue to seal PDFs while valid, but you cannot generate a new CSR or activate a returned certificate with that retired CA—even for a pending request. An active replacement provider chosen by an administrator can be used for enrollment. You can still download or cancel that request. Cancellation removes the pending key; it does not remove an active signer.
 
-A project without an active certificate shows **CA retired — no active signer**. Sealing fails and is recorded in project Logging, but REDCap may still store or deliver an unsealed PDF. Contact an administrator: only CC administrators can reactivate a provider, and switching an existing project to another provider is not available yet. Retirement leaves previously sealed PDFs unchanged.
+A project without an active certificate shows **CA retired — no active signer**. Sealing fails and is recorded in project Logging, but REDCap may still store or deliver an unsealed PDF. Contact an administrator: only CC administrators can reactivate a provider or prepare a change to a different CA. Retirement leaves previously sealed PDFs unchanged.
 
 ## Generate and download a CSR
 
@@ -87,3 +87,13 @@ Review the subject, issuing CA, SHA-256 fingerprint, and validity dates. The sub
 Invalid, expired, not-yet-valid, wrong-key, or wrong-CA certificates are rejected without changing the pending request or current signer. A not-yet-valid certificate can be submitted again once valid. If another browser session canceled the request or changed the signer, refresh and review again.
 
 Activation consumes the pending request. If the project already has a signer, it remains usable while you prepare its replacement and switches only on successful activation. Existing PDFs are unchanged. The project page should then show a ready signing certificate; complete a new eConsent and verify its seal and project Logging.
+
+## When an administrator changes your CA
+
+The status page shows the current provider and the **Replacement provider**. For an external replacement, use the enrollment section to generate a new CSR for that replacement provider, then validate/review and activate its returned certificate. You cannot select or substitute a CA yourself.
+
+Your current signer and timestamp policy remain in use while the replacement is pending, subject to their normal validity checks. Activation switches both provider and certificate; subsequent seals use the new provider's timestamp policy. The project UUID and signing history are retained. A switch to the built-in CA is issued and activated directly by the CC administrator.
+
+Canceling a CSR discards only its pending key/request, not the administrator's provider-change decision. Ask the administrator to **Cancel provider change** to withdraw that decision; it also discards any pending CSR but keeps the current signer. Old returned certificates cannot activate canceled requests.
+
+If no active signer exists, the page shows **Provider change — awaiting certificate** and sealing remains blocked until activation. REDCap may still store or deliver an unsealed PDF. If the target CA is retired, contact an administrator before continuing enrollment.
