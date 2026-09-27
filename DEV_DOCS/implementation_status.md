@@ -265,4 +265,22 @@ The user copied PID 524 into PID **525**, **PDF Sealer Test COPY**, and reported
 
 The source has no persisted PDF Sealer project setting other than enablement, so this copy does not exercise transfer of a non-default `hide-project-trust-link` value. No private-key material was read and no live settings, records, or files were changed.
 
-Next: the user enables PDF Sealer in 525, checks the existing single-operation pipeline and unissued-certificate status, then submits a fresh eConsent and checks the saved download in Acrobat. Verify its new UUID/certificate/public key against the source, then a second submission must reuse the destination identity. XML export/import acceptance remains pending.
+### First seal in the copied project — passed
+
+The user enabled PDF Sealer in PID 525, confirmed that its pipeline contained the operation exactly once and that its status initially showed no certificate, then submitted record **1**. They report Acrobat accepted the resulting saved download.
+
+Read-only database inspection and OpenSSL verification of stored public certificates confirmed:
+
+| Evidence | PID 525 result |
+| --- | --- |
+| New UUID | `8e9c939a-1b0e-42da-a647-8cfffdee9390` (binding log 35984) |
+| New identity | `3a88b697d70642cf037f6cf328cdcae0` (certificate log 35985; active binding 35986) |
+| Certificate serial | `A3DF9B0DBE66147077C9E801CD97336F`, a 128-bit serial consistent with the PHP 8.4+ path |
+| Certificate SHA-256 | `d16d1ced505b8dcc0a32c3ec4899f67eeca502d02d612c993ef61b70cae0ee7f` |
+| Public-key SPKI DER SHA-256 | `097521545d363fbe90fa66a1209612be10cab563d3a8272fab99f69cbd8afcb0` |
+| Project Logging | Entry **1043**, **PDF seal succeeded**, **PAdES B-B**, record **1**, event **1590** |
+| Logged workflow time | **2026-09-27 14:02:53**, instance local time; identity/binding persisted at **14:02:54** |
+
+The destination UUID, certificate, and public key differ from PID 524. The source certificate's computed SHA-256 still matches its baseline above; its public-key SPKI DER SHA-256 is `ea1b6a28559255020eeaaf84491de0f84197bf32b5e3684dd4df74f775c0632e`. Both project certificate signatures verify under the same unchanged root, and the active root/TSA identity pointers remain unchanged. These checks used public certificates only; no private-key material or downloaded PDF bytes were read. Acrobat acceptance is user-reported and no new stored/downloaded hash comparison is claimed.
+
+Next: submit a second new eConsent in PID 525 and verify reuse of the identity recorded above. XML export/import acceptance remains pending.
