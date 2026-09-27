@@ -349,7 +349,7 @@ The destination retains exactly its original two binding records (36011 and 3601
 
 This completes the planned same-instance, metadata-only XML export/import acceptance, alongside the earlier settings-only project-copy acceptance. Both destinations started without a signing identity, created distinct signers on first sealing, and reused those signers subsequently. Source identities remained unchanged during the recorded comparisons. Acrobat acceptance was reported for each destination's first saved PDF. No further step is pending for these two cases. Non-default EM settings round-trips, copies containing records/files, and cross-instance migration are outside this evidence; the separate EM settings ZIP inspected here was empty.
 
-## Project Migration Tool — PID 527, blocked by Core queue condition
+## Project Migration Tool — PID 527, queue bug resolved; initial state passed
 
 The user started a further migration from PID 524 using the Project Migration Tool, creating **PID 527**, **PDF Sealer from Project Migration** (migration **2**, started **2026-09-27 15:04:05**, instance local time). Initial read-only inspection found no PDF Sealer project settings, pipeline assignment, identity binding, or sealing events yet. Active eConsent **173** references destination survey **1019**; active snapshot **271** references that consent/survey and saves to the File Repository. These are intermediate observations, not acceptance of a completed migration.
 
@@ -361,4 +361,16 @@ After waiting, migration 2 still had `end_time = NULL`, `status_records = NULL`,
 - Cron **85**, `ProjectMigrationToolExtraInfoImporter2`, calls the EM settings importer. It was enabled at a 60-second interval and most recently completed at **15:09:03** with zero recorded failures. The other migration jobs also ran successfully. This is a selection-condition problem, not evidence of a stalled cron process.
 - A read-only comparison query returned **0** for eligibility under the current predicate and **1** with the optional-records predicate for migration 2.
 
-Recommended next slice: correct this Core importer predicate to allow absent or completed record imports, retaining the gate for queued/processing/failed record imports, then let normal cron finish and repeat PID 527's initial-state inspection. No Core/Framework code, migration statuses, credentials, or project data were changed during diagnosis. PDF Sealer needs no change for this queue defect; its Project Migration Tool acceptance remains pending.
+No Core/Framework code, migration statuses, credentials, or project data were changed during the diagnosis. The user subsequently authorized a minimal Core fix, committed separately as `372ca1bc40903da646c55c4da17ea4707154b842` (`Fix EM settings migration when record import is omitted`). The one-line predicate now accepts absent or completed record imports, preserving the gate for queued/processing/failed record imports. PHP 8.2/8.5 syntax checks and eight read-only SQL eligibility cases passed. Normal cron completed migration 2 at **2026-09-27 15:14:03**, without manual migration-status changes. The user reports submitting the Core fix as a separate PR. PDF Sealer code required no change for this defect.
+
+### Completed migration — initial state passed
+
+The user confirmed migration completion and reported no subsequent changes in PID 527. A fresh read-only `redcap_devctl` inspection confirmed:
+
+- Migration 2 has completion time **15:14:03**, `status_calendar = COMPLETED`, `status_em_settings = COMPLETED`, and `status_records = NULL` (records were not selected).
+- PDF Sealer now has an explicit project setting `enabled = false`, consistent with the PMT importer disabling migrated modules. It is also not enabled system-wide. No other PDF Sealer project settings are present.
+- No PDF execution-plan entry was migrated; explicit `pdf_sealer:seal` assignment is required after enablement.
+- No destination UUID/certificate binding and no PDF seal success/failure entries exist. The source project's UUID and active identity binding remain unchanged, as do the instance's active root/TSA pointers.
+- Active eConsent **173** points to destination survey **1019**, form `survey`. Active snapshot **271** points to consent **173** and survey **1019**, saves to the File Repository, and selects `:survey`. These references resolve to PID 527.
+
+No live data or settings were changed during this inspection. Next: enable PDF Sealer in PID 527, assign its operation exactly once, confirm status still shows no certificate, and submit a fresh eConsent. Verify distinct destination issuance and the saved PDF, then test identity reuse on a second submission. This remains a same-instance, no-records migration case with no non-default PDF Sealer project settings to transfer.
