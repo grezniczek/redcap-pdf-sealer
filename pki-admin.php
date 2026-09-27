@@ -193,7 +193,7 @@ $framework->initializeJavascriptModuleObject();
                         <option value="none"><?= $escape($framework->tt('timestamp_mode_none')) ?></option>
                         <?php if ($builtinSourceAvailable): ?><option value="builtin-tsa"><?= $escape($framework->tt('timestamp_mode_internal')) ?></option><?php endif; ?>
                     </select>
-                    <label class="mb-3"><input type="checkbox" id="provider-fallback"> <?= $escape($framework->tt('timestamp_fallback_allow')) ?></label><br>
+                    <label class="mb-3"><input type="checkbox" id="provider-fallback" disabled> <?= $escape($framework->tt('timestamp_fallback_allow')) ?></label><br>
                     <button class="btn btn-primaryrc btn-sm" type="submit"><?= $escape($framework->tt('provider_register')) ?></button>
                 </fieldset>
                 <p class="alert mt-3" role="status" hidden></p>
@@ -368,6 +368,13 @@ $framework->initializeJavascriptModuleObject();
     ['register', 'assign'].forEach(action => {
         const form = document.getElementById('pdf-sealer-provider-' + action);
         if (!form) return;
+        if (action === 'register') {
+            const source = document.getElementById('provider-source');
+            const fallback = document.getElementById('provider-fallback');
+            const updateFallback = () => { fallback.disabled = source.value !== 'builtin-tsa'; };
+            source.addEventListener('change', updateFallback);
+            updateFallback();
+        }
         form.addEventListener('submit', async event => {
             event.preventDefault();
             const fields = form.querySelector('fieldset');
