@@ -290,3 +290,21 @@ The user submitted a second eConsent in PID 525, record **2**. Read-only `redcap
 The destination still has exactly the original two binding entries (UUID allocation 35984 and activation 35986), referencing UUID `8e9c939a-1b0e-42da-a647-8cfffdee9390` and identity `3a88b697d70642cf037f6cf328cdcae0`. Its UUID has exactly one certificate identity record, **35985**, with the same certificate SHA-256 recorded above. No new identity or binding was created for record 2. The successful second seal and unchanged identity storage confirm reuse through the existing project-identity path; the record 2 PDF itself was not supplied for independent certificate extraction or byte validation.
 
 The tested settings-only project-copy workflow passes: no inherited source identity, fresh destination issuance on first use, distinct public keys under the shared root, and subsequent identity reuse. Non-default EM option transfer, copied records/files, and XML export/import are outside this completed scope. Next: inspect a metadata-only REDCap XML export from PID 524, then test a new project created from it before and after its first seal.
+
+## Project XML export/import acceptance — export inspected, import pending
+
+The user supplied PID 524's metadata-only export, `C:\Users\grezn\Downloads\PDFSealerTest_2026-09-27_1415.REDCap.xml`, and clarified that EM settings do not travel with project XML. The file was inspected read-only through its WSL path; it was not copied into the repository or modified.
+
+- Size: **45,305 bytes**; SHA-256: `b43f4ebe130b60a095b98ff65188571f17e447eb99517e9469cc18426030dae2`.
+- XML parses successfully as ODM **1.3.1**, with creation time `2026-09-27T14:15:57`.
+- It contains one form definition, one survey configuration, one eConsent configuration, and one PDF snapshot configuration. No `ClinicalData` element is present.
+- Neither PDF Sealer EM settings nor `external_modules.pdf_finalize_execution_plan` / `pdf_sealer:seal` are present. Module enablement and pipeline assignment therefore need separate setup after import; the direct project-copy behavior must not be assumed for XML import.
+- Inspection found none of the known source UUID, identity ID, or certificate fingerprint, nor module PKI binding/identity fields, private-key storage fields, certificate DER storage fields, or PEM certificate/private-key markers. The export does not carry the module's signing identity.
+
+Next: the user creates a new project from this exact XML and reports its PID before enabling PDF Sealer, assigning the pipeline operation, or submitting a survey. Inspect the imported project's initial state, then explicitly enable/assign the module and test fresh issuance followed by signer reuse. Export inspection alone does not establish successful import or eConsent configuration remapping.
+
+### Separate EM settings export
+
+The user also supplied `C:\Users\grezn\Downloads\PDFSealerTest_ModuleSettingsExport_2026-09-27.zip`. Read-only ZIP inspection found exactly one entry: `modules/pdf_sealer/settings.json`, containing the empty JSON array `[]` (2 bytes). The archive is **164 bytes**, SHA-256 `e0e7b0074ba07d93740e374ed6b3de3e918a70b567f8ecbfd684788f0f3da246`.
+
+This separate export contains no setting values, module enablement flag, PDF pipeline assignment, signing identity, or key material. It is consistent with the earlier database finding that PID 524 has no PDF Sealer project setting besides enablement. It confirms the contents of this particular archive; it does not test round-tripping a non-default module setting. The XML import test can proceed with explicit module enablement and pipeline assignment after initial-state inspection. Testing actual settings-value transfer would require a separate case with a non-default project setting.
