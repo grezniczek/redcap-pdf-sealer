@@ -73,6 +73,19 @@ try {
     foreach ($providers->externalIds() as $providerId) { $providerCatalog[] = $providers->provider($providerId); }
     $providerCertificates = $providers->publicCertificates();
 } catch (Throwable) { $providersUnavailable = true; }
+$assignmentProjects = [];
+$assignmentProjectsUnavailable = false;
+try {
+    // Unlike the settings dialog's project-id choices, CC must also include
+    // enabled projects where the superuser is not a project member.
+    $enabledPids = $framework->getProjectsWithModuleEnabled();
+    if ($enabledPids !== []) {
+        $rows = $framework->query('SELECT project_id, app_title FROM redcap_projects WHERE project_id IN ('
+            . implode(',', array_fill(0, count($enabledPids), '?')) . ') ORDER BY app_title, project_id', $enabledPids);
+        if ($rows === false) { throw new RuntimeException('Project selector unavailable'); }
+        while ($row = $rows->fetch_assoc()) { $assignmentProjects[] = $row; }
+    }
+} catch (Throwable) { $assignmentProjectsUnavailable = true; }
 $recipients = $framework->getSystemSetting('admin-alert-recipients');
 $recipients = is_array($recipients) ? implode(', ', array_filter($recipients, 'is_string')) : (is_string($recipients) ? $recipients : '');
 $snapshot = null;
@@ -112,6 +125,7 @@ $renderCertificate = static function (string $role) use ($certificates, $framewo
 };
 require_once APP_PATH_DOCROOT . 'ControlCenter/header.php';
 $framework->initializeJavascriptModuleObject();
+$framework->tt_transferToJavascriptModuleObject('provider_assigned');
 ?>
 <link rel="stylesheet" href="<?= $escape($framework->getUrl('assets/admin.css')) ?>">
 <div class="pdf-sealer-admin">
@@ -215,9 +229,17 @@ $framework->initializeJavascriptModuleObject();
             <h5><?= $escape($framework->tt('provider_assign')) ?></h5>
             <p class="small text-muted"><?= $escape($framework->tt('provider_assign_help')) ?></p>
             <form id="pdf-sealer-provider-assign">
-                <fieldset <?= $providerCatalog === [] ? 'disabled' : '' ?>>
+                <?php if ($assignmentProjectsUnavailable): ?><p class="alert alert-warning"><?= $escape($framework->tt('provider_projects_unavailable')) ?></p><?php endif; ?>
+                <fieldset <?= $providerCatalog === [] || $assignmentProjectsUnavailable || $assignmentProjects === [] ? 'disabled' : '' ?>>
                     <label for="provider-pid"><?= $escape($framework->tt('provider_pid')) ?></label>
-                    <input class="form-control form-control-sm mb-3" type="number" min="1" step="1" id="provider-pid" required>
+                    <div class="mb-3">
+                        <select class="form-select form-select-sm" id="provider-pid" required>
+                            <option value="" selected><?= $escape($framework->tt('provider_choose_project')) ?></option>
+                            <?php foreach ($assignmentProjects as $project): ?>
+                                <option value="<?= $escape($project['project_id']) ?>"><?= $escape('(' . $project['project_id'] . ') ' . $project['app_title']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                     <label for="provider-selection"><?= $escape($framework->tt('provider_label')) ?></label>
                     <select class="form-select form-select-sm mb-3" id="provider-selection" required>
                         <option value="" selected disabled><?= $escape($framework->tt('timestamp_settings_choose')) ?></option>
@@ -398,6 +420,11 @@ $framework->initializeJavascriptModuleObject();
             message.textContent = failed;
         } finally { fields.disabled = false; message.hidden = false; }
     });
+    const assignmentProject = $('#provider-pid');
+    $(function () {
+        assignmentProject.prop('disabled', assignmentProject.closest('fieldset').prop('disabled'));
+        assignmentProject.select2({width: '100%', minimumResultsForSearch: 0});
+    });
     ['register', 'assign'].forEach(action => {
         const form = document.getElementById('pdf-sealer-provider-' + action);
         if (!form) return;
@@ -413,27 +440,41 @@ $framework->initializeJavascriptModuleObject();
             const fields = form.querySelector('fieldset');
             const message = form.querySelector('[role="status"]');
             fields.disabled = true;
+            if (action === 'assign') assignmentProject.prop('disabled', true);
             message.hidden = true;
             try {
                 let payload;
+                let assignedProjectName, assignedProviderName;
                 if (action === 'register') {
                     const file = document.getElementById('provider-chain').files[0];
                     if (!file || file.size > 131072) throw new Error('Invalid upload');
                     payload = {name: document.getElementById('provider-name').value, pem: await file.text(),
                         source: document.getElementById('provider-source').value, fallback: document.getElementById('provider-fallback').checked};
                 } else {
-                    payload = {pid: Number(document.getElementById('provider-pid').value), provider: document.getElementById('provider-selection').value};
+                    const projectSelect = document.getElementById('provider-pid');
+                    const providerSelect = document.getElementById('provider-selection');
+                    payload = {pid: Number(projectSelect.value), provider: providerSelect.value};
+                    assignedProjectName = projectSelect.selectedOptions[0].textContent;
+                    assignedProviderName = providerSelect.selectedOptions[0].textContent;
                 }
                 const response = await module.ajax(action + '_ca_provider', payload);
                 message.className = 'alert mt-3 ' + (response?.ok ? 'alert-success' : 'alert-danger');
                 message.textContent = response?.ok ? <?= json_encode($framework->tt('provider_saved'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?> : response?.message;
+                if (response?.ok && action === 'assign') {
+                    message.textContent = module.tt('provider_assigned', assignedProviderName, assignedProjectName);
+                    form.reset();
+                    assignmentProject.trigger('change');
+                }
                 message.hidden = false;
                 if (response?.ok && action === 'register') { location.hash = 'providers'; location.reload(); }
             } catch (error) {
                 message.className = 'alert alert-danger mt-3';
                 message.textContent = <?= json_encode($framework->tt('provider_request_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
                 message.hidden = false;
-            } finally { fields.disabled = false; }
+            } finally {
+                fields.disabled = false;
+                if (action === 'assign') assignmentProject.prop('disabled', false);
+            }
         });
     });
     const input = document.getElementById('pdf-sealer-recipients');
