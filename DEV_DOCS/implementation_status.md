@@ -291,7 +291,7 @@ The destination still has exactly the original two binding entries (UUID allocat
 
 The tested settings-only project-copy workflow passes: no inherited source identity, fresh destination issuance on first use, distinct public keys under the shared root, and subsequent identity reuse. Non-default EM option transfer, copied records/files, and XML export/import are outside this completed scope. Next: inspect a metadata-only REDCap XML export from PID 524, then test a new project created from it before and after its first seal.
 
-## Project XML export/import acceptance — imported initial state passed, sealing pending
+## Project XML export/import acceptance — first seal passed, reuse pending
 
 The user supplied PID 524's metadata-only export, `C:\Users\grezn\Downloads\PDFSealerTest_2026-09-27_1415.REDCap.xml`, and clarified that EM settings do not travel with project XML. The file was inspected read-only through its WSL path; it was not copied into the repository or modified.
 
@@ -301,7 +301,7 @@ The user supplied PID 524's metadata-only export, `C:\Users\grezn\Downloads\PDFS
 - Neither PDF Sealer EM settings nor `external_modules.pdf_finalize_execution_plan` / `pdf_sealer:seal` are present. Module enablement and pipeline assignment therefore need separate setup after import; the direct project-copy behavior must not be assumed for XML import.
 - Inspection found none of the known source UUID, identity ID, or certificate fingerprint, nor module PKI binding/identity fields, private-key storage fields, certificate DER storage fields, or PEM certificate/private-key markers. The export does not carry the module's signing identity.
 
-The user subsequently created PID 526 from this XML. Its initial-state inspection is recorded below; fresh issuance and signer reuse remain pending.
+The user subsequently created PID 526 from this XML. Initial-state inspection and fresh issuance passed as recorded below; signer reuse remains pending.
 
 ### Separate EM settings export
 
@@ -320,4 +320,23 @@ The user created **PID 526**, **PDF Sealer from XML**, from the inspected export
 - One active PDF snapshot configuration, **270**, points to destination consent **172** and triggers on destination survey **1018**, with File Repository saving enabled and selected forms `:survey`. The source snapshot is **268**. The trigger event is unset in both projects. The checked consent/survey references resolve to PID 526, not PID 524.
 - PID 524's original UUID/active identity binding and the instance's active root/TSA identity pointers remain unchanged.
 
-No live data or settings were modified by the agent. Next: enable PDF Sealer in PID 526 and explicitly assign `pdf_sealer:seal` once, verify status still shows an unissued certificate, then submit the first new eConsent and inspect the saved PDF in Acrobat. Compare the resulting UUID/certificate/public key with both 524 and 525; a subsequent second submission should reuse 526's identity.
+No live data or settings were modified by the agent. The user subsequently confirmed the requested enablement, single-operation assignment, and unissued-certificate status, then completed the first seal recorded below.
+
+
+### First seal after XML import — passed
+
+The user submitted record **1** in PID 526 and reports that setup/status behaved as expected and Acrobat accepted the resulting saved PDF. Read-only `redcap_devctl` inspection and OpenSSL checks on stored public certificates established:
+
+| Evidence | PID 526 result |
+| --- | --- |
+| New UUID | `fa7fa996-8c18-4740-9c4e-dcb7d13b5661` (binding log 36011) |
+| New identity | `0c8f1beda273bf48c7293064aaeb7d8e` (certificate log 36012; active binding 36013) |
+| Certificate serial | `F5669881DB72A4B43029A84D58FB0883` (128 bits) |
+| Certificate SHA-256 | `65bcc5674fef68e16c5e9e83928a158e9e953eae5f019e1b6c2dc29e579149c4` |
+| Public-key SPKI DER SHA-256 | `68e4f964403b2465abd9562473019206b1db618a2c2f90fe4962edfd7acef126` |
+| Project Logging | Entry **1059**, **PDF seal succeeded**, **PAdES B-B**, record **1**, event **1591** |
+| Logged workflow/issuance time | **2026-09-27 14:31:41**, instance local time |
+
+The new UUID, certificate, and public key differ from both source PID 524 and copied PID 525. All three project certificate signatures verify under the unchanged installation root. The source/copy certificate hashes and bindings remain at their recorded baselines, and the active root/TSA pointers remain unchanged. No private-key material or downloaded PDF bytes were inspected; Acrobat acceptance is user-reported. The agent made no live changes.
+
+Next: submit a second new eConsent in PID 526 and verify reuse of identity `0c8f1beda273bf48c7293064aaeb7d8e` without additional issuance or binding records. This is the remaining step in the planned metadata-only XML import acceptance.
