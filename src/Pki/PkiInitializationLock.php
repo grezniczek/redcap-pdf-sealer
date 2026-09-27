@@ -7,7 +7,7 @@ namespace DE\RUB\PDFSealerExternalModule\Pki;
 use Closure;
 use RuntimeException;
 
-/** Serializes PKI configuration changes and automatic first issuance on the primary DB. */
+/** Serializes PKI configuration changes and new issuance/enrollment on the primary DB. */
 final class PkiInitializationLock
 {
     private const NAME = 'pdf_sealer_initialize';

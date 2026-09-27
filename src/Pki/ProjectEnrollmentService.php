@@ -21,6 +21,7 @@ final class ProjectEnrollmentService
         private readonly ProjectIssueLock $lock,
         ?PrimarySystemSettingReader $settings = null,
         ?IdentityRepository $identities = null,
+        private readonly PkiInitializationLock $configurationLock = new PkiInitializationLock(),
     ) {
         $this->settings = $settings ?? new PrimarySystemSettingReader($framework);
         $this->identities = $identities ?? new IdentityRepository($framework, $protector, null, $this->settings);
@@ -37,8 +38,9 @@ final class ProjectEnrollmentService
     /** Repeated generation requests reuse the pending request instead of replacing its key. */
     public function generate(int $pid): array
     {
-        return $this->lock->withLock($pid, function () use ($pid): array {
+        return $this->withMutationLocks($pid, function () use ($pid): array {
             $binding = $this->externalBinding($pid);
+            $this->providers->assertActive($binding->providerId);
             $pending = $this->load($pid, $binding);
             if ($pending === null) {
                 $path = $this->framework->createTempFile();
@@ -82,7 +84,7 @@ final class ProjectEnrollmentService
 
     public function cancel(int $pid, string $id): void
     {
-        $this->lock->withLock($pid, function () use ($pid, $id): void {
+        $this->withMutationLocks($pid, function () use ($pid, $id): void {
             $pending = $this->expected($pid, $id);
             $this->transaction(function () use ($pid, $pending): void {
                 $this->framework->removeSystemSetting($this->key($pid));
@@ -103,7 +105,7 @@ final class ProjectEnrollmentService
 
     public function activateCertificate(int $pid, string $id, string $pem, string $reviewHash, ?string $expectedActiveId): void
     {
-        $this->lock->withLock($pid, function () use ($pid, $id, $pem, $reviewHash, $expectedActiveId): void {
+        $this->withMutationLocks($pid, function () use ($pid, $id, $pem, $reviewHash, $expectedActiveId): void {
             $binding = $this->externalBinding($pid);
             if ($binding->identityId !== $expectedActiveId) { throw new RuntimeException('Active signer changed; review again'); }
             $candidate = $this->candidate($pid, $id, $pem);
@@ -124,6 +126,7 @@ final class ProjectEnrollmentService
     private function candidate(int $pid, string $id, string $pem): array
     {
         $pending = $this->expected($pid, $id);
+        $this->providers->assertActive($pending['provider_id']);
         $provider = $this->providers->provider($pending['provider_id']);
         $chain = array_map([ProviderRepository::class, 'certificateDer'], $provider['chain']);
         $validator = $this->identities->externalValidator();
@@ -140,6 +143,11 @@ final class ProjectEnrollmentService
         } finally { unset($private); }
         return ['der' => $der, 'chain' => $chain, 'pending' => $pending, 'details' => $details,
             'review_hash' => hash('sha256', $der . implode('', $chain))];
+    }
+
+    private function withMutationLocks(int $pid, callable $work): mixed
+    {
+        return $this->lock->withLock($pid, fn() => $this->configurationLock->withLock($work));
     }
 
     private function externalBinding(int $pid): ProjectBinding

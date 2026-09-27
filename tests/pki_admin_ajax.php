@@ -208,7 +208,7 @@ namespace {
         } catch (\RuntimeException $e) {
             check($e->getMessage() === 'pki_access_denied', 'Unexpected timestamp settings authorization result');
         }
-        foreach (['register_ca_provider', 'assign_ca_provider', 'save_assignment_policy'] as $action) {
+        foreach (['register_ca_provider', 'assign_ca_provider', 'save_assignment_policy', 'preview_ca_retirement', 'set_ca_retirement'] as $action) {
             try {
                 $module->redcap_module_ajax($action, [], $case['context']);
                 throw new \RuntimeException('Unauthorized provider request accepted');
@@ -245,6 +245,13 @@ namespace {
 
     $framework->superuser = true;
     $framework->projectId = null;
+    foreach (['preview_ca_retirement', 'set_ca_retirement'] as $action) {
+        check(in_array($action,$config['auth-ajax-actions'],true) && !in_array($action,$config['no-auth-ajax-actions'],true), 'Retirement action exposed without authentication');
+        foreach ([null, [], ['provider'=>'bad id'], ['provider'=>'builtin-ca','retired'=>'true','enable_assignment_gate'=>false,'review_hash'=>str_repeat('a',64)],
+            ['provider'=>'builtin-ca','retired'=>true,'enable_assignment_gate'=>false,'review_hash'=>'bad']] as $payload) {
+            check($module->redcap_module_ajax($action,$payload,null) === ['ok'=>false,'message'=>'pki_invalid_request'], 'Malformed retirement request accepted');
+        }
+    }
     $framework->failWrite = true;
     $result = $module->redcap_module_ajax('save_alert_recipients', 'new@example.org', null);
     check($result === ['ok' => false, 'message' => 'admin_alert_recipients_save_failed'],

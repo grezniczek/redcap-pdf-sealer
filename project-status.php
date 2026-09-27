@@ -33,16 +33,17 @@ $identity = (new ProjectIdentityService(
 $certificate = $identity['certificate'];
 $provider = null;
 $providerName = $framework->tt('pki_not_configured');
+$providerRetired = false;
 try {
     $binding = (new ProjectBindingRepository($framework))->find((int) $pid);
     if ($binding === null && $identities->providers()->requiresAssignment()) {
         $providerName = $framework->tt('project_identity_summary_assignment_required');
     } else {
         $provider = $identities->providers()->provider($binding?->providerId ?? $identities->providers()->defaultId());
+        $providerRetired = $identities->providers()->isRetired($provider['id']);
         $providerName = $provider['name'] ?? $framework->tt('provider_builtin');
     }
-} catch (Throwable) { /* Keep the explicit unavailable label. */ }
-
+} catch (Throwable) { $provider = null; /* Keep the explicit unavailable label. */ }
 $enrollment = null;
 $enrollmentAvailable = ($provider['kind'] ?? null) === 'external';
 $enrollmentFailed = false;
@@ -58,7 +59,7 @@ $pipelineTone = $pipeline['state'] === 'assigned' ? 'ready' : 'degraded';
 $identityTone = match ($identity['state']) {
     'ready' => 'ready',
     'unusable', 'expired', 'not_yet_valid' => 'broken',
-    'pending', 'awaiting_certificate', 'assignment_required', 'unavailable' => 'degraded',
+    'pending', 'ca_retired', 'awaiting_certificate', 'assignment_required', 'unavailable' => 'degraded',
     default => 'uninitialized',
 };
 require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';
@@ -100,6 +101,7 @@ if ($enrollmentAvailable) { $framework->initializeJavascriptModuleObject(); }
     <section class="pdf-sealer-panel pdf-sealer-section" aria-labelledby="pdf-sealer-project-certificate">
         <h5 id="pdf-sealer-project-certificate"><i class="fas fa-certificate" aria-hidden="true"></i> <?= $escape($framework->tt('project_status_certificate')) ?></h5>
         <p><?= $escape($framework->tt('project_identity_' . $identity['state'])) ?></p>
+        <?php if ($providerRetired): ?><p class="alert alert-warning"><?= $escape($framework->tt('provider_retired_project')) ?></p><?php endif; ?>
         <dl class="pdf-sealer-certificate">
             <dt><?= $escape($framework->tt('provider_label')) ?></dt><dd><?= $escape($providerName) ?></dd>
             <dt><?= $escape($framework->tt('project_status_uuid')) ?></dt>
@@ -130,11 +132,11 @@ if ($enrollmentAvailable) { $framework->initializeJavascriptModuleObject(); }
                 <dt><?= $escape($framework->tt('enrollment_digest')) ?></dt><dd><code id="enrollment-digest" class="pdf-sealer-fingerprint"><?= $escape($enrollment['csr_sha256'] ?? '') ?></code></dd>
             </dl>
             <div class="pdf-sealer-actions">
-                <button type="button" class="btn btn-primaryrc btn-sm" id="enrollment-generate" <?= $enrollment === null ? '' : 'hidden' ?>><?= $escape($framework->tt('enrollment_generate')) ?></button>
+                <button type="button" class="btn btn-primaryrc btn-sm" id="enrollment-generate" <?= $providerRetired ? 'disabled' : '' ?> <?= $enrollment === null ? '' : 'hidden' ?>><?= $escape($framework->tt('enrollment_generate')) ?></button>
                 <button type="button" class="btn btn-primaryrc btn-sm" id="enrollment-download" <?= $enrollment === null ? 'hidden' : '' ?>><?= $escape($framework->tt('enrollment_download')) ?></button>
                 <button type="button" class="btn btn-outline-danger btn-sm" id="enrollment-cancel" <?= $enrollment === null ? 'hidden' : '' ?>><?= $escape($framework->tt('enrollment_cancel')) ?></button>
             </div>
-            <form id="enrollment-certificate-form" class="mt-3" <?= $enrollment === null ? 'hidden' : '' ?>>
+            <form id="enrollment-certificate-form" class="mt-3" <?= $providerRetired || $enrollment === null ? 'hidden' : '' ?>>
                 <fieldset>
                     <label for="enrollment-certificate-file"><?= $escape($framework->tt('enrollment_certificate_label')) ?></label>
                     <input class="form-control form-control-sm mb-2" type="file" accept=".pem,.crt,.cer" id="enrollment-certificate-file" required>
@@ -164,6 +166,7 @@ if ($enrollmentAvailable) { $framework->initializeJavascriptModuleObject(); }
 <script>
 (() => {
     const module = <?= $framework->getJavascriptModuleObjectName() ?>;
+    const providerRetired = <?= json_encode($providerRetired) ?>;
     let pending = <?= json_encode($enrollment, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     const enrollmentDateTimeFormat = <?= json_encode(\DateTimeRC::get_user_format_full(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     const formatEnrollmentTime = date => {
@@ -194,12 +197,13 @@ if ($enrollmentAvailable) { $framework->initializeJavascriptModuleObject(); }
         buttons.forEach(b => b.disabled = true);
         certificateFields.disabled = true;
         message.hidden = true;
+        let serverError = null;
         try {
             const response = await module.ajax(action + '_project_csr', action === 'generate' ? null : {id: pending.id});
-            if (!response?.ok) throw new Error('Enrollment failed');
+            if (!response?.ok) { serverError = response?.message; throw new Error('Enrollment failed'); }
             if (action === 'cancel') { location.reload(); return; }
             pending = response.pending;
-            certificateForm.hidden = false;
+            certificateForm.hidden = providerRetired;
             document.getElementById('enrollment-subject').textContent = pending.subject;
             document.getElementById('enrollment-created').textContent = formatEnrollmentTime(new Date(pending.created_at * 1000));
             document.getElementById('enrollment-digest').textContent = pending.csr_sha256;
@@ -212,20 +216,21 @@ if ($enrollmentAvailable) { $framework->initializeJavascriptModuleObject(); }
             document.body.appendChild(link); link.click(); link.remove();
             setTimeout(() => URL.revokeObjectURL(url), 60000);
         } catch (error) {
-            message.textContent = <?= json_encode($framework->tt('enrollment_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+            message.textContent = serverError || <?= json_encode($framework->tt('enrollment_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
             message.className = 'alert alert-danger mt-3'; message.hidden = false;
-        } finally { buttons.forEach(b => b.disabled = false); certificateFields.disabled = false; }
+        } finally { buttons.forEach(b => b.disabled = providerRetired && b.id === 'enrollment-generate'); certificateFields.disabled = providerRetired; }
     }));
     const certificateAction = async activate => {
         buttons.forEach(b => b.disabled = true);
         certificateFields.disabled = true;
         message.hidden = true;
+        let serverError = null;
         try {
             if (activate) {
                 if (!reviewed) throw new Error('Review required');
                 const response = await module.ajax('activate_project_certificate', {id: pending.id, pem: certificatePem,
                     review_hash: reviewed.review_hash, active_identity_id: reviewed.active_identity_id});
-                if (!response?.ok) throw new Error('Activation failed');
+                if (!response?.ok) { serverError = response?.message; throw new Error('Certificate request failed'); }
                 location.reload();
             } else {
                 reviewed = null; certificateReview.hidden = true;
@@ -233,7 +238,7 @@ if ($enrollmentAvailable) { $framework->initializeJavascriptModuleObject(); }
                 if (!file || file.size > 65536) throw new Error('Invalid certificate upload');
                 certificatePem = await file.text();
                 const response = await module.ajax('review_project_certificate', {id: pending.id, pem: certificatePem});
-                if (!response?.ok) throw new Error('Validation failed');
+                if (!response?.ok) { serverError = response?.message; throw new Error('Certificate request failed'); }
                 reviewed = response;
                 const cert = response.certificate;
                 ['subject', 'issuer'].forEach(field => {
@@ -246,9 +251,9 @@ if ($enrollmentAvailable) { $framework->initializeJavascriptModuleObject(); }
             }
         } catch (error) {
             reviewed = null; certificateReview.hidden = true;
-            message.textContent = <?= json_encode($framework->tt('enrollment_certificate_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+            message.textContent = serverError || <?= json_encode($framework->tt('enrollment_certificate_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
             message.className = 'alert alert-danger mt-3'; message.hidden = false;
-        } finally { buttons.forEach(b => b.disabled = false); certificateFields.disabled = false; }
+        } finally { buttons.forEach(b => b.disabled = providerRetired && b.id === 'enrollment-generate'); certificateFields.disabled = providerRetired; }
     };
     certificateForm.addEventListener('submit', event => { event.preventDefault(); certificateAction(false); });
     document.getElementById('enrollment-certificate-activate').addEventListener('click', () => certificateAction(true));

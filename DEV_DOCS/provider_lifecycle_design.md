@@ -132,7 +132,7 @@ Keep implementation slices small. Resolve supported certificate profiles, upload
 
 ## Registration slice implemented — 2026-09-27
 
-CC administrators can register an ordered external public CA chain, choose no timestamp or the built-in TSA explicitly, and assign a module-enabled project before it obtains a provider binding. Registered chain certificates are public and monitored for expiry. These actions are transactional and audited; external assignment fails sealing explicitly until enrollment is implemented. Built-in default issuance remains unchanged. External policy editing, default-selection controls, provider transitions/retirement, and remote TSA sources remain planned.
+CC administrators can register an ordered external public CA chain, choose no timestamp or the built-in TSA explicitly, and assign a module-enabled project before it obtains a provider binding. Registered chain certificates are public and monitored for expiry. These actions are transactional and audited; external assignment fails sealing explicitly until enrollment is implemented. Built-in default issuance remains unchanged. External policy editing, default-selection controls, provider transitions and remote TSA sources remain planned; retirement is implemented as recorded below.
 
 The next slice begins local encrypted project-key and CSR storage, separate from the active signer. Registration accepts a complete chain to a self-signed anchor; alternate/cross-signed path selection is outside this initial implementation.
 
@@ -149,3 +149,11 @@ Next: certificate upload, chain/profile/key validation, and atomic activation of
 ## Returned-certificate activation implemented — 2026-09-27
 
 A project designer/admin can upload one PEM leaf for review and explicitly activate it. The backend checks pending key/CSR, assigned issuer/path, current validity and signing profile, rechecks the review hash/current identity under the project lock, and atomically persists identity, chain, binding, pending removal, and audit. Manual replacement preserves the usable signer until activation; old encrypted identity logs remain retained. External-chain B-B/B-T sealing and active expiry inventory are implemented. Not-yet-valid uploads are rejected with the CSR left pending for later resubmission; candidate-certificate staging and imported-key enrollment remain future work.
+
+## Implemented retirement slice — 2026-09-27
+
+Built-in and external providers now support CC-only retirement/reactivation with a public usage review and stale-review rejection. Retirement blocks assignments, local issuance, CSR generation, and external activation, including preexisting pending requests; active signers and the existing TSA remain operational while valid. Pending requests remain downloadable/cancelable. The default can be retired only with explicit assignment enabled, with an explicit confirmation to enable it atomically when needed. Reactivation preserves the assignment gate.
+
+Project/configuration locks synchronize all new identity mutations and pending cancellation with retirement. Audit failure rolls back both lifecycle state and policy changes. Public downloads retain retired labels; expiry monitoring retains active signer/TSA dependencies and excludes unused retired CA chains. Diagnostic temporary issuance obeys retirement too. Browser acceptance is pending; see the implementation status and testing guide.
+
+Next sequence: retirement browser acceptance, controlled project provider transition, then external TSA integration. Emergency blocking and revocation remain separate future decisions.

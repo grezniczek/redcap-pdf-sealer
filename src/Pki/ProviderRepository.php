@@ -58,7 +58,41 @@ final class ProviderRepository
     /** Caller holds the configuration lock and transaction. */
     public function saveAssignmentPolicy(bool $required): void
     {
+        $default = $this->settings->get('default_ca_provider');
+        if (!$required && is_string($default)) { $this->assertActive($default); }
         $this->framework->setSystemSetting('require_ca_assignment', $required ? 'true' : 'false');
+    }
+
+    /** Absence means active; malformed lifecycle settings fail closed. */
+    public function isRetired(string $id): bool
+    {
+        $this->provider($id);
+        return match ($this->settings->get('ca_provider_retired_' . $id)) {
+            null, 'false' => false,
+            'true' => true,
+            default => throw new RuntimeException('Invalid CA lifecycle state'),
+        };
+    }
+
+    public function assertActive(string $id): void
+    {
+        if ($this->isRetired($id)) { throw new CaProviderRetired('The CA provider is retired'); }
+    }
+
+    public function isDefault(string $id): bool
+    {
+        $this->provider($id);
+        return $this->settings->get('default_ca_provider') === $id;
+    }
+
+    /** Caller holds configuration lock and transaction. Public material is retained. */
+    public function saveRetired(string $id, bool $retired): void
+    {
+        $this->provider($id);
+        if ($retired && $this->isDefault($id) && !$this->requiresAssignment()) {
+            throw new RuntimeException('Retiring the default CA requires explicit assignment');
+        }
+        $this->framework->setSystemSetting('ca_provider_retired_' . $id, $retired ? 'true' : 'false');
     }
 
     public function defaultId(): string
@@ -175,7 +209,7 @@ final class ProviderRepository
                 $certificates[] = ['id' => $record['sha256'], 'der' => $der, 'fingerprint' => $record['sha256'],
                     'subject' => $details['name'], 'valid_from' => $details['validFrom_time_t'],
                     'valid_until' => $details['validTo_time_t'], 'provider_id' => $id, 'provider_name' => $provider['name'],
-                    'trust_anchor' => $index === count($provider['chain']) - 1];
+                    'trust_anchor' => $index === count($provider['chain']) - 1, 'retired' => $this->isRetired($id)];
             }
         }
         return $certificates;

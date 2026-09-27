@@ -62,6 +62,12 @@ If the administrator has enabled the explicit-assignment policy, an unassigned p
 
 Until assignment, the sealing operation fails and project Logging records **PDF seal failed: CA assignment required**. This intentionally does **not** block eConsent completion: REDCap can still store or deliver the unsealed PDF. Assignment later permits subsequent sealing once the signing identity is ready; it does not seal previously generated PDFs retroactively. Existing project provider bindings continue working when this policy is enabled.
 
+## When your CA is retired
+
+The status page displays a retirement notice. Existing active signing certificates continue to seal PDFs while valid, but you cannot generate a new CSR or activate a returned certificate—even for a pending request. You can still download or cancel that request. Cancellation removes the pending key; it does not remove an active signer.
+
+A project without an active certificate shows **CA retired — no active signer**. Sealing fails and is recorded in project Logging, but REDCap may still store or deliver an unsealed PDF. Contact an administrator: only CC administrators can reactivate a provider, and switching an existing project to another provider is not available yet. Retirement leaves previously sealed PDFs unchanged.
+
 ## Generate and download a CSR
 
 After an administrator assigns an external CA, a project designer or administrator can open **PDF Sealer status** and select **Generate key and download CSR** under **External certificate enrollment**. The module creates a 3072-bit RSA key locally, encrypts it in REDCap, and downloads a public PEM certificate signing request (`.csr`). The subject uses the project's pseudonymous UUID, not its title or participant information.

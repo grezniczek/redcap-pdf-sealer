@@ -96,7 +96,7 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             || $this->framework->getProjectId() !== null) {
             throw new \RuntimeException($this->framework->tt('pki_access_denied'));
         }
-        if (in_array($action, ['register_ca_provider', 'assign_ca_provider', 'save_assignment_policy'], true)) {
+        if (in_array($action, ['register_ca_provider', 'assign_ca_provider', 'save_assignment_policy', 'preview_ca_retirement', 'set_ca_retirement'], true)) {
             return $this->manageCaProvider($action, $payload);
         }
         if ($action === 'run_diagnostic') {
@@ -154,6 +154,8 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             }
             $service->cancel($pid, $payload['id']);
             return ['ok' => true];
+        } catch (\DE\RUB\PDFSealerExternalModule\Pki\CaProviderRetired) {
+            return ['ok' => false, 'message' => $this->framework->tt('provider_retired_project')];
         } catch (\Throwable) {
             return ['ok' => false, 'message' => $this->framework->tt($certificateAction ? 'enrollment_certificate_failed' : 'enrollment_failed')];
         }
@@ -162,7 +164,15 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
     private function manageCaProvider(string $action, mixed $payload): array
     {
         if (!is_array($payload)) { return ['ok' => false, 'message' => $this->framework->tt('pki_invalid_request')]; }
-        if ($action === 'register_ca_provider') {
+        if (in_array($action, ['preview_ca_retirement', 'set_ca_retirement'], true)) {
+            if (!is_string($payload['provider'] ?? null) || preg_match('/^[a-z][a-z0-9-]{0,63}$/D', $payload['provider']) !== 1
+                || count($payload) !== ($action === 'preview_ca_retirement' ? 1 : 4)
+                || ($action === 'set_ca_retirement' && (!is_bool($payload['retired'] ?? null)
+                    || !is_bool($payload['enable_assignment_gate'] ?? null) || !is_string($payload['review_hash'] ?? null)
+                    || preg_match('/^[a-f0-9]{64}$/D', $payload['review_hash']) !== 1))) {
+                return ['ok' => false, 'message' => $this->framework->tt('pki_invalid_request')];
+            }
+        } elseif ($action === 'register_ca_provider') {
             if (count($payload) !== 4 || !is_string($payload['name'] ?? null) || !is_string($payload['pem'] ?? null)
                 || !in_array($payload['source'] ?? '', ['none', 'builtin-tsa'], true) || !is_bool($payload['fallback'] ?? null)
                 || strlen($payload['pem']) > 131072 || strlen($payload['name']) > 128) {
@@ -184,6 +194,13 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
                 new \DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationLock(),
                 new \DE\RUB\PDFSealerExternalModule\Pki\ProjectIssueLock(),
             );
+            if ($action === 'preview_ca_retirement') {
+                return ['ok' => true] + $service->previewRetirement($payload['provider']);
+            }
+            if ($action === 'set_ca_retirement') {
+                $service->setRetired($payload['provider'], $payload['retired'], $payload['review_hash'], $payload['enable_assignment_gate']);
+                return ['ok' => true];
+            }
             if ($action === 'register_ca_provider') {
                 $service->register($payload['name'], $payload['pem'], $payload['source'] === 'none' ? null : $payload['source'], $payload['fallback']);
             } elseif ($action === 'save_assignment_policy') {
@@ -193,6 +210,7 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             return ['ok' => true];
         } catch (\Throwable) {
             return ['ok' => false, 'message' => $this->framework->tt(match ($action) {
+                'preview_ca_retirement', 'set_ca_retirement' => 'provider_lifecycle_failed',
                 'register_ca_provider' => 'provider_register_failed',
                 'save_assignment_policy' => 'assignment_policy_failed',
                 default => 'provider_assign_failed',

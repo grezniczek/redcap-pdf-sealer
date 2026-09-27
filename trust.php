@@ -22,7 +22,16 @@ try {
         new PrimaryLogReader($framework),
         new PrimarySystemSettingReader($framework),
     );
-    $roots = array_merge($repository->roots(), (new \DE\RUB\PDFSealerExternalModule\Pki\ProviderRepository($framework))->publicCertificates());
+    $providers = new \DE\RUB\PDFSealerExternalModule\Pki\ProviderRepository($framework);
+    $roots = $repository->roots();
+    if ($providers->hasConfiguration()) {
+        $builtin = $providers->provider($providers::BUILTIN_CA);
+        foreach ($roots as &$root) {
+            if ($root['id'] === $builtin['issuer_identity_id']) { $root['retired'] = $providers->isRetired($providers::BUILTIN_CA); }
+        }
+        unset($root);
+    }
+    $roots = array_merge($roots, $providers->publicCertificates());
     $activeId = $repository->activeRootId();
 } catch (Throwable $e) {
     $unavailable = true;
@@ -76,6 +85,7 @@ header('Cache-Control: no-store');
             <?php foreach ($displayRoots as $root): ?>
                 <section class="certificate">
                     <h2><?= $escape(isset($root['provider_name']) ? $root['provider_name'] . ' — ' . $framework->tt($root['trust_anchor'] ? 'provider_anchor' : 'provider_intermediate') : $framework->tt($root['id'] === $activeId ? 'trust_current_root' : 'trust_other_roots')) ?></h2>
+                    <?php if ($root['retired'] ?? false): ?><p class="notice"><?= $escape($framework->tt('provider_retired_public')) ?></p><?php endif; ?>
                     <dl>
                         <dt><?= $escape($framework->tt('pki_subject')) ?></dt><dd><?= $module::certificateSubjectHtml($root['subject']) ?></dd>
                         <dt><?= $escape($framework->tt('pki_fingerprint')) ?></dt><dd><code><?= $escape($root['fingerprint']) ?></code></dd>

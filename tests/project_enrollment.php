@@ -19,7 +19,7 @@ function decrypt(string $cipher): string|false {
     $raw = base64_decode($cipher,true);
     return openssl_decrypt(substr($raw,28),'aes-256-gcm',$encryptionKey,OPENSSL_RAW_DATA,substr($raw,0,12),substr($raw,12,16));
 }
-$enrollment = new ProjectEnrollmentService($f,$bindings,$providers,$protector,$projectLock,$settings);
+$enrollment = new ProjectEnrollmentService($f,$bindings,$providers,$protector,$projectLock,$settings,null,new \DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationLock($lock));
 try {
     rejects(fn() => $enrollment->generate(999));
     $bindings->bindUuid(103,$issuer->newProjectUuid(),'builtin-ca');

@@ -57,6 +57,43 @@ final class ProjectBindingRepository
         return $binding;
     }
 
+    /** Public-only retirement impact, including disabled projects and pending replacements. */
+    public function providerUsage(string $providerId): array
+    {
+        ProviderRepository::assertId($providerId);
+        $latestRows = function (string $message, string $fields): array {
+            $result = $this->reader->query('SELECT MAX(log_id) AS latest_id WHERE message = ? AND ISNULL(project_id) GROUP BY redcap_pid', [$message]);
+            if ($result === false) { throw new RuntimeException('Provider usage query failed'); }
+            $ids = []; $rows = [];
+            while ($row = $result->fetch_assoc()) { $ids[] = $row['latest_id']; }
+            foreach (array_chunk($ids, 200) as $batch) {
+                $result = $this->reader->query('SELECT ' . $fields . ' WHERE message = ? AND ISNULL(project_id) AND log_id IN ('
+                    . implode(',', array_fill(0, count($batch), '?')) . ')', [$message, ...$batch]);
+                if ($result === false) { throw new RuntimeException('Provider usage query failed'); }
+                while ($row = $result->fetch_assoc()) { $rows[] = $row; }
+            }
+            return $rows;
+        };
+        $projects = [];
+        foreach ($latestRows(self::MESSAGE, 'redcap_pid, project_uuid, identity_id, provider_id') as $row) {
+            $binding = $this->parse($row);
+            if ($binding->providerId !== $providerId) { continue; }
+            $pid = filter_var($row['redcap_pid'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+            if ($pid === false) { throw new RuntimeException('Invalid project in provider usage'); }
+            $projects[$pid] = ['pid' => $pid, 'identity_id' => $binding->identityId, 'enrollment_id' => null];
+        }
+        foreach ($latestRows('project_enrollment', 'redcap_pid, action, enrollment_id, provider_id') as $row) {
+            $pid = (int) ($row['redcap_pid'] ?? 0);
+            if (isset($projects[$pid]) && $row['action'] === 'generate') {
+                if (($row['provider_id'] ?? null) !== $providerId || !is_string($row['enrollment_id'] ?? null)
+                    || preg_match('/^[a-f0-9]{32}$/D', $row['enrollment_id']) !== 1) { throw new RuntimeException('Invalid enrollment usage'); }
+                $projects[$pid]['enrollment_id'] = $row['enrollment_id'];
+            }
+        }
+        ksort($projects, SORT_NUMERIC);
+        return array_values($projects);
+    }
+
     public function bindUuid(int $pid, string $uuid, string $providerId): void
     {
         self::assertPid($pid);

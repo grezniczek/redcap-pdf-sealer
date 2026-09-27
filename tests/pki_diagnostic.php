@@ -37,6 +37,8 @@ final class FakeResult
 {
     public function __construct(private array $rows) {}
 
+    public function fetch_row(): ?array { return array_shift($this->rows); }
+
     public function fetch_assoc(): ?array
     {
         return array_shift($this->rows);
@@ -102,7 +104,8 @@ $issuer = new CertificateIssuer(static function () use (&$tempPaths): string {
     $tempPaths[] = $path;
     return $path;
 }, [new CertificateSerialAllocator($framework, 'diagnostic'), 'reserve']);
-$service = new PkiDiagnosticService($repository, $protector, $issuer, $settings);
+$service = new PkiDiagnosticService($repository, $protector, $issuer, $settings,
+    new \DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationLock(static fn() => new FakeResult([[1]])));
 $run = static function () use ($framework, $service, &$tempPaths): array {
     $before = [$framework->settings, $framework->logs];
     $framework->readOnly = true;
@@ -132,6 +135,8 @@ $framework->settings['organization'] = 'Test Institution';
 $root = $issuer->createRoot('Test Institution');
 $rootId = $repository->append('root', $root);
 $repository->activate('root', $rootId);
+// A configured CA with a missing TSA identity must still support B-B diagnostics.
+$repository->providers()->initialize($rootId, str_repeat('f',32));
 $result = $run();
 check(!$result['passed'] && $result['checks']['root'] === 'passed' && $result['checks']['tsa'] === 'failed'
     && $result['checks']['bb'] === 'passed' && $result['checks']['bt'] === 'skipped', 'Missing TSA not isolated from B-B');
@@ -140,7 +145,9 @@ $tsa = $issuer->createTsa('Test Institution', $root);
 $tsaId = $repository->append('tsa', $tsa);
 $repository->activate('tsa', $tsaId);
 // Diagnostics test both capabilities even when production selects B-B only.
-$repository->providers()->initialize($rootId, $tsaId);
+$source = $repository->providers()->source('builtin-tsa');
+$source['identity_id'] = $tsaId;
+$framework->settings['tsa_source_builtin-tsa'] = json_encode($source);
 $repository->providers()->saveBuiltinTimestamp('none', true);
 $source = $repository->providers()->source('builtin-tsa');
 check($run()['passed'], 'Healthy default-policy diagnostic failed');

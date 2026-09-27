@@ -30,6 +30,7 @@ final readonly class PkiDiagnosticService
         private SecretProtector $protector,
         private CertificateIssuer $issuer,
         private PrimarySystemSettingReader $settings,
+        private \DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationLock $configurationLock = new \DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationLock(),
     ) {}
 
     /** @return array{passed: bool, checks: array<string, string>} Only fixed identifiers leave this service. */
@@ -75,9 +76,12 @@ final readonly class PkiDiagnosticService
             return new TsaIdentity($tsa->certificateDer, $tsa->privateKey($this->protector), [$rootDer]);
         });
         $signer = $step('signer', $root !== null, function () use ($root) {
-            $organization = $this->settings->get('organization');
-            if (!is_string($organization)) { throw new RuntimeException('Organization unavailable'); }
-            return $this->issuer->createProject($organization, $this->issuer->newProjectUuid(), $root);
+            return $this->configurationLock->withLock(function () use ($root) {
+                $this->identities->providers()->assertActive(\DE\RUB\PDFSealerExternalModule\Pki\ProviderRepository::BUILTIN_CA);
+                $organization = $this->settings->get('organization');
+                if (!is_string($organization)) { throw new RuntimeException('Organization unavailable'); }
+                return $this->issuer->createProject($organization, $this->issuer->newProjectUuid(), $root);
+            });
         });
         $sample = self::samplePdf();
         $builder = new PdfSealBuilder();

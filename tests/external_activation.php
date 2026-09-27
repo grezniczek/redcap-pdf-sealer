@@ -36,7 +36,7 @@ try {
     openssl_x509_export($ca,$caPem);
     $providerId = $admin->register('Activation provider',$caPem.$rootPem,null,false);
     $bindings->bindUuid(104,$issuer->newProjectUuid(),$providerId);
-    $enrollment = new ProjectEnrollmentService($f,$bindings,$providers,$protector,$projectLock,$settings,$identities);
+    $enrollment = new ProjectEnrollmentService($f,$bindings,$providers,$protector,$projectLock,$settings,$identities,new \DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationLock($lock));
     $request = $enrollment->generate(104);
     $csr = base64_decode($request['base64'],true); $requestId = $request['pending']['id'];
     $sign = static function(string $csr, string $section='leaf', int $days=200) use ($cfg,$caPem,$caKey): string {

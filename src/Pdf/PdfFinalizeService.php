@@ -128,6 +128,8 @@ final class PdfFinalizeService
                 'timestamp_serial' => $result->timestampSerialHex,
                 'timestamp_time' => $result->timestampTime,
             ]);
+        } catch (\DE\RUB\PDFSealerExternalModule\Pki\CaProviderRetired) {
+            return $this->failed($events, $event, $context, (int) $pid, 'CA_PROVIDER_RETIRED', 'CA provider retired');
         } catch (\DE\RUB\PDFSealerExternalModule\Pki\CaAssignmentRequired) {
             return $this->failed($events, $event, $context, (int) $pid, 'CA_ASSIGNMENT_REQUIRED', 'CA assignment required');
         } catch (\DE\RUB\PDFSealerExternalModule\Pki\ProjectCertificateRequired) {
@@ -158,7 +160,11 @@ final class PdfFinalizeService
         if ($projectLogPid !== null) {
             try {
                 self::logProjectOutcome(
-                    $projectLogPid, $context, $code === 'CA_ASSIGNMENT_REQUIRED' ? 'PDF seal failed: CA assignment required' : 'PDF seal failed',
+                    $projectLogPid, $context, match ($code) {
+                        'CA_ASSIGNMENT_REQUIRED' => 'PDF seal failed: CA assignment required',
+                        'CA_PROVIDER_RETIRED' => 'PDF seal failed: CA provider retired',
+                        default => 'PDF seal failed',
+                    },
                     $event['generation_id'] === null ? '' : 'Reference: ' . $event['generation_id'],
                 );
             } catch (Throwable $e) {

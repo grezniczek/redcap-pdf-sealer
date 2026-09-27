@@ -14,6 +14,16 @@ Project-copy and metadata-only XML export/import acceptance passed on this insta
 
 The [provider-aware foundation](#provider-and-timestamp-source-foundation) is implemented for built-in operation: explicit CA/source configuration, provider-pinned project bindings, recorded issuer certificates, and separate issuance/signing/timestamp checks. The dev PKI was reset and freshly initialized under the new model. Daily [expiry monitoring and advance alarms](#scheduled-expiry-monitoring-and-advance-alarms) are implemented. CC external CA registration, public chain distribution, expiry inventory, initial project assignment, and an optional explicit-assignment gate are implemented. The user confirmed successful external CA registration and passed the assignment-gate browser checks. Local encrypted project-key/CSR preparation is implemented; the user confirmed CSR download/refresh behavior and expected sealing failure; returned-certificate validation/activation and external-chain sealing are implemented, with user-reported Acrobat acceptance of the first external-CA-signed PDF, while external timestamp sources and built-in/automatic renewal remain planned in the [lifecycle design](provider_lifecycle_design.md). No legacy migration or compatibility layer is required for this sole deployment.
 
+## CA retirement and reactivation — 2026-09-27
+
+Implemented CC-only AJAX retirement/reactivation for built-in and external CA providers. The review lists affected PIDs, active signers, and pending enrollments, including disabled projects. Confirmation rechecks the public impact/state digest under the configuration lock. Stale review or audit failure leaves state unchanged. Retirement excludes providers from new assignment and blocks issuance, CSR generation, and certificate review/activation; pending requests can still be downloaded/canceled. Existing active signers keep sealing while otherwise valid.
+
+Default retirement explicitly enables required assignment in the same transaction when needed. No default replacement occurs, and the gate cannot be disabled while the default is retired. Reactivation leaves the gate unchanged. Project status explains blocked initial sealing, whose outcome is `CA_PROVIDER_RETIRED` with minimal project Logging and record/event context. Public certificates/downloads remain with retirement labels. Expiry alarms exclude unused retired chains but retain existing signer/TSA dependencies. The built-in TSA remains usable; diagnostic temporary issuance observes retirement and CC explains the failed/skipped checks.
+
+Standalone `tests/provider_retirement.php` covers public/read-only impact, stale review, rollback, default/gate atomicity, pending retention/cancellation, mutation/retirement lock interleavings, reactivation, expiry dependencies, and actual B-T sealing with both issuing providers retired. PHP 8.2/8.5 and relevant regression checks are recorded in the testing guide. No live settings, certificates, or project data were changed. Browser acceptance remains pending.
+
+Next: browser retirement/reactivation acceptance; then controlled project provider transition, followed by external TSA integration.
+
 ## External certificate activation and sealing — 2026-09-27
 
 Implemented single-leaf PEM upload/review and explicit activation on the project page through authenticated project-context AJAX. Validation checks pending key/CSR, RSA-3072, signing KU/EKU, current validity, non-CA status, issuer match, registered chain/path constraints, CA purpose restrictions, and unknown critical extensions. Subject naming may follow the external CA. There is no URL fetching or private-key import. The upload limit is 64 KiB; CA bundles and DER uploads are rejected.
@@ -30,7 +40,7 @@ On **2026-09-27**, the user supplied `pdf-sealer-89eaf61d669e5b5e92feea3e1c6cfce
 
 This completes the first external enrollment/sealing acceptance workflow. Acrobat acceptance is user-reported; no PDF was supplied for independent byte, embedded-chain, or timestamp inspection, and no PID/record/profile is inferred. Manual replacement and browser failure cases were not separately reported; automated coverage remains as described above.
 
-Next: external TSA configuration and RFC 3161 transport.
+Subsequent priority: CA retirement, then controlled provider transition, before external TSA transport.
 
 ## Project key and CSR preparation — 2026-09-27
 

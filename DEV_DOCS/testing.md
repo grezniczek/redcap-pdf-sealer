@@ -121,3 +121,19 @@ For browser acceptance, `tools/external_ca_fixture.php --create` prepares an exp
 The helper only handles local disposable test CA files and public CSRs/certificates. It does not access REDCap database, pending project keys, or live issuer keys.
 
 First external enrollment/sealing acceptance passed on **2026-09-27**: the supplied project CSR was signed with the disposable issuing CA, the returned certificate chain verified with OpenSSL, and the user reported Acrobat acceptance of the resulting PDF. See [the acceptance record](implementation_status.md#first-external-ca-pdf-acceptance--passed). This does not record separate browser acceptance of replacement or rejection cases. The procedure above remains available for regression checks.
+
+### CA retirement and reactivation
+
+Run `RANDFILE=/tmp/pdf-sealer-retirement-random php -d xdebug.mode=off tests/provider_retirement.php` (also with `php8.2`). The suite reuses disposable activation fixtures and fake persistence. It checks public-only impact review, stale state/usage rejection, rollback including default/gate changes, blocked enrollment with retained pending keys, cancellation, public chain retention, expiry inventory, reactivation, and deterministic lock interleavings during assignment, CSR generation, activation, and built-in issuance. It cryptographically verifies a real finalizer B-T output with both the external project CA and built-in TSA's CA retired, and checks retired first-issuance failure without PDF mutation. This is not a live multi-connection load test. AJAX authorization/configuration/malformed-payload coverage is in `tests/pki_admin_ajax.php`.
+
+Verification on 2026-09-27: retirement and diagnostic suites passed on PHP 8.2 and 8.5. Project identity, expiry, public trust, provider configuration, AJAX authorization, and assignment-gate finalizer regressions passed on PHP 8.5. Changed PHP files passed PHP 8.2 lint; page JavaScript syntax, JSON/INI parsing, language keys, and diff checks passed.
+
+Browser acceptance (pending):
+
+1. In the working external test project, optionally generate a replacement CSR and keep the page open. On CC **CA providers**, select **Retire CA**, review the PID/signer/pending counts, and confirm.
+2. Confirm the retired badge, exclusion from assignment choices, project retirement notice, and retained public certificate downloads. A pending CSR remains downloadable/cancelable; new CSR generation and activation fail, including from stale pages.
+3. Complete a new eConsent in the project with an already active signer: Acrobat should still accept the seal.
+4. Select **Reactivate CA**, review and confirm. Enrollment becomes available again; the assignment policy remains unchanged.
+5. For the built-in default, retirement with the assignment gate off must require the explicit gate checkbox. After confirmation, the gate is on and cannot be turned off until reactivation. The existing TSA remains operational. A new diagnostic should report failed temporary signer issuance and skipped sealing checks, as explained in the page. Reactivate afterward and restore the desired assignment policy explicitly.
+
+No live retirements or provider transitions were performed by the automated suite. Existing bindings cannot yet move to another CA. These checks do not claim certificate revocation or an emergency stop for existing signing.

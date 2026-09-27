@@ -15,7 +15,10 @@ final class Rows {
 }
 final class Framework {
     public array $settings = [], $logs = [], $paths = [];
-    public function getProjectId(): int { return 104; }
+    public int $projectId = 104;
+    public array $enabled = [101,102];
+    public ?Closure $onLog = null;
+    public function getProjectId(): int { return $this->projectId; }
     public function getModuleInstance(): object { return (object)['PREFIX'=>'pdf_sealer']; }
     public function prefixSettingKey(string $key): string { return $key; }
     public function getQueryLogsSql(string $sql): string { return $sql; }
@@ -29,7 +32,7 @@ final class Framework {
         $this->settings[$key] = $value;
     }
     public function removeSystemSetting(string $key): void { unset($this->settings[$key]); }
-    public function getProjectsWithModuleEnabled(): array { return [101,102]; }
+    public function getProjectsWithModuleEnabled(): array { return $this->enabled; }
     public function getUser(): object { return new class { public function getUsername(): string { return 'admin'; } }; }
     public function query(string $sql, array $params): bool {
         if ($sql === 'START TRANSACTION') $this->snapshot = [$this->settings,$this->logs];
@@ -42,6 +45,7 @@ final class Framework {
         check($values['project_id'] === null && $values['record'] === '', 'Wrong audit scope');
         if ($message === 'project_enrollment' && $this->failEnrollment) throw new RuntimeException('Enrollment audit unavailable');
         if ($message === 'ca_provider_admin' && $this->failAudit) throw new RuntimeException('Audit unavailable');
+        if ($this->onLog !== null) { ($this->onLog)($message, $values); }
         $this->logs[] = ['message'=>$message,'log_id'=>count($this->logs)+1] + $values;
         return count($this->logs);
     }

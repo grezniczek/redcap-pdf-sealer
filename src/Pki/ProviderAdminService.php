@@ -44,7 +44,8 @@ final class ProviderAdminService
             throw new RuntimeException('Select a project with PDF Sealer enabled');
         }
         $this->projectLock->withLock($pid, function () use ($pid, $providerId): void {
-            $this->transaction(function () use ($pid, $providerId): void {
+            $this->configurationLock->withLock(fn() => $this->transaction(function () use ($pid, $providerId): void {
+                $this->providers->assertActive($providerId);
                 $binding = $this->bindings->find($pid);
                 if ($binding !== null) {
                     if ($binding->providerId === $providerId) { return; }
@@ -53,6 +54,40 @@ final class ProviderAdminService
                 $uuid = CertificateIssuer::forFramework($this->framework)->newProjectUuid();
                 $this->bindings->bindUuid($pid, $uuid, $providerId);
                 $this->audit('assign', $providerId, $pid);
+            }));
+        });
+    }
+
+    public function previewRetirement(string $providerId): array
+    {
+        return $this->configurationLock->withLock(fn() => $this->retirementImpact($providerId));
+    }
+
+    private function retirementImpact(string $providerId): array
+    {
+        $impact = ['provider' => $providerId, 'retired' => $this->providers->isRetired($providerId),
+            'is_default' => $this->providers->isDefault($providerId), 'assignment_required' => $this->providers->requiresAssignment(),
+            'projects' => $this->bindings->providerUsage($providerId)];
+        return $impact + ['review_hash' => hash('sha256', json_encode($impact, JSON_THROW_ON_ERROR))];
+    }
+
+    public function setRetired(string $providerId, bool $retired, string $reviewHash, bool $enableAssignmentGate): void
+    {
+        $this->configurationLock->withLock(function () use ($providerId, $retired, $reviewHash, $enableAssignmentGate): void {
+            $impact = $this->retirementImpact($providerId);
+            if (!hash_equals($impact['review_hash'], $reviewHash) || $impact['retired'] === $retired) {
+                throw new RuntimeException('Provider usage/state changed; review again');
+            }
+            $needsGate = $retired && $impact['is_default'] && !$impact['assignment_required'];
+            if ($needsGate !== $enableAssignmentGate) { throw new RuntimeException('Explicit assignment policy confirmation required'); }
+            $this->transaction(function () use ($providerId, $retired, $enableAssignmentGate, $impact): void {
+                if ($enableAssignmentGate) {
+                    $this->providers->saveAssignmentPolicy(true);
+                    $this->audit('assignment_policy', null, null, ['assignment_required' => '1']);
+                }
+                $this->providers->saveRetired($providerId, $retired);
+                $this->audit($retired ? 'retire' : 'reactivate', $providerId, null,
+                    ['review_hash' => $impact['review_hash'], 'affected_project_count' => (string) count($impact['projects'])]);
             });
         });
     }

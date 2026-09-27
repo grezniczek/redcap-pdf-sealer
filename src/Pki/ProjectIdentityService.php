@@ -28,15 +28,14 @@ final class ProjectIdentityService
         ProjectBindingRepository::assertPid($pid);
         return $this->lock->withLock($pid, function () use ($pid): StoredIdentity {
             $binding = $this->bindings->find($pid);
-            if ($binding !== null) { return $this->issueOrReuse($pid, $binding); }
-            // Lock order: project, then configuration. Policy saves only take the
-            // configuration lock. Hold it through issuance so a successful save
-            // cannot leave an automatic first issuance running in the background.
-            return $this->configurationLock->withLock(function () use ($pid): StoredIdentity {
-                if ($this->identities->providers()->requiresAssignment()) {
+            if ($binding?->identityId !== null) { return $this->issueOrReuse($pid, $binding); }
+            // Lock order: project, then configuration. Retirement and policy saves
+            // wait for all new issuance/activation, including already bound projects.
+            return $this->configurationLock->withLock(function () use ($pid, $binding): StoredIdentity {
+                if ($binding === null && $this->identities->providers()->requiresAssignment()) {
                     throw new CaAssignmentRequired('CA assignment required');
                 }
-                return $this->issueOrReuse($pid, null);
+                return $this->issueOrReuse($pid, $binding);
             });
         });
     }
@@ -55,6 +54,7 @@ final class ProjectIdentityService
             return $identity;
         }
 
+        $providers->assertActive($providerId);
         if ($provider['kind'] === 'external') {
             throw new ProjectCertificateRequired('The assigned external CA requires a project signing certificate');
         }
@@ -109,6 +109,10 @@ final class ProjectIdentityService
             }
             $status['uuid'] = $binding->uuid;
             if ($binding->identityId === null) {
+                if ($this->identities->providers()->isRetired($binding->providerId)) {
+                    $status['state'] = 'ca_retired';
+                    return $status;
+                }
                 $status['state'] = $this->identities->providers()->provider($binding->providerId)['kind'] === 'external'
                     ? 'awaiting_certificate' : 'pending';
                 return $status;

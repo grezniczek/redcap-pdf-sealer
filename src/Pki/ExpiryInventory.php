@@ -32,14 +32,15 @@ final class ExpiryInventory
             $wanted[$id] ??= ['role' => $role, 'pid' => $pid, 'der' => null];
         };
         $providers = new ProviderRepository($this->framework, $this->settings);
-        $providerIds = array_fill_keys($providers->externalIds(), true);
+        $providerIds = array_fill_keys(array_filter($providers->externalIds(), fn(string $id): bool => !$providers->isRetired($id)), true);
         foreach ($providers->publicCertificates() as $certificate) {
+            if ($certificate['retired']) { continue; }
             $wanted[$certificate['id']] = ['role' => 'ca', 'pid' => null, 'der' => $certificate['der']];
         }
-        if ($providers->hasConfiguration()) { $providerIds[$providers->defaultId()] = true; }
+        if ($providers->hasConfiguration() && !$providers->isRetired($providers->defaultId())) { $providerIds[$providers->defaultId()] = true; }
         foreach (['root', 'tsa'] as $role) {
             $id = $this->settings->get('active_' . $role . '_identity_id');
-            if ($id !== null) { $add($id, $role); }
+            if ($id !== null && ($role === 'tsa' || !$providers->hasConfiguration() || !$providers->isRetired(ProviderRepository::BUILTIN_CA))) { $add($id, $role); }
         }
         // Select only each project's latest binding; older certificates are not active signers.
         $latest = $this->query(
@@ -55,8 +56,10 @@ final class ExpiryInventory
                 $pid = filter_var($row['redcap_pid'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
                 if ($pid === false) { throw new RuntimeException('Invalid project in expiry inventory'); }
                 ProviderRepository::assertId($row['provider_id'] ?? null);
-                $providerIds[$row['provider_id']] = true;
-                if (($row['identity_id'] ?? null) !== null) { $add($row['identity_id'], 'project', $pid); }
+                if (($row['identity_id'] ?? null) !== null) {
+                    $providerIds[$row['provider_id']] = true;
+                    $add($row['identity_id'], 'project', $pid);
+                }
             }
         }
         foreach (array_keys($providerIds) as $providerId) {
@@ -67,6 +70,9 @@ final class ExpiryInventory
                 $add($source['identity_id'], 'tsa');
                 $add($source['issuer_identity_id'], 'root');
             }
+        }
+        if ($this->settings->get('active_tsa_identity_id') !== null && $providers->hasConfiguration()) {
+            $add($providers->source(ProviderRepository::BUILTIN_TSA)['issuer_identity_id'], 'root');
         }
         // A project's recorded issuer can differ from its provider's current issuance identity.
         $this->loadCertificates($wanted, true);
