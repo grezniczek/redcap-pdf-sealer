@@ -119,3 +119,5 @@ For browser acceptance, `tools/external_ca_fixture.php --create` prepares an exp
 5. Complete a new eConsent and check project Logging and Acrobat. For manual replacement, prepare another CSR while the current signer remains usable, then activate the returned replacement.
 
 The helper only handles local disposable test CA files and public CSRs/certificates. It does not access REDCap database, pending project keys, or live issuer keys.
+
+First external enrollment/sealing acceptance passed on **2026-09-27**: the supplied project CSR was signed with the disposable issuing CA, the returned certificate chain verified with OpenSSL, and the user reported Acrobat acceptance of the resulting PDF. See [the acceptance record](implementation_status.md#first-external-ca-pdf-acceptance--passed). This does not record separate browser acceptance of replacement or rejection cases. The procedure above remains available for regression checks.
