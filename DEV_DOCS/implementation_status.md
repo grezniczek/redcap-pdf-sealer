@@ -20,9 +20,9 @@ Implemented CC-only AJAX retirement/reactivation for built-in and external CA pr
 
 Default retirement explicitly enables required assignment in the same transaction when needed. No default replacement occurs, and the gate cannot be disabled while the default is retired. Reactivation leaves the gate unchanged. Project status explains blocked initial sealing, whose outcome is `CA_PROVIDER_RETIRED` with minimal project Logging and record/event context. Public certificates/downloads remain with retirement labels. Expiry alarms exclude unused retired chains but retain existing signer/TSA dependencies. The built-in TSA remains usable; diagnostic temporary issuance observes retirement and CC explains the failed/skipped checks.
 
-Standalone `tests/provider_retirement.php` covers public/read-only impact, stale review, rollback, default/gate atomicity, pending retention/cancellation, mutation/retirement lock interleavings, reactivation, expiry dependencies, and actual B-T sealing with both issuing providers retired. PHP 8.2/8.5 and relevant regression checks are recorded in the testing guide. No live settings, certificates, or project data were changed. Browser acceptance remains pending.
+Standalone `tests/provider_retirement.php` covers public/read-only impact, stale review, rollback, default/gate atomicity, pending retention/cancellation, mutation/retirement lock interleavings, reactivation, expiry dependencies, and actual B-T sealing with both issuing providers retired. PHP 8.2/8.5 and relevant regression checks are recorded in the testing guide. No live settings, certificates, or project data were changed by the agent. The user subsequently confirmed that the browser retirement/reactivation test passes. The final retirement confirmation uses warning styling; reactivation retains primary styling.
 
-Next: browser retirement/reactivation acceptance; then controlled project provider transition, followed by external TSA integration.
+Next: controlled project provider transition, followed by external TSA integration.
 
 ## External certificate activation and sealing — 2026-09-27
 

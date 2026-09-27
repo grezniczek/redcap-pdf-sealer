@@ -470,6 +470,8 @@ $framework->tt_transferToJavascriptModuleObject('provider_retirement_counts');
                     });
                     body.appendChild(row);
                 });
+                confirm.classList.toggle('btn-warning', !response.retired);
+                confirm.classList.toggle('btn-primaryrc', response.retired);
                 confirm.textContent = response.retired
                     ? <?= json_encode($framework->tt('provider_reactivate'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
                     : <?= json_encode($framework->tt('provider_retire'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;

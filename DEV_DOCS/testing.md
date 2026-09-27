@@ -128,7 +128,7 @@ Run `RANDFILE=/tmp/pdf-sealer-retirement-random php -d xdebug.mode=off tests/pro
 
 Verification on 2026-09-27: retirement and diagnostic suites passed on PHP 8.2 and 8.5. Project identity, expiry, public trust, provider configuration, AJAX authorization, and assignment-gate finalizer regressions passed on PHP 8.5. Changed PHP files passed PHP 8.2 lint; page JavaScript syntax, JSON/INI parsing, language keys, and diff checks passed.
 
-Browser acceptance (pending):
+The user confirmed that the browser retirement/reactivation test passes. Separate results for the additional pending-request and built-in-default cases were not reported. The procedure remains below for regression checks:
 
 1. In the working external test project, optionally generate a replacement CSR and keep the page open. On CC **CA providers**, select **Retire CA**, review the PID/signer/pending counts, and confirm.
 2. Confirm the retired badge, exclusion from assignment choices, project retirement notice, and retained public certificate downloads. A pending CSR remains downloadable/cancelable; new CSR generation and activation fail, including from stale pages.
