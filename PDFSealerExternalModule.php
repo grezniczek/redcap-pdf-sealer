@@ -11,6 +11,7 @@ use DE\RUB\PDFSealerExternalModule\Diagnostics\PkiDiagnosticService;
 use DE\RUB\PDFSealerExternalModule\Pki\CertificateIssuer;
 use DE\RUB\PDFSealerExternalModule\Pdf\PdfFinalizeService;
 use DE\RUB\PDFSealerExternalModule\Pki\IdentityRepository;
+use DE\RUB\PDFSealerExternalModule\Pki\PkiHealthService;
 use DE\RUB\PDFSealerExternalModule\Pki\PrimaryLogReader;
 use DE\RUB\PDFSealerExternalModule\Pki\PrimarySystemSettingReader;
 use DE\RUB\PDFSealerExternalModule\Pki\PublicTrustRepository;

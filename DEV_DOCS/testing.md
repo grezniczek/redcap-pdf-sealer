@@ -140,6 +140,8 @@ No live retirements or provider transitions were performed by the automated suit
 
 ### Controlled project provider transitions
 
+`tests/pki_admin_ajax.php` also exercises a successful `preview_provider_transition` dispatch, including service construction, public binding reads, and lock release without writes. This caught the missing `PkiHealthService` import that caused the initial PID 529 browser review failure; the regression passes on PHP 8.2 and 8.5 after the fix.
+
 Run `RANDFILE=/tmp/pdf-sealer-transition-random php -d xdebug.mode=off tests/provider_transitions.php` (also with `php8.2`). The suite uses real disposable crypto and fake persistence: current signer/UUID/history preservation, builtin/external target activation, pending cancellation and rollback, stale reviews, retirement on either side, one pending operation, no-signer transitions, and lock interleavings. The actual finalizer and sample verifier check that B-B remains effective during preparation and B-T becomes effective only after activation. Transition tests passed on PHP 8.2 and 8.5. Existing retirement, project identity, storage, and AJAX regression suites passed on PHP 8.5. Changed PHP files passed PHP 8.2 lint; page JavaScript syntax, JSON/INI parsing, language keys, packaged-guide links, and diff checks also passed. No live data is changed.
 
 Browser acceptance (pending):

@@ -299,7 +299,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
                 <fieldset <?= $assignmentProjectsUnavailable || $transitionProjects === [] ? 'disabled' : '' ?>>
                     <label for="transition-pid"><?= $escape($framework->tt('provider_pid')) ?></label>
                     <div class="mb-3"><select class="form-select form-select-sm" id="transition-pid" required>
-                        <option value="" selected><?= $escape($framework->tt('provider_choose_project')) ?></option>
+                        <option value="" selected><?= $escape($framework->tt('transition_choose_project')) ?></option>
                         <?php foreach ($transitionProjects as $project): ?>
                             <option value="<?= $escape($project['project_id']) ?>"><?= $escape('(' . $project['project_id'] . ') ' . $project['app_title']) ?></option>
                         <?php endforeach; ?>

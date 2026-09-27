@@ -34,6 +34,10 @@ namespace {
         public ?string $failQuery = null;
         public ?array $transaction = null;
         public array $queries = [];
+        public array $bindings = [];
+        public array $heldLocks = [];
+        public function createTempFile(): string { throw new \RuntimeException("Preview must not issue a certificate"); }
+        public function getQueryLogsSql(string $sql): string { return $sql; }
 
         public function query(string $sql, array $params): bool
         {
@@ -82,10 +86,26 @@ namespace {
     {
         public function __construct(private ?array $row) {}
         public function fetch_assoc(): ?array { $row = $this->row; $this->row = null; return $row; }
+        public function fetch_row(): ?array { $row = $this->fetch_assoc(); return $row === null ? null : array_values($row); }
     }
     function db_query(string $sql, array $params, mixed ...$rest): SettingResult
     {
         global $framework;
+        check($rest[2] === true, 'AJAX PKI read did not use primary connection');
+        if (str_contains($sql, 'GET_LOCK')) {
+            check(!isset($framework->heldLocks[$params[0]]), 'Unexpected nested lock');
+            $framework->heldLocks[$params[0]] = true;
+            return new SettingResult([1]);
+        }
+        if (str_contains($sql, 'RELEASE_LOCK')) {
+            check(isset($framework->heldLocks[$params[0]]), 'Lock released without acquisition');
+            unset($framework->heldLocks[$params[0]]);
+            return new SettingResult([1]);
+        }
+        if (($params[0] ?? null) === 'project_identity_binding') {
+            check(str_contains($sql, 'ISNULL(project_id)') && !str_contains($sql, 'private_key'), 'Unexpected binding query');
+            return new SettingResult($framework->bindings[(int) $params[1]] ?? null);
+        }
         check(str_contains($sql, 's.project_id IS NULL') && $rest[2] === true, 'Settings not read from primary/system scope');
         $value = $framework->settings[$params[1]] ?? null;
         return new SettingResult($value === null ? null : ['value' => $value, 'type' => 'string']);
@@ -260,6 +280,19 @@ namespace {
             check($module->redcap_module_ajax($action,$payload,null) === ['ok'=>false,'message'=>'pki_invalid_request'], 'Invalid transition payload accepted');
         }
     }
+    // Exercise successful dispatch/service construction, not only rejected payloads.
+    $framework->enabled = [529];
+    $framework->bindings[529] = ['project_uuid'=>'39e9a540-e005-410d-b9eb-25d357784be1',
+        'identity_id'=>str_repeat('c',32),'provider_id'=>'builtin-ca'];
+    $beforePreview = [$framework->settings,$framework->queries,$framework->bindings];
+    $result = $module->redcap_module_ajax('preview_provider_transition',['pid'=>529],null);
+    check(($result['ok'] ?? false) === true && $result['pid'] === 529 && $result['provider_id'] === 'builtin-ca'
+        && $result['identity_id'] === str_repeat('c',32) && $result['pending_provider_id'] === null
+        && $result['enrollment_id'] === null && preg_match('/^[a-f0-9]{64}$/D',$result['review_hash']) === 1,
+        'Valid provider review failed through AJAX dispatch');
+    check([$framework->settings,$framework->queries,$framework->bindings] === $beforePreview && $framework->heldLocks === [],
+        'AJAX preview wrote data or retained locks');
+
     $framework->failWrite = true;
     $result = $module->redcap_module_ajax('save_alert_recipients', 'new@example.org', null);
     check($result === ['ok' => false, 'message' => 'admin_alert_recipients_save_failed'],

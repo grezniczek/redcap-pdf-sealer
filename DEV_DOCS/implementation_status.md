@@ -22,6 +22,8 @@ CC cancellation removes pending CSR/key material with its audit and clears the t
 
 Standalone transition tests cover built-in/external directions, UUID/history preservation, stale review/activation/cancellation, retired targets, cancellation and activation rollback, locking, no-signer projects, and actual finalizer output before/after switching B-B to B-T. Transition tests passed on PHP 8.2 and 8.5; retirement, project identity, storage, and AJAX regressions passed on PHP 8.5. Changed PHP lint, page JavaScript syntax, JSON/INI parsing, language keys, packaged-guide links, and diff checks passed. Browser/Acrobat acceptance is pending. No live settings, certificates, or project data were changed by this slice.
 
+Browser follow-up: review failed for PID 529 because the AJAX handler referenced `PkiHealthService` without importing its namespace. Added the import and a regression that exercises successful review through the real module dispatcher with fake persistence; it reproduced the failure before the fix and passed afterward on PHP 8.2 and 8.5. The transition selector now uses a dedicated assigned-project placeholder. No live state was changed; browser retry remains pending.
+
 Next: browser transition/cancellation and PDF acceptance; then external TSA integration.
 
 ## CA retirement and reactivation — 2026-09-27
