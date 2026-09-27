@@ -58,7 +58,7 @@ When integer serials have been used, restoring an older backup or cloning the in
 
 The table summarizes built-in issuance health. Sealing checks the project key/certificate and its recorded public issuer certificate separately; a missing or corrupt root private key alone does not prevent reuse of a valid project signer. The internal TSA is likewise checked against its own public issuing certificate and private key. Certificate validity and chain checks still apply.
 
-Missing or corrupt existing identities are not treated as permission to silently replace them. Automatic certificate renewal, rotation, and expiry-warning scheduling are not implemented. An expired project certificate is reported and rejected rather than automatically renewed. Retaining historical root certificates supports public inspection but is not a rotation workflow.
+Missing or corrupt existing identities are not treated as permission to silently replace them. Automatic certificate renewal and rotation are not implemented. A daily Framework cron checks active/public certificate dates and warns at 90, 30, and 7 days and after expiry; see [scheduled expiry checks](ADMIN.md#scheduled-certificate-expiry-checks) for scope and notification behavior. An expired project certificate is reported and rejected rather than automatically renewed. Retaining historical root certificates supports public inspection but is not a rotation workflow.
 
 No CRL or OCSP publication service is provided. A root certificate's `cRLSign` key usage does not imply that a CRL is published. Long-term validation evidence is not embedded by this version.
 

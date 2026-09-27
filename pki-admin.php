@@ -5,6 +5,7 @@ declare(strict_types=1);
 use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate;
 use DE\RUB\PDFSealerExternalModule\Diagnostics\DiagnosticSnapshot;
 use DE\RUB\PDFSealerExternalModule\Pki\CertificateIssuer;
+use DE\RUB\PDFSealerExternalModule\Pki\ExpiryMonitor;
 use DE\RUB\PDFSealerExternalModule\Pki\IdentityRepository;
 use DE\RUB\PDFSealerExternalModule\Pki\PkiHealth;
 use DE\RUB\PDFSealerExternalModule\Pki\PkiHealthService;
@@ -65,6 +66,10 @@ $snapshot = null;
 $snapshotUnavailable = false;
 try { $snapshot = (new DiagnosticSnapshot($framework))->load(); }
 catch (Throwable) { $snapshotUnavailable = true; }
+$expirySnapshot = null;
+$expiryUnavailable = false;
+try { $expirySnapshot = ExpiryMonitor::load($framework); }
+catch (Throwable) { $expiryUnavailable = true; }
 $certificates = [];
 foreach (['root', 'tsa'] as $role) {
     try {
@@ -202,6 +207,45 @@ $framework->initializeJavascriptModuleObject();
     </table>
     </section>
     <section class="pdf-sealer-panel" id="pki-panel-alarms" role="tabpanel" aria-labelledby="pki-tab-alarms" tabindex="0" hidden>
+    <h5><?= $escape($framework->tt('expiry_title')) ?></h5>
+    <p class="text-muted"><?= $escape($framework->tt('expiry_help')) ?></p>
+    <?php if ($expiryUnavailable || $expirySnapshot === null): ?>
+        <p class="alert alert-warning"><?= $escape($framework->tt($expiryUnavailable ? 'expiry_unavailable' : 'expiry_never')) ?></p>
+    <?php else: ?>
+        <p><strong><?= $escape($framework->tt('expiry_last_check')) ?>:</strong>
+            <time data-expiry-epoch="<?= $escape($expirySnapshot['completed_at']) ?>"><?= $escape(gmdate('Y-m-d H:i:s \U\T\C', $expirySnapshot['completed_at'])) ?></time></p>
+        <?php if (time() - $expirySnapshot['completed_at'] > 172800 || $expirySnapshot['completed_at'] > time() + 60): ?>
+            <p class="alert alert-warning"><?= $escape($framework->tt('expiry_stale')) ?></p>
+        <?php endif; ?>
+        <?php if ($expirySnapshot['status'] !== 'ok'): ?>
+            <p class="alert alert-warning"><?= $escape($framework->tt('expiry_status_' . $expirySnapshot['status'])) ?></p>
+        <?php else: ?>
+            <table class="table table-sm">
+                <thead><tr><th><?= $escape($framework->tt('expiry_condition')) ?></th><th><?= $escape($framework->tt('expiry_count')) ?></th></tr></thead>
+                <tbody><?php foreach (ExpiryMonitor::BANDS as $band): ?>
+                    <tr class="<?= $expirySnapshot['counts'][$band] === 0 ? '' : (in_array($band, ['invalid', 'expired', '7d'], true) ? 'table-danger' : ($band === 'healthy' ? 'table-success' : 'table-warning')) ?>">
+                        <td><?= $escape($framework->tt('expiry_band_' . $band)) ?></td><td><?= $escape($expirySnapshot['counts'][$band]) ?></td>
+                    </tr>
+                <?php endforeach; ?></tbody>
+            </table>
+            <?php if ($expirySnapshot['nearest_expiry'] !== null): ?>
+                <p><?= $escape($framework->tt('expiry_nearest')) ?>: <?= $escape(gmdate('Y-m-d H:i:s \U\T\C', $expirySnapshot['nearest_expiry'])) ?></p>
+            <?php endif; ?>
+            <?php if ($expirySnapshot['items'] !== []): ?>
+                <p class="small text-muted"><?= $escape($framework->tt('expiry_details_help')) ?></p>
+                <table class="table table-sm">
+                    <thead><tr><th><?= $escape($framework->tt('expiry_identity')) ?></th><th><?= $escape($framework->tt('expiry_condition')) ?></th><th><?= $escape($framework->tt('pki_valid_until')) ?></th></tr></thead>
+                    <tbody><?php foreach ($expirySnapshot['items'] as $item): ?>
+                        <tr><td><?= $escape($framework->tt('expiry_role_' . $item['role'])) ?><?= $item['pid'] === null ? '' : ' (PID ' . $escape($item['pid']) . ')' ?><br><code><?= $escape($item['id']) ?></code></td>
+                            <td><?= $escape($framework->tt('expiry_band_' . $item['band'])) ?></td>
+                            <td><?= $item['expires'] === null ? '—' : $escape(gmdate('Y-m-d H:i:s \U\T\C', $item['expires'])) ?></td></tr>
+                    <?php endforeach; ?></tbody>
+                </table>
+            <?php endif; ?>
+        <?php endif; ?>
+        <p><?= $escape($framework->tt('expiry_mail_' . $expirySnapshot['mail_status'])) ?></p>
+    <?php endif; ?>
+    <hr>
     <h5><?= $escape($framework->tt('admin_alert_recipients')) ?></h5>
     <p><?= $escape($framework->tt('admin_alert_recipients_help')) ?></p>
     <div id="pdf-sealer-recipient-message" role="status" hidden></div>
@@ -399,6 +443,11 @@ $framework->initializeJavascriptModuleObject();
         diagnosticResults.hidden = false;
     };
     renderSnapshot();
+    document.querySelectorAll('[data-expiry-epoch]').forEach(element => {
+        const date = new Date(Number(element.dataset.expiryEpoch) * 1000);
+        element.dateTime = date.toISOString();
+        element.textContent = formatDiagnosticTime(date);
+    });
     setInterval(renderSnapshot, 60000);
     if (<?= $snapshotUnavailable ? 'true' : 'false' ?>) {
         cacheMessage.textContent = snapshotText.cache_unavailable;

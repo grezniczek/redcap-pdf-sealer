@@ -21,6 +21,16 @@
     "enable-every-page-hooks-on-login-form": true,
     "auth-ajax-actions": ["run_diagnostic", "send_test_alarm", "save_timestamp_settings", "save_alert_recipients", "download_root_certificate", "download_public_root_certificate"],
     "no-auth-ajax-actions": ["download_public_root_certificate"],
+    "crons": [
+        {
+            "cron_name": "certificate_expiry",
+            "cron_description": "Check PDF Sealer certificate expiry and send advance alarms",
+            "tt_cron_description": "expiry_cron_description",
+            "method": "checkCertificateExpiry",
+            "cron_frequency": 86400,
+            "cron_max_run_time": 3600
+        }
+    ],
     "pdf-finalize": [
         {
             "id": "seal",

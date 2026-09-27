@@ -12,7 +12,7 @@ The fallback defaults and implementation sequence below are recommendations for 
 
 ## Foundation implementation — 2026-09-27
 
-The first implementation slice adds explicit built-in provider/source records, provider-pinned project bindings, certificate issuer references, and independent issuance/project-signing/timestamp checks. Initialization creates fresh configuration; there is no legacy migration. The existing CC timestamp controls now update the built-in provider policy. Only the internal provider/source kind is executable; external enrollment, provider-management UI, network TSA sources, alternate-source fallback, monitoring, and renewal remain planned below.
+The first implementation slice adds explicit built-in provider/source records, provider-pinned project bindings, certificate issuer references, and independent issuance/project-signing/timestamp checks. Initialization creates fresh configuration; there is no legacy migration. The existing CC timestamp controls now update the built-in provider policy. Only the internal provider/source kind is executable; external enrollment, provider-management UI, network TSA sources, alternate-source fallback and renewal remain planned below. The next slice implements daily expiry monitoring with 90/30/7-day warning bands, a daily-throttled summary alarm per urgency band, and a cached result in the CC Alarms tab.
 
 ## Responsibilities and configuration
 
@@ -123,7 +123,7 @@ The public trust page should identify built-in and external providers and publis
 ## Implementation sequence and acceptance
 
 1. **Provider and lifecycle foundation:** add the provider/source model directly; separate issuance, signing, and timestamp health. Reset/reinitialize development PKI as needed, then verify fresh initialization, B-B/B-T sealing, and identity reuse within the new model. No legacy migration or compatibility layer is required.
-2. **Expiry monitoring and alarms:** read the model without generating/replacing identities. Choose warning thresholds, scheduling, and deduplication in this slice.
+2. **Expiry monitoring and alarms (implemented):** inspect active public certificates daily without generating/replacing identities; warn at 90/30/7 days and after expiry. Cache CC results and send daily-throttled summary alarms per urgency band.
 3. **External enrollment:** implement key/CSR generation from the start, certificate return/activation, and controlled identity import. Cover authorization, wrong key/chain, invalid profiles, stale requests, concurrent activation, and unchanged active identities after rejected uploads.
 4. **External timestamping:** add the first supported endpoint/authentication configuration and bounded primary/alternative/B-B handling. Test invalid tokens, timeouts, exhausted budgets, and explicit internal fallback. Independently verify the final embedded timestamp.
 5. **Renewal workflows:** reuse pending enrollment and atomic activation for external and local replacements. Exercise historical chains and provider changes without losing project UUIDs.

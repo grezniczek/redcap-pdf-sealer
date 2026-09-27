@@ -12,7 +12,7 @@ Third-party attribution, reproducible namespace prefixing, and release-content c
 
 Project-copy and metadata-only XML export/import acceptance passed on this instance (524 → 525 and 524 → 526): no inherited signing identities, distinct destination certificates/public keys, and identity reuse on second sealing. Direct copy retained the pipeline but left the EM disabled; XML import required explicit enablement and pipeline assignment. Evidence and scope limits are recorded below. PMT setup and first sealing also passed for PID 527, with a distinct destination signer and user-reported Acrobat acceptance; PMT signer reuse was not separately tested. Missing pipeline transfer through XML and PMT is a deferred Core/Framework integration gap, not the intended final behavior; see [the deferred slice](#deferred-pdf-finalization-pipeline-transfer).
 
-The [provider-aware foundation](#provider-and-timestamp-source-foundation) is implemented for built-in operation: explicit CA/source configuration, provider-pinned project bindings, recorded issuer certificates, and separate issuance/signing/timestamp checks. The dev PKI was reset and freshly initialized under the new model. External enrollment with local keys/CSRs, external timestamp sources, monitoring, and renewal remain planned in the [lifecycle design](provider_lifecycle_design.md). No legacy migration or compatibility layer is required for this sole deployment.
+The [provider-aware foundation](#provider-and-timestamp-source-foundation) is implemented for built-in operation: explicit CA/source configuration, provider-pinned project bindings, recorded issuer certificates, and separate issuance/signing/timestamp checks. The dev PKI was reset and freshly initialized under the new model. Daily [expiry monitoring and advance alarms](#scheduled-expiry-monitoring-and-advance-alarms) are implemented. External enrollment with local keys/CSRs, external timestamp sources, and renewal remain planned in the [lifecycle design](provider_lifecycle_design.md). No legacy migration or compatibility layer is required for this sole deployment.
 
 ## Implementation history
 
@@ -437,4 +437,28 @@ On **2026-09-27**, the user confirmed that saving the CC timestamp settings pers
 
 The project retains its original post-reset UUID/provider binding **36136**, certificate identity **36137**, and active binding **36138**. The provider remains `builtin-ca`, identity `485505e149ea5c2930d4f9befbfdd7e0`, with unchanged certificate SHA-256 `89eb8ba8346e434c3186f726a5ffecfbefd5a33e186c09feafbdc2b3488cc6a1` and issuer `38aa733bbedcc49d247ea0b3abc9fbc2`. No additional project certificate or binding was created: the live workflow reused the signer prepared during foundation acceptance. Acrobat acceptance and browser persistence are user-reported; downloaded PDF bytes were not independently inspected in this follow-up. No live data was changed by the agent. This completes the foundation slice's requested manual checks.
 
-Next planned slice: expiry monitoring and advance alarms over this foundation. Provider-management/enrollment UI and external timestamp transport remain later slices.
+Expiry monitoring was subsequently implemented below. Provider-management/enrollment UI and external timestamp transport remain later slices.
+
+
+## Scheduled expiry monitoring and advance alarms
+
+Implemented **2026-09-27**. The `certificate_expiry` Framework cron runs at a 24-hour interval. `ExpiryInventory` reads current root/TSA references, provider/source issuers, each project's latest binding, and the issuers recorded on active project certificates. Framework log queries select public certificate fields only, group latest bindings, and load records in batches of 200. Shared issuers are deduplicated; historical project signers are excluded. Issued identities in disabled projects remain in scope. No certificate/key issuance, renewal, private-key decryption, project logging, or PDF work occurs during a scan.
+
+`ExpiryMonitor` classifies certificates into healthy (>90 days), 90-day, 30-day, 7-day, expired, and missing/unreadable/not-yet-valid bands. Bands use exact seconds; a certificate at its final validity second remains in the 7-day band and becomes expired afterward. A failed inventory query/reference produces an explicit failed scan rather than an all-clear result. A database advisory lock prevents concurrent scans.
+
+The latest snapshot contains scan time, fixed outcomes, counts, earliest expiry, and at most 50 affected public identity references/project IDs ordered by urgency. All identities contribute to counts even when the displayed list is truncated. The CC Alarms tab displays this snapshot without running a scan on page load, highlights urgency, reports mail status, and warns about missing, unreadable, future-dated, or >48-hour-old results. The scan time reuses the profile-aware browser-local formatter; certificate dates remain UTC.
+
+Expiry notifications reuse the existing alarm recipient/parser, primary-database throttle history, and per-condition locks. One digest summarizes counts and directs administrators to the CC page. Successful notifications are throttled for 24 hours per highest urgency band; a different band has its own condition. Failed/unconfigured delivery does not start the throttle. Scan failures have a separate daily-throttled alarm. Existing sealing-time and test-mail throttles remain one hour. No project titles, participant data, certificates, or keys are included in expiry emails.
+
+Verification:
+
+- `tests/expiry_monitor.php` passed on PHP 8.5 and 8.2: active versus historical bindings, pending bindings, retained old issuers, public-only queries, deduplication, exact threshold boundaries, future/expired/corrupt certificates, failed scans, limited display with complete counts, unchanged identity storage, daily throttling, escalation, failed-send retries, and snapshot validation. Mail transport is mocked.
+- Existing `tests/admin_alarms.php` and `tests/pki_admin_ajax.php` passed, preserving sealing/test alarms and CC authorization behavior.
+- The preview-first `tests/expiry_monitor_live.php` passed against the actual Framework on this instance. It found **three healthy identities** (root, TSA, PID 527 signer), persisted a healthy snapshot, and confirmed identical public identity/binding inventory afterward. It blocks outbound mail and recorded **zero mail attempts**.
+- Changed PHP syntax, configuration JSON, language INI, relative documentation links, and whitespace checks passed.
+
+The new cron was absent in the database because this remains the same development version. A previewed `redcap_devctl` insert registered only this module's `certificate_expiry` job, using the fields written by the Framework's registration helper. Normal installation/update uses Framework registration. Cron **125** is enabled and completed its first normal scheduled run at **2026-09-27 17:23:03** instance local time with **zero failures**. No module enablement or project setting changed. The application scan used its PHP harness because dev-control cannot invoke application services; a previewable application-service runner remains a possible tool enhancement.
+
+Browser inspection of the new Alarms section and receipt of a real expiry email are not claimed by the automated tests. The current certificates are healthy, so no real expiry email is due. The scan checks dates/readability only; it is not a full PKI, revocation, or remote-service health check.
+
+Next planned slice: external CA provider configuration and local project key/CSR enrollment, keeping activation separate from pending enrollment. Renewal and external timestamp transport remain later slices.

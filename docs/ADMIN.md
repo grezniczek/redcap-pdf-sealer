@@ -66,7 +66,19 @@ On **Alarms**, enter addresses separated by commas, semicolons, or whitespace an
 
 A test message is clearly labeled as a test. Successful submission means REDCap accepted it for delivery; confirm receipt separately. Test messages have their own one-hour throttle and do not suppress real alarm emails.
 
-During sealing, actionable PKI health problems create system-scoped alarm entries and can trigger email. Repeated successful notifications for the same condition/identity are limited to one per hour. Failed or unconfigured delivery does not start the throttle. Alarm contents are limited to diagnostic identifiers and time. This is not a scheduled expiry monitor, and not every sealing failure sends an alarm: also review project Logging and detailed failure entries.
+During sealing, actionable PKI health problems create system-scoped alarm entries and can trigger email. Repeated successful notifications for the same condition/identity are limited to one per hour. Failed or unconfigured delivery does not start the throttle. These sealing-time alarms contain diagnostic identifiers and time. Not every sealing failure sends an alarm: also review project Logging and detailed failure entries.
+
+### Scheduled certificate expiry checks
+
+The **Alarms** tab also shows the latest daily certificate expiry scan. It checks the configured root/TSA, each project's latest active signer, and their referenced issuing certificates. Issued identities in disabled projects remain monitored. Historical signers that are no longer active are excluded, while an old CA still referenced by an active signer remains included. Shared issuing certificates are counted once.
+
+Warning bands are **90 days**, **30 days**, **7 days**, and **expired**. Missing, unreadable, or not-yet-valid certificates are flagged separately. The table lists up to 50 affected identities in urgency order, with project IDs where applicable; summary counts include the whole inventory. Certificate dates stay in UTC. The scan time uses the browser time zone and REDCap profile format.
+
+Configured recipients receive one summary rather than one email per certificate. Successful summaries are limited to one per urgency band per 24 hours; escalation to a different band has a separate throttle. Failed or unconfigured sends do not suppress later attempts. Email contains counts and directs administrators to the CC page; it contains no project titles, participant data, certificates, or keys. A failed inventory scan is shown explicitly and generates its own daily-throttled alarm.
+
+The module declares the `certificate_expiry` Framework cron with a 24-hour interval. REDCap cron must be running, and the job must be registered/enabled. After adding this cron to an existing development version, refresh its cron registration; normal module enable/update registers it. A missing result or a result older than 48 hours is visibly flagged. Scheduling depends on REDCap cron availability, so the interval is not a guaranteed wall-clock delivery time.
+
+These are public-certificate date checks, not key, chain, revocation, or remote-service validation. They neither issue nor renew certificates. Arrange replacement before expiry; the current module does not yet provide renewal workflows.
 
 ## Public certificates and trust
 

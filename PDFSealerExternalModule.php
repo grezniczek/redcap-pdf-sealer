@@ -22,6 +22,20 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
 {
     private const PUBLIC_TRUST_QUERY = 'pdf_sealer_certs';
 
+    /** Framework cron: system-scoped public-certificate inventory and daily alarm summary. */
+    public function checkCertificateExpiry($cronInfo): string
+    {
+        $result = (new \DE\RUB\PDFSealerExternalModule\Pki\ExpiryMonitor(
+            $this->framework,
+            new \DE\RUB\PDFSealerExternalModule\Pki\ExpiryInventory($this->framework),
+            new AdminAlarmService($this->framework, new \DE\RUB\PDFSealerExternalModule\Alerts\AlarmRepository($this->framework), new \DE\RUB\PDFSealerExternalModule\Alerts\AlarmLock()),
+            new \DE\RUB\PDFSealerExternalModule\Alerts\AlarmLock(),
+        ))->run();
+        if ($result['status'] === 'failed') { throw new \RuntimeException('PDF Sealer expiry scan failed; inspect the CC Alarms tab'); }
+        return 'PDF Sealer expiry scan: ' . $result['status'] . '; certificates: ' . array_sum($result['counts'])
+            . '; notification: ' . $result['mail_status'];
+    }
+
     public static function publicTrustUrl(): string
     {
         return APP_PATH_SURVEY_FULL . '?' . self::PUBLIC_TRUST_QUERY;

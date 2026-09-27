@@ -21,7 +21,7 @@ In REDCap, the module's documentation link opens the project or administrator gu
 - PAdES B-T sealing with an embedded timestamp, or B-B sealing without one, with configurable fallback.
 - Invisible certification signatures that preserve document appearance and clickable links.
 - Project status and concise sealing outcomes in REDCap Logging.
-- Control Center diagnostics and PKI alarm settings, plus public root-certificate downloads.
+- Control Center diagnostics, daily certificate expiry monitoring and PKI alarms, plus public root-certificate downloads.
 
 A seal identifies the issuing project and organization; it does not establish the identity of the consenting person. The current operation applies to eligible completed eConsent PDFs and does not retroactively seal existing documents or ordinary record/form downloads.
 

@@ -45,17 +45,39 @@ final class AdminAlarmService
         return $this->deliver('TEST_ALARM', 'test', null, $now);
     }
 
-    private function deliver(string $code, string $severity, ?string $identityId, ?int $now): string
+    /** One daily digest per urgency band; escalation has a distinct throttle condition. */
+    public function raiseExpirySummary(array $counts, ?int $now = null): string
+    {
+        $code = null;
+        $details = '';
+        foreach (['invalid', 'expired', '7d', '30d', '90d'] as $band) {
+            $count = $counts[$band] ?? null;
+            if (!is_int($count) || $count < 0) { throw new RuntimeException('Invalid expiry counts'); }
+            if ($count > 0 && $code === null) { $code = 'CERTIFICATE_EXPIRY_' . strtoupper($band); }
+            $details .= '<br>' . htmlspecialchars($this->framework->tt('expiry_band_' . $band), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . ': ' . $count;
+        }
+        if ($code === null) { return 'not_needed'; }
+        $details .= '<br>' . htmlspecialchars($this->framework->tt('expiry_mail_help'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        return $this->deliver($code, ($counts['invalid'] + $counts['expired'] + $counts['7d']) > 0 ? 'critical' : 'degraded',
+            null, $now, 86400, $details);
+    }
+
+    public function raiseExpiryScanFailure(?int $now = null): string
+    {
+        return $this->deliver('EXPIRY_SCAN_FAILED', 'critical', null, $now, 86400);
+    }
+
+    private function deliver(string $code, string $severity, ?string $identityId, ?int $now, int $interval = self::INTERVAL_SECONDS, string $details = ''): string
     {
         $now ??= time();
         if ($now < 1) {
             throw new RuntimeException('Invalid alarm time');
         }
         $fingerprint = hash('sha256', $code . "\0" . ($identityId ?? ''));
-        return $this->lock->withLock($fingerprint, function () use ($code, $severity, $identityId, $fingerprint, $now): string {
+        return $this->lock->withLock($fingerprint, function () use ($code, $severity, $identityId, $fingerprint, $now, $interval, $details): string {
             $last = $this->alarms->lastMailedAt($fingerprint);
             $status = 'throttled';
-            if ($last === null || $now - $last >= self::INTERVAL_SECONDS) {
+            if ($last === null || $now - $last >= $interval) {
                 $recipients = self::parseRecipients($this->framework->getSystemSetting('admin-alert-recipients'));
                 if ($recipients === null) {
                     $status = 'invalid_recipients';
@@ -66,7 +88,7 @@ final class AdminAlarmService
                     $body = 'PDF Sealer PKI alarm<br>Severity: ' . $severity
                         . '<br>Code: ' . $code
                         . '<br>Identity: ' . ($identityId ?? 'none')
-                        . '<br>Time: ' . gmdate('c', $now) . '<br>';
+                        . '<br>Time: ' . gmdate('c', $now) . '<br>' . $details;
                     if ($severity === 'test') {
                         $subject = $this->framework->tt('alarm_test_subject');
                         $body = htmlspecialchars($this->framework->tt('alarm_test_body'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')

@@ -18,6 +18,7 @@ php tests/pki_storage.php
 php tests/pki_initialization.php
 php tests/project_identity.php
 php tests/admin_alarms.php
+php tests/expiry_monitor.php
 php tests/pki_admin_ajax.php
 php tests/pki_diagnostic.php
 php tests/diagnostic_snapshot.php
@@ -59,6 +60,19 @@ PDF_SEALER_LIVE_TEST=1 PDF_SEALER_TEST_PID=461 php tests/pdf_pipeline_live.php -
 ```
 
 It requires the existing project signer, healthy PKI, and a pipeline containing only `pdf_sealer:seal`. It tests five synthetic fixtures through both Core entry points using the configured timestamp mode, checks terminal adoption and final hashes, and covers document-type bypass and rejection of an already-certified PDF. It does not change settings or write edocs. Autocommit stays disabled because the Framework rolls back at each hook boundary; test log writes and project activity updates are rolled back. This differs from the older direct-hook harness, which requires an uninitialized PKI and cannot establish real dispatch behavior. See the [live acceptance guide](pdf_pipeline_acceptance.md) for the separate stored/downloaded-PDF check.
+
+### Expiry monitoring
+
+`tests/expiry_monitor.php` uses disposable certificates and fake storage/mail to verify active identity selection, retained issuers, threshold boundaries, malformed/missing certificates, failed scans, summary escalation/throttling/retry, and the 50-row display limit without truncating counts. No email is sent.
+
+For the real Framework inventory query and persisted CC snapshot:
+
+```sh
+PDF_SEALER_LIVE_TEST=1 php tests/expiry_monitor_live.php --preview
+PDF_SEALER_LIVE_TEST=1 php tests/expiry_monitor_live.php --run
+```
+
+Preview is read-only. Run requires a wholly healthy inventory, saves the real scan snapshot, checks unchanged public identities/bindings, and blocks email transport. The normal cron uses the real alarm service. Do not alter live certificate dates to test thresholds; use the standalone tests. Adding a cron to the unchanged development version requires registration separately from this runner.
 
 ## Independent viewer checks
 
