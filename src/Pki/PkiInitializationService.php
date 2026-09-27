@@ -33,7 +33,7 @@ final class PkiInitializationService
         $this->lock->withLock(function () use ($organization): void {
             if ($this->health->inspect(time())->status !== PkiHealth::Uninitialized
                 || $this->identities->hasRole('tsa')
-                || $this->identities->hasRole('project')
+                || $this->identities->hasRole('project', false)
                 || $this->identities->activeId('tsa') !== null
                 || $this->bindings->hasAny(false)
                 || $this->identities->providers()->hasConfiguration()) {

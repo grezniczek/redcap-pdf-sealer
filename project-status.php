@@ -134,6 +134,25 @@ if ($enrollmentAvailable) { $framework->initializeJavascriptModuleObject(); }
                 <button type="button" class="btn btn-primaryrc btn-sm" id="enrollment-download" <?= $enrollment === null ? 'hidden' : '' ?>><?= $escape($framework->tt('enrollment_download')) ?></button>
                 <button type="button" class="btn btn-outline-danger btn-sm" id="enrollment-cancel" <?= $enrollment === null ? 'hidden' : '' ?>><?= $escape($framework->tt('enrollment_cancel')) ?></button>
             </div>
+            <form id="enrollment-certificate-form" class="mt-3" <?= $enrollment === null ? 'hidden' : '' ?>>
+                <fieldset>
+                    <label for="enrollment-certificate-file"><?= $escape($framework->tt('enrollment_certificate_label')) ?></label>
+                    <input class="form-control form-control-sm mb-2" type="file" accept=".pem,.crt,.cer" id="enrollment-certificate-file" required>
+                    <p class="small text-muted"><?= $escape($framework->tt('enrollment_certificate_help')) ?></p>
+                    <button type="submit" class="btn btn-primaryrc btn-sm"><?= $escape($framework->tt('enrollment_certificate_review')) ?></button>
+                    <div id="enrollment-certificate-review" class="mt-3" hidden>
+                        <dl class="pdf-sealer-certificate">
+                            <dt><?= $escape($framework->tt('pki_subject')) ?></dt><dd id="certificate-review-subject" style="white-space:pre-line"></dd>
+                            <dt><?= $escape($framework->tt('enrollment_certificate_issuer')) ?></dt><dd id="certificate-review-issuer" style="white-space:pre-line"></dd>
+                            <dt><?= $escape($framework->tt('pki_fingerprint')) ?></dt><dd><code id="certificate-review-fingerprint" class="pdf-sealer-fingerprint"></code></dd>
+                            <dt><?= $escape($framework->tt('trust_valid_from')) ?></dt><dd id="certificate-review-from"></dd>
+                            <dt><?= $escape($framework->tt('trust_valid_until')) ?></dt><dd id="certificate-review-until"></dd>
+                        </dl>
+                        <p><?= $escape($framework->tt('enrollment_certificate_activation_help')) ?></p>
+                        <button type="button" class="btn btn-primaryrc btn-sm" id="enrollment-certificate-activate"><?= $escape($framework->tt('enrollment_certificate_activate')) ?></button>
+                    </div>
+                </fieldset>
+            </form>
             <p id="enrollment-message" class="alert mt-3" role="status" hidden></p>
         <?php endif; ?>
         <p class="small text-muted mt-3"><?= $escape($framework->tt('enrollment_activation_pending')) ?></p>
@@ -161,17 +180,26 @@ if ($enrollmentAvailable) { $framework->initializeJavascriptModuleObject(); }
     };
     if (pending) document.getElementById('enrollment-created').textContent = formatEnrollmentTime(new Date(pending.created_at * 1000));
     const message = document.getElementById('enrollment-message');
+    const certificateForm = document.getElementById('enrollment-certificate-form');
+    const certificateFields = certificateForm.querySelector('fieldset');
+    const certificateFile = document.getElementById('enrollment-certificate-file');
+    const certificateReview = document.getElementById('enrollment-certificate-review');
+    let reviewed = null;
+    let certificatePem = null;
+    certificateFile.addEventListener('change', () => { reviewed = null; certificateReview.hidden = true; });
     const buttons = ['generate', 'download', 'cancel'].map(action => document.getElementById('enrollment-' + action));
     buttons.forEach((button, index) => button.addEventListener('click', async () => {
         const action = ['generate', 'download', 'cancel'][index];
         if (action === 'cancel' && !window.confirm(<?= json_encode($framework->tt('enrollment_cancel_confirm'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>)) return;
         buttons.forEach(b => b.disabled = true);
+        certificateFields.disabled = true;
         message.hidden = true;
         try {
             const response = await module.ajax(action + '_project_csr', action === 'generate' ? null : {id: pending.id});
             if (!response?.ok) throw new Error('Enrollment failed');
             if (action === 'cancel') { location.reload(); return; }
             pending = response.pending;
+            certificateForm.hidden = false;
             document.getElementById('enrollment-subject').textContent = pending.subject;
             document.getElementById('enrollment-created').textContent = formatEnrollmentTime(new Date(pending.created_at * 1000));
             document.getElementById('enrollment-digest').textContent = pending.csr_sha256;
@@ -186,8 +214,44 @@ if ($enrollmentAvailable) { $framework->initializeJavascriptModuleObject(); }
         } catch (error) {
             message.textContent = <?= json_encode($framework->tt('enrollment_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
             message.className = 'alert alert-danger mt-3'; message.hidden = false;
-        } finally { buttons.forEach(b => b.disabled = false); }
+        } finally { buttons.forEach(b => b.disabled = false); certificateFields.disabled = false; }
     }));
+    const certificateAction = async activate => {
+        buttons.forEach(b => b.disabled = true);
+        certificateFields.disabled = true;
+        message.hidden = true;
+        try {
+            if (activate) {
+                if (!reviewed) throw new Error('Review required');
+                const response = await module.ajax('activate_project_certificate', {id: pending.id, pem: certificatePem,
+                    review_hash: reviewed.review_hash, active_identity_id: reviewed.active_identity_id});
+                if (!response?.ok) throw new Error('Activation failed');
+                location.reload();
+            } else {
+                reviewed = null; certificateReview.hidden = true;
+                const file = certificateFile.files[0];
+                if (!file || file.size > 65536) throw new Error('Invalid certificate upload');
+                certificatePem = await file.text();
+                const response = await module.ajax('review_project_certificate', {id: pending.id, pem: certificatePem});
+                if (!response?.ok) throw new Error('Validation failed');
+                reviewed = response;
+                const cert = response.certificate;
+                ['subject', 'issuer'].forEach(field => {
+                    document.getElementById('certificate-review-' + field).textContent = cert[field].replace(/(?<!\\)(?=\/[A-Za-z0-9.]+=)/g, '\n');
+                });
+                document.getElementById('certificate-review-fingerprint').textContent = cert.fingerprint;
+                document.getElementById('certificate-review-from').textContent = new Date(cert.valid_from * 1000).toISOString().replace('T',' ').replace('.000Z',' UTC');
+                document.getElementById('certificate-review-until').textContent = new Date(cert.valid_until * 1000).toISOString().replace('T',' ').replace('.000Z',' UTC');
+                certificateReview.hidden = false;
+            }
+        } catch (error) {
+            reviewed = null; certificateReview.hidden = true;
+            message.textContent = <?= json_encode($framework->tt('enrollment_certificate_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+            message.className = 'alert alert-danger mt-3'; message.hidden = false;
+        } finally { buttons.forEach(b => b.disabled = false); certificateFields.disabled = false; }
+    };
+    certificateForm.addEventListener('submit', event => { event.preventDefault(); certificateAction(false); });
+    document.getElementById('enrollment-certificate-activate').addEventListener('click', () => certificateAction(true));
 })();
 </script>
 <?php endif; ?>

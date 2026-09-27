@@ -81,6 +81,18 @@ final class ProjectBindingRepository
         $this->append($pid, $uuid, $identityId, $current->providerId);
     }
 
+    /** Caller holds the project lock and transaction; protects against a stale activation review. */
+    public function replace(int $pid, string $uuid, ?string $expectedIdentityId, string $identityId): void
+    {
+        self::assertPid($pid); self::assertUuid($uuid);
+        $current = $this->find($pid);
+        if ($current === null || $current->uuid !== $uuid || $current->identityId !== $expectedIdentityId
+            || preg_match('/^[a-f0-9]{32}$/D', $identityId) !== 1) {
+            throw new RuntimeException('Project identity changed before activation');
+        }
+        $this->append($pid, $uuid, $identityId, $current->providerId);
+    }
+
     private function append(int $pid, string $uuid, ?string $identityId, string $providerId): void
     {
         ProviderRepository::assertId($providerId);

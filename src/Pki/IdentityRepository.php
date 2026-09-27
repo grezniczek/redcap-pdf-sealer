@@ -32,7 +32,7 @@ final class IdentityRepository
         return new ProviderRepository($this->framework, $this->settings);
     }
 
-    public function append(string $role, GeneratedIdentity $identity, ?string $projectUuid = null, ?string $providerId = null, ?string $issuerId = null): string
+    public function append(string $role, GeneratedIdentity $identity, ?string $projectUuid = null, ?string $providerId = null, ?string $issuerId = null, array $issuerChain = []): string
     {
         $this->assertRole($role);
         if (($role === 'project') !== ($projectUuid !== null)) {
@@ -43,12 +43,14 @@ final class IdentityRepository
         }
         if ($role === 'project') {
             ProviderRepository::assertId($providerId);
-            if ($issuerId === null || preg_match('/^[0-9a-f]{32}$/D', $issuerId) !== 1) {
+            if ($issuerId === null || preg_match('/^(?:[0-9a-f]{32}|[0-9a-f]{64})$/D', $issuerId) !== 1) {
                 throw new RuntimeException('Project issuer reference is required');
             }
         } elseif ($providerId !== null || $issuerId !== null) {
             throw new RuntimeException('Unexpected project provenance');
         }
+        $chainRecords = array_map(static fn(string $der): array => ['der_b64' => base64_encode($der), 'sha256' => hash('sha256', $der)], $issuerChain);
+        self::decodeIssuerChain($issuerId, $issuerChain === [] ? null : json_encode($chainRecords, JSON_THROW_ON_ERROR));
         $certificate = Certificate::derToPem($identity->certificateDer);
         if (!openssl_x509_check_private_key($certificate, $identity->privateKey())) {
             throw new RuntimeException('Identity key does not match certificate');
@@ -64,6 +66,7 @@ final class IdentityRepository
             'project_uuid' => $projectUuid,
             'provider_id' => $providerId,
             'issuer_identity_id' => $issuerId,
+            'issuer_chain_json' => $issuerChain === [] ? null : json_encode($chainRecords, JSON_THROW_ON_ERROR),
             'certificate_der_b64' => base64_encode($identity->certificateDer),
             'certificate_sha256' => hash('sha256', $identity->certificateDer),
             'private_key_ciphertext' => $ciphertext,
@@ -80,7 +83,7 @@ final class IdentityRepository
             throw new RuntimeException('Invalid identity ID');
         }
         $result = $this->reader->query(
-            'SELECT log_id, identity_id, identity_role, project_uuid, provider_id, issuer_identity_id, certificate_der_b64, certificate_sha256, private_key_ciphertext WHERE message = ? AND identity_id = ? AND ISNULL(project_id) ORDER BY log_id DESC LIMIT 2',
+            'SELECT log_id, identity_id, identity_role, project_uuid, provider_id, issuer_identity_id, issuer_chain_json, certificate_der_b64, certificate_sha256, private_key_ciphertext WHERE message = ? AND identity_id = ? AND ISNULL(project_id) ORDER BY log_id DESC LIMIT 2',
             [self::MESSAGE, $id],
         );
         if ($result === false) {
@@ -114,11 +117,30 @@ final class IdentityRepository
         $issuerId = $row['issuer_identity_id'] ?? null;
         if ($projectUuid !== null) {
             ProviderRepository::assertId($providerId);
-            if (!is_string($issuerId) || preg_match('/^[0-9a-f]{32}$/D', $issuerId) !== 1) {
+            if (!is_string($issuerId) || preg_match('/^(?:[0-9a-f]{32}|[0-9a-f]{64})$/D', $issuerId) !== 1) {
                 throw new RuntimeException('Malformed project issuer reference');
             }
         }
-        return new StoredIdentity($id, $row['identity_role'], $der, $row['private_key_ciphertext'], $projectUuid, $providerId, $issuerId);
+        return new StoredIdentity($id, $row['identity_role'], $der, $row['private_key_ciphertext'], $projectUuid, $providerId, $issuerId,
+            self::decodeIssuerChain($issuerId, $row['issuer_chain_json'] ?? null));
+    }
+
+    public function externalValidator(): ExternalCertificateValidator { return new ExternalCertificateValidator($this->framework); }
+
+    /** Decode a public-only, pinned chain and enforce its issuer fingerprint reference. */
+    public static function decodeIssuerChain(?string $issuerId, mixed $json): array
+    {
+        if ($json === null) {
+            if ($issuerId !== null && strlen($issuerId) !== 32) { throw new RuntimeException('External issuer chain missing'); }
+            return [];
+        }
+        $records = is_string($json) ? json_decode($json, true, 8, JSON_THROW_ON_ERROR) : null;
+        if (!is_array($records) || !array_is_list($records) || count($records) < 1 || count($records) > 8) {
+            throw new RuntimeException('Invalid stored issuer chain');
+        }
+        $chain = array_map([ProviderRepository::class, 'certificateDer'], $records);
+        if ($issuerId !== hash('sha256', $chain[0])) { throw new RuntimeException('Stored issuer chain reference mismatch'); }
+        return $chain;
     }
 
     /** Read a chain certificate without selecting or decrypting its private key. */
@@ -166,11 +188,12 @@ final class IdentityRepository
         return $this->find($row['identity_id']);
     }
 
-    public function hasRole(string $role): bool
+    public function hasRole(string $role, bool $includeExternal = true): bool
     {
         $this->assertRole($role);
         $result = $this->reader->query(
-            'SELECT log_id WHERE message = ? AND identity_role = ? AND ISNULL(project_id) LIMIT 1',
+            'SELECT log_id WHERE message = ? AND identity_role = ? AND ISNULL(project_id)'
+                . ($includeExternal ? '' : ' AND ISNULL(issuer_chain_json)') . ' LIMIT 1',
             [self::MESSAGE, $role],
         );
         if ($result === false) {

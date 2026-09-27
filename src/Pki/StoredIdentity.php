@@ -19,6 +19,7 @@ final readonly class StoredIdentity
         public ?string $projectUuid,
         public ?string $providerId = null,
         public ?string $issuerId = null,
+        public array $issuerChain = [],
     ) {}
 
     public function privateKey(SecretProtector $protector): OpenSSLAsymmetricKey

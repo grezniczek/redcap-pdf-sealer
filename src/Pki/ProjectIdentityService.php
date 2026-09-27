@@ -46,9 +46,6 @@ final class ProjectIdentityService
         $providers = $this->identities->providers();
         $providerId = $binding?->providerId ?? $providers->defaultId();
         $provider = $providers->provider($providerId);
-        if ($provider['kind'] === 'external') {
-            throw new ProjectCertificateRequired('The assigned external CA requires a project signing certificate');
-        }
         if ($binding?->identityId !== null) {
             $identity = $this->identities->find($binding->identityId);
             if ($identity === null) {
@@ -56,6 +53,10 @@ final class ProjectIdentityService
             }
             $this->assertProjectIdentity($identity, $binding->uuid, $providerId);
             return $identity;
+        }
+
+        if ($provider['kind'] === 'external') {
+            throw new ProjectCertificateRequired('The assigned external CA requires a project signing certificate');
         }
 
         if ($this->health->inspectIssuance($provider['issuer_identity_id'], time())->status !== PkiHealth::Ready) {
@@ -147,8 +148,14 @@ final class ProjectIdentityService
 
     public function issuerCertificate(StoredIdentity $identity): string
     {
+        if ($identity->issuerChain !== []) { return $identity->issuerChain[0]; }
         if ($identity->issuerId === null) { throw new RuntimeException('Project issuer is missing'); }
         return $this->identities->publicCertificate($identity->issuerId, 'root');
+    }
+
+    public function issuerChain(StoredIdentity $identity): array
+    {
+        return $identity->issuerChain !== [] ? $identity->issuerChain : [$this->issuerCertificate($identity)];
     }
 
     private function assertProjectIdentity(StoredIdentity $identity, string $uuid, string $providerId, ?int $now = null): void
@@ -156,6 +163,13 @@ final class ProjectIdentityService
         if ($identity->role !== 'project' || $identity->projectUuid !== $uuid || $identity->providerId !== $providerId) {
             throw new RuntimeException('Project identity binding mismatch');
         }
+        $provider = $this->identities->providers()->provider($providerId);
+        if ($provider['kind'] === 'external') {
+            $this->identities->externalValidator()->validate($identity->certificateDer, $identity->issuerChain);
+            $identity->privateKey($this->protector);
+            return;
+        }
+        if ($identity->issuerChain !== []) { throw new RuntimeException('Internal identity has external provenance'); }
         $rootDer = $this->issuerCertificate($identity);
         $this->health->assertRootCertificate($rootDer, $now ?? time());
         $der = $identity->certificateDer;

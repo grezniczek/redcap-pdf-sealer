@@ -6,7 +6,7 @@ The seal identifies the issuing project and organization. It does not establish 
 
 ## Getting started
 
-Your REDCap administrator must initialize PDF Sealer's certificates before sealing can work. The module must also be enabled in your project and its **Apply a cryptographic document seal** operation assigned in the project's **External Modules PDF finalization settings**.
+Your REDCap administrator must initialize the built-in PKI or assign an external CA and complete project certificate enrollment before sealing can work. The module must also be enabled in your project and its **Apply a cryptographic document seal** operation assigned in the project's **External Modules PDF finalization settings**.
 
 **Enabling the module alone does not activate sealing.** Ask someone with access to those settings to assign the operation once, after any operations intended to change the PDF. A successful seal ends the pipeline. An earlier successful terminal operation can prevent sealing from being reached.
 
@@ -54,7 +54,7 @@ Contact your REDCap administrator with the project, relevant record/event if ava
 
 ## External CA assignments
 
-An administrator may assign a project to an external CA. The project status page shows the provider and **Awaiting signing certificate** until enrollment is completed. Local key generation and CSR download are available on the project status page. Certificate upload and activation will follow. An external assignment never silently switches to built-in issuance. A failed sealing operation can still leave an unsealed PDF available to REDCap, so review project Logging as well as the status page.
+An administrator may assign a project to an external CA. The project status page shows the provider and **Awaiting signing certificate** until enrollment is completed. Local key generation and CSR download are available on the project status page. Upload the returned certificate to validate, review, and activate it. An external assignment never silently switches to built-in issuance. A failed sealing operation can still leave an unsealed PDF available to REDCap, so review project Logging as well as the status page.
 
 ## CA assignment required
 
@@ -66,8 +66,18 @@ Until assignment, the sealing operation fails and project Logging records **PDF 
 
 After an administrator assigns an external CA, a project designer or administrator can open **PDF Sealer status** and select **Generate key and download CSR** under **External certificate enrollment**. The module creates a 3072-bit RSA key locally, encrypts it in REDCap, and downloads a public PEM certificate signing request (`.csr`). The subject uses the project's pseudonymous UUID, not its title or participant information.
 
-Send the CSR to the assigned CA through your institution's process. The private key is not downloadable, including by administrators. The CSR requests a non-CA certificate for digital/document signing; the CA controls the certificate it issues. Certificate upload and activation are not available yet, so generating a CSR does not enable sealing.
+Send the CSR to the assigned CA through your institution's process. The private key is not downloadable, including by administrators. The CSR requests a non-CA certificate for digital/document signing; the CA controls the certificate it issues. Generating a CSR alone does not enable sealing; the returned certificate must be validated and activated.
 
 Only one pending request is allowed. **Download CSR** retrieves the same request after refresh; retrying generation also returns that request instead of replacing its key. The page shows the request subject, file SHA-256, and creation time in your browser time zone and REDCap profile format.
 
 Use **Cancel pending request** only if you intend to discard it. After confirmation, the encrypted pending key is removed from active module storage; a returned certificate for that request cannot subsequently be activated. Backups can retain old data. Generate again to create a new key/CSR, and send the new CSR to the CA. Cancellation does not change an existing signing certificate or provider assignment.
+
+## Validate and activate the returned certificate
+
+Upload **one public PEM signing certificate** (maximum 64 KiB) under the pending request, then select **Validate and review certificate**. Do not upload a private key or a CA bundle. The full CA chain is taken from the provider assigned by your administrator.
+
+Review the subject, issuing CA, SHA-256 fingerprint, and validity dates. The subject may follow your CA's naming rules; the key must match the pending CSR. Select **Activate signing certificate** to use it for subsequent seals. The module rechecks the certificate, pending request, provider chain, and current signer before committing activation.
+
+Invalid, expired, not-yet-valid, wrong-key, or wrong-CA certificates are rejected without changing the pending request or current signer. A not-yet-valid certificate can be submitted again once valid. If another browser session canceled the request or changed the signer, refresh and review again.
+
+Activation consumes the pending request. If the project already has a signer, it remains usable while you prepare its replacement and switches only on successful activation. Existing PDFs are unchanged. The project page should then show a ready signing certificate; complete a new eConsent and verify its seal and project Logging.

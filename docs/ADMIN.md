@@ -68,9 +68,9 @@ Choose **No timestamp** or explicitly choose the **internal TSA** if initialized
 
 To assign a provider, choose a project by title or PID in the searchable selector and select the provider. The selector lists active projects with PDF Sealer enabled that have no provider binding, excluding pending issuance/enrollment as well as active signers. Successfully assigned projects disappear from the list immediately. The server still checks for assignments made after the page was loaded. After success, the confirmation names both the provider and project and clears the selections for another assignment. Failed requests retain your selections. PDF Sealer must be enabled there. Assignment reserves a project UUID; it does not issue a certificate or assign a PDF pipeline operation. A project with a different existing provider binding cannot be reassigned in this version. Registration does not change the installation default: unassigned projects use the built-in provider when initialized only if the explicit-assignment gate is off. An external-only setup requires explicit project assignments.
 
-**CSR preparation is available; external certificate upload and activation are not yet available.** An externally assigned project shows **Awaiting signing certificate**. Sealing reports `PROJECT_CERTIFICATE_REQUIRED` and does not issue a built-in certificate. REDCap's existing finalization failure behavior can still store/deliver the preceding unsealed PDF; this is not a delivery-blocking policy. Use a test project to explore registration, assignment, and CSR preparation until certificate activation is implemented. The built-in health summary and diagnostic continue to describe the built-in CA/TSA.
+**External enrollment supports CSR preparation, certificate review, and activation.** An externally assigned project shows **Awaiting signing certificate**. Until activation, sealing reports `PROJECT_CERTIFICATE_REQUIRED` and does not issue a built-in certificate. REDCap's existing finalization failure behavior can still store/deliver the preceding unsealed PDF; this is not a delivery-blocking policy. Use a test project to verify the full enrollment and sealing workflow before operational use. The built-in health summary and diagnostic continue to describe the built-in CA/TSA.
 
-Registration and assignment use authenticated CC-only AJAX and system-scoped audit records. No CA private key is requested or stored. Project designers and administrators can generate a local project key, download its CSR, and explicitly cancel a pending request on the project status page. Returned-certificate validation and activation are the next steps.
+Registration and assignment use authenticated CC-only AJAX and system-scoped audit records. No CA private key is requested or stored. Project designers and administrators can generate a local project key, download its CSR, and explicitly cancel a pending request on the project status page. They can then upload one PEM signing certificate, review its validated details, and activate it.
 
 ## Diagnostic: capability check and saved result
 
@@ -102,7 +102,7 @@ Configured recipients receive one summary rather than one email per certificate.
 
 The module declares the `certificate_expiry` Framework cron with a 24-hour interval. REDCap cron must be running, and the job must be registered/enabled. After adding this cron to an existing development version, refresh its cron registration; normal module enable/update registers it. A missing result or a result older than 48 hours is visibly flagged. Scheduling depends on REDCap cron availability, so the interval is not a guaranteed wall-clock delivery time.
 
-These are public-certificate date checks, not key, chain, revocation, or remote-service validation. They neither issue nor renew certificates. Arrange replacement before expiry; the current module does not yet provide renewal workflows.
+These are public-certificate date checks, not key, chain, revocation, or remote-service validation. They neither issue nor renew certificates. Arrange replacement before expiry; external projects can prepare and activate a replacement through enrollment; built-in renewal and automatic renewal are not yet available.
 
 ## Public certificates and trust
 
@@ -134,8 +134,18 @@ For implementation history, reproducible tests, acceptance evidence, and release
 
 ## Pending enrollment storage and recovery
 
-Pending enrollment is stored separately from active identities in system-scoped module settings, tied to the project UUID and provider. Its private key is encrypted with REDCap's installation-key protection; generation verifies an encryption/decryption round trip before saving. Include these settings and the installation encryption material in recoverable backups. Pending requests persist across refresh/restart and remain until explicit cancellation (or future activation); disabling a project/module does not intentionally discard them.
+Pending enrollment is stored separately from active identities in system-scoped module settings, tied to the project UUID and provider. Its private key is encrypted with REDCap's installation-key protection; generation verifies an encryption/decryption round trip before saving. Include these settings and the installation encryption material in recoverable backups. Pending requests persist across refresh/restart and remain until explicit cancellation (or activation); disabling a project/module does not intentionally discard them.
 
 Cancellation removes the encrypted pending key and CSR from active settings and retains only public audit identifiers/fingerprints. It cannot erase older backups or database recovery history. Restore keys and their related project/provider/CSR state consistently. A stale browser request cannot download or cancel a different, newer enrollment. Corrupt or mismatched pending storage is reported as unavailable and is not silently replaced.
 
-There is no project-key export, certificate activation, private-key import, automatic renewal, or cancellation-recovery UI in this slice. See the [project CSR workflow](PROJECT.md#generate-and-download-a-csr).
+There is no project-key export, private-key import, automatic renewal, or cancellation-recovery UI. See the [project CSR workflow](PROJECT.md#generate-and-download-a-csr).
+
+### External certificate acceptance and signing
+
+The returned certificate must match the pending RSA-3072 key, be currently valid and non-CA, and validate through the assigned provider's exact registered issuing CA and root. Key usage, when present, must permit digitalSignature or contentCommitment; extended key usage, when present, must include documentSigning (`1.3.6.1.5.5.7.3.36`). CA extended-purpose restrictions are also enforced. External subject naming may differ from the CSR subject. Unknown critical extensions and invalid paths are rejected by OpenSSL. This validates the configured chain; it does not check revocation or establish independent institutional trust.
+
+Only a single leaf PEM certificate (64 KiB maximum) is uploaded. Extra intermediates/bundles, DER/PKCS#12 files, and private keys are not accepted. The CC provider must already contain the complete intended CA chain. No certificate URLs are fetched. Not-yet-valid certificates leave the CSR pending and must be resubmitted later.
+
+Review is read-only. Activation atomically records the encrypted identity and its public CA chain, switches the project binding, consumes the pending request, and records the actor/fingerprints. A replacement requires the reviewed active identity to remain unchanged. Earlier identity records, including encrypted keys, remain in the existing append-only identity history; cancellation only removes pending settings. Expiry checks follow the latest active signer and its pinned chain.
+
+Subsequent seals embed the project certificate and complete pinned CA chain. Timestamping follows that provider's CC policy, including a separately issued internal TSA chain if selected. External signing does not require the built-in CA's private key. The CC diagnostic still exercises the built-in CA/TSA; use an actual project workflow to verify external enrollment and signing.

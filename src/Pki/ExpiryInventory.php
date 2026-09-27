@@ -71,10 +71,14 @@ final class ExpiryInventory
         // A project's recorded issuer can differ from its provider's current issuance identity.
         $this->loadCertificates($wanted, true);
         foreach ($wanted as $item) {
-            if (isset($item['issuer'])) { $add($item['issuer'], 'root'); }
+            if (!empty($item['issuer_chain'])) {
+                foreach ($item['issuer_chain'] as $der) {
+                    $wanted[hash('sha256', $der)] = ['role' => 'ca', 'pid' => null, 'der' => $der];
+                }
+            } elseif (isset($item['issuer'])) { $add($item['issuer'], 'root'); }
         }
         $this->loadCertificates($wanted, false);
-        foreach ($wanted as &$item) { unset($item['issuer']); }
+        foreach ($wanted as &$item) { unset($item['issuer'], $item['issuer_chain']); }
         return $wanted;
     }
 
@@ -82,7 +86,7 @@ final class ExpiryInventory
     {
         $ids = array_keys(array_filter($wanted, static fn(array $item): bool => $item['der'] === null));
         foreach (array_chunk($ids, 200) as $batch) {
-            $rows = $this->query('SELECT identity_id, identity_role, certificate_der_b64, certificate_sha256, issuer_identity_id WHERE message = ? AND ISNULL(project_id) AND identity_id IN ('
+            $rows = $this->query('SELECT identity_id, identity_role, certificate_der_b64, certificate_sha256, issuer_identity_id, issuer_chain_json WHERE message = ? AND ISNULL(project_id) AND identity_id IN ('
                 . implode(',', array_fill(0, count($batch), '?')) . ')', ['pki_identity', ...$batch]);
             $seen = [];
             while ($row = $rows->fetch_assoc()) {
@@ -92,6 +96,7 @@ final class ExpiryInventory
                 $seen[$id] = true;
                 if ($withIssuers && $wanted[$id]['role'] === 'project') {
                     $wanted[$id]['issuer'] = $row['issuer_identity_id'] ?? '';
+                    $wanted[$id]['issuer_chain'] = IdentityRepository::decodeIssuerChain($row['issuer_identity_id'] ?? null, $row['issuer_chain_json'] ?? null);
                 }
                 $der = is_string($row['certificate_der_b64'] ?? null) ? base64_decode($row['certificate_der_b64'], true) : false;
                 if ($der !== false && is_string($row['certificate_sha256'] ?? null)

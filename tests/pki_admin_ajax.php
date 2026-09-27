@@ -224,7 +224,7 @@ namespace {
     }
 
     $before = [$framework->settings, $framework->queries];
-    foreach (['generate_project_csr', 'download_project_csr', 'cancel_project_csr'] as $action) {
+    foreach (['generate_project_csr', 'download_project_csr', 'cancel_project_csr', 'review_project_certificate', 'activate_project_certificate'] as $action) {
         check(in_array($action, $config['auth-ajax-actions'], true) && !in_array($action, $config['no-auth-ajax-actions'], true), 'CSR action exposed without authentication');
         foreach ([[null, true, true, 461, 461, [461]], ['user', false, false, 461, 461, [461]],
             ['admin', true, true, null, null, [461]], ['admin', true, true, 461, 462, [461,462]],

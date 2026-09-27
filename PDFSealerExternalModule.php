@@ -88,7 +88,7 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
         if ($action === 'download_public_root_certificate') {
             return $this->downloadPublicRootCertificate($payload);
         }
-        if (in_array($action, ['generate_project_csr', 'download_project_csr', 'cancel_project_csr'], true)) {
+        if (in_array($action, ['generate_project_csr', 'download_project_csr', 'cancel_project_csr', 'review_project_certificate', 'activate_project_certificate'], true)) {
             return $this->projectEnrollment($action, $payload, $project_id);
         }
         if (!$this->framework->isSuperUser()
@@ -127,9 +127,16 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             || !in_array($pid, array_map('intval', $this->framework->getProjectsWithModuleEnabled()), true)) {
             throw new \RuntimeException($this->framework->tt('project_status_access_denied'));
         }
+        $certificateAction = in_array($action, ['review_project_certificate', 'activate_project_certificate'], true);
+        $expectedFields = $certificateAction ? ($action === 'review_project_certificate' ? 2 : 4) : 1;
         if (($action === 'generate_project_csr' && $payload !== null)
-            || ($action !== 'generate_project_csr' && (!is_array($payload) || count($payload) !== 1
-                || !is_string($payload['id'] ?? null) || preg_match('/^[a-f0-9]{32}$/D', $payload['id']) !== 1))) {
+            || ($action !== 'generate_project_csr' && (!is_array($payload) || count($payload) !== $expectedFields
+                || !is_string($payload['id'] ?? null) || preg_match('/^[a-f0-9]{32}$/D', $payload['id']) !== 1))
+            || ($certificateAction && (!is_string($payload['pem'] ?? null) || strlen($payload['pem']) > 65536))
+            || ($action === 'activate_project_certificate' && (!is_string($payload['review_hash'] ?? null)
+                || preg_match('/^[a-f0-9]{64}$/D', $payload['review_hash']) !== 1 || !array_key_exists('active_identity_id', $payload)
+                || ($payload['active_identity_id'] !== null && (!is_string($payload['active_identity_id'])
+                    || preg_match('/^[a-f0-9]{32}$/D', $payload['active_identity_id']) !== 1))))) {
             return ['ok' => false, 'message' => $this->framework->tt('pki_invalid_request')];
         }
         try {
@@ -140,10 +147,15 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             );
             if ($action === 'generate_project_csr') { return $service->generate($pid); }
             if ($action === 'download_project_csr') { return $service->download($pid, $payload['id']); }
+            if ($action === 'review_project_certificate') { return $service->reviewCertificate($pid, $payload['id'], $payload['pem']); }
+            if ($action === 'activate_project_certificate') {
+                $service->activateCertificate($pid, $payload['id'], $payload['pem'], $payload['review_hash'], $payload['active_identity_id']);
+                return ['ok' => true];
+            }
             $service->cancel($pid, $payload['id']);
             return ['ok' => true];
         } catch (\Throwable) {
-            return ['ok' => false, 'message' => $this->framework->tt('enrollment_failed')];
+            return ['ok' => false, 'message' => $this->framework->tt($certificateAction ? 'enrollment_certificate_failed' : 'enrollment_failed')];
         }
     }
 

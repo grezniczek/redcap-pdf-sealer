@@ -15,7 +15,12 @@ final class Rows {
 }
 final class Framework {
     public array $settings = [], $logs = [], $paths = [];
+    public function getProjectId(): int { return 104; }
+    public function getModuleInstance(): object { return (object)['PREFIX'=>'pdf_sealer']; }
+    public function prefixSettingKey(string $key): string { return $key; }
+    public function getQueryLogsSql(string $sql): string { return $sql; }
     public ?array $snapshot = null;
+    public bool $allowIdentityReads = false;
     public bool $failAudit = false, $failCatalog = false, $failEnrollment = false;
     public function createTempFile(): string { return $this->paths[] = tempnam('/tmp', 'pdf-sealer-external-'); }
     public function getSystemSetting(string $key): mixed { return $this->settings[$key] ?? null; }
@@ -41,11 +46,24 @@ final class Framework {
         return count($this->logs);
     }
     public function queryLogs(string $sql, array $params): Rows {
-        check(!str_contains($sql, 'private_key'), 'Unexpected secret read');
+        check($this->allowIdentityReads || !str_contains($sql, 'private_key'), 'Unexpected secret read');
         $rows = array_values(array_filter($this->logs, fn($row) => $row['message'] === $params[0]));
         if (str_contains($sql, "NOT LIKE 'external-%'")) $rows = array_values(array_filter($rows, fn($r) => !str_starts_with($r['provider_id'] ?? '', 'external-')));
-        if (str_contains($sql, 'redcap_pid = ?')) $rows = array_values(array_filter($rows, fn($r) => $r['redcap_pid'] === $params[1]));
-        if (str_contains($sql, 'MAX(log_id)')) return new Rows(array_map(fn($r) => ['latest_id'=>$r['log_id']], $rows));
+        if (str_contains($sql, 'ISNULL(issuer_chain_json)')) $rows = array_values(array_filter($rows, fn($r) => ($r['issuer_chain_json'] ?? null) === null));
+        $index = 1;
+        foreach (['identity_id','identity_role','project_uuid','redcap_pid'] as $field) {
+            if (str_contains($sql, $field . ' = ?')) {
+                $value = $params[$index++];
+                $rows = array_values(array_filter($rows, fn($r) => ($r[$field] ?? null) === $value));
+            }
+        }
+        foreach (['identity_id','log_id'] as $field) {
+            if (str_contains($sql, $field . ' IN (')) $rows = array_values(array_filter($rows, fn($r) => in_array($r[$field] ?? null, array_slice($params,1),true)));
+        }
+        if (str_contains($sql, 'MAX(log_id)')) {
+            $latest = []; foreach ($rows as $row) $latest[$row['redcap_pid']] = ['latest_id'=>$row['log_id']];
+            return new Rows(array_values($latest));
+        }
         if (str_contains($sql, 'ORDER BY log_id DESC')) $rows = array_reverse($rows);
         return new Rows($rows);
     }

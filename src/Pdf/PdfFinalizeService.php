@@ -78,13 +78,15 @@ final class PdfFinalizeService
                 CertificateIssuer::forFramework($this->framework), $health, new ProjectIssueLock(),
             );
             $project = $projects->getOrIssue((int) $pid);
-            $rootCert = $projects->issuerCertificate($project);
+            $issuerChain = $projects->issuerChain($project);
             $provider = $providers->provider($project->providerId);
             $timestampSettings = $providers->timestampSettings($project->providerId);
             $mode = $timestampSettings->mode;
             $fallback = $timestampSettings->fallback;
-            $issuanceHealth = $health->inspectIssuance($provider['issuer_identity_id'], time());
-            if ($issuanceHealth->status !== PkiHealth::Ready) { $this->alarm($issuanceHealth); }
+            if ($provider['kind'] === 'internal') {
+                $issuanceHealth = $health->inspectIssuance($provider['issuer_identity_id'], time());
+                if ($issuanceHealth->status !== PkiHealth::Ready) { $this->alarm($issuanceHealth); }
+            }
 
             $certificate = openssl_x509_parse(\DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate::derToPem($project->certificateDer));
             if (!is_array($certificate) || !is_string($certificate['serialNumberHex'] ?? null)) {
@@ -97,11 +99,11 @@ final class PdfFinalizeService
             $key = $project->privateKey($protector);
             $now = self::requestTime();
             if ($mode === 'none') {
-                $sealed = $this->builder->seal($source, $project->certificateDer, $key, [$rootCert], $now);
+                $sealed = $this->builder->seal($source, $project->certificateDer, $key, $issuerChain, $now);
                 $result = new PdfSealResult($sealed, 'pades-b-b');
             } else {
                 $result = $this->sealWithFallback(
-                    $source, $project->certificateDer, $key, $rootCert,
+                    $source, $project->certificateDer, $key, $issuerChain,
                     $identities, $protector, $health, $provider['timestamp_source'], $fallback, $now,
                 );
             }
@@ -197,7 +199,7 @@ final class PdfFinalizeService
         string $source,
         string $projectCert,
         \OpenSSLAsymmetricKey $key,
-        string $rootCert,
+        array $issuerChain,
         IdentityRepository $identities,
         SecretProtector $protector,
         PkiHealthService $health,
@@ -220,13 +222,13 @@ final class PdfFinalizeService
                 new InternalTsaService($policy),
                 new TsaIdentity($tsa->certificateDer, $tsa->privateKey($protector), [$tsaRoot]),
             );
-            return $this->builder->sealTimestamped($source, $projectCert, $key, [$rootCert], $now, $provider, $now);
+            return $this->builder->sealTimestamped($source, $projectCert, $key, $issuerChain, $now, $provider, $now);
         } catch (Throwable $e) {
             if (!$fallback) {
                 throw $e;
             }
             error_log('PDF Sealer timestamp failed; trying B-B: ' . get_class($e));
-            $sealed = $this->builder->seal($source, $projectCert, $key, [$rootCert], $now);
+            $sealed = $this->builder->seal($source, $projectCert, $key, $issuerChain, $now);
             return new PdfSealResult($sealed, 'pades-b-b');
         }
     }

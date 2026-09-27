@@ -22,7 +22,7 @@ The project UUID is pseudonymous and stable within the stored project binding. T
 
 Explicit administrator initialization creates the root and TSA together. It refuses to overwrite existing or orphaned PKI material. Health inspection never silently creates replacement keys.
 
-Initialization also creates the built-in CA provider and internal timestamp source. The CA provider records its issuing identity and timestamp policy; the source separately records its TSA identity, issuing certificate, and policy OID. Built-in sealing is available; external providers support assignment and local CSR preparation, while external certificate activation and external timestamp services remain planned.
+Initialization also creates the built-in CA provider and internal timestamp source. The CA provider records its issuing identity and timestamp policy; the source separately records its TSA identity, issuing certificate, and policy OID. Built-in sealing is available; external providers support assignment and local CSR preparation, including certificate activation and external-chain sealing; external timestamp services remain planned.
 
 A project's UUID, provider assignment, and certificate binding are established on first sealing use. Subsequent operations reuse the identity and its recorded issuing certificate. Changing the default provider does not reassign existing projects. Locks serialize initialization and project issuance to prevent competing requests from creating conflicting active identities. Opening either status page is read-only with respect to certificate issuance.
 
@@ -74,7 +74,7 @@ External provider configuration stores only public CA certificates (ordered issu
 
 External chains are published on the trust page and included in expiry monitoring; shared external certificates are deduplicated by SHA-256 in that inventory. Provider registration is serialized with built-in initialization. Project assignment uses the same project lock as local issuance and atomically stores the UUID/provider binding and administrative audit. External-only pending bindings do not prevent later built-in initialization.
 
-Assigned external projects can prepare a local key/CSR but cannot seal yet: certificate activation and chain inclusion in signatures are a subsequent slice. Current assignments are immutable; renewal, provider transitions, and provider retirement remain future work.
+Assigned external projects can prepare a local key/CSR, activate a validated returned certificate, and seal using its pinned CA chain. Existing provider assignments remain immutable; built-in renewal, provider transitions, and provider retirement remain future work.
 
 ## Explicit-assignment gate
 
@@ -90,4 +90,12 @@ A required assignment returns an explicit sealing failure without creating a UUI
 
 Keys are RSA 3072; CSRs use SHA-256 and request `CA:false`, digitalSignature, and documentSigning (`1.3.6.1.5.5.7.3.36`). The subject contains only `CN=REDCap Project <UUID>`. No CA key is involved and no certificate serial is allocated. OpenSSL configuration uses Framework temporary files, which are removed; private keys are never written there. The key stays encrypted in durable settings, with no download endpoint. Page display and repeat downloads do not decrypt it.
 
-Pending enrollment is retained until explicitly canceled or consumed by future activation. Cancellation transactionally removes it from active settings while preserving public audit metadata, leaving any active signer unchanged. Backups/history may retain encrypted copies. Future activation must recheck the exact pending ID, key match, provider chain, validity, and signing profile under the same project lock; returned certificates and imported keys are not accepted yet.
+Pending enrollment is retained until explicitly canceled or consumed by activation. Cancellation transactionally removes it from active settings while preserving public audit metadata, leaving any active signer unchanged. Backups/history may retain encrypted copies. Activation rechecks the exact pending ID, key match, provider chain, validity, and signing profile under the same project lock. It also verifies the reviewed certificate/chain hash and expected active identity. Imported private keys are not accepted yet.
+
+## External signer activation and chain provenance
+
+External project identities store their exact issuing chain in `issuer_chain_json` alongside the encrypted project key and certificate. `issuer_identity_id` is the issuing certificate's SHA-256 for external identities; built-in identities retain their internal issuer identity ID. Chain records are integrity-checked and carried with the immutable identity, rather than substituted from current provider configuration when signing.
+
+Validation checks the leaf against the pending key/CSR and the entire registered path with OpenSSL, plus the module's RSA/document-signing profile. The project UUID/provider binding establishes ownership; the external CA may change the subject. Certificate review does not persist the upload. Activation repeats validation under the project lock and transactionally appends the identity, replaces the expected binding, removes pending storage, and audits activation. Both first activation and manual replacement use this path.
+
+External sealing validates the stored leaf and pinned chain on use and includes the entire chain in CMS. Built-in issuer-key health is only relevant to built-in issuance. Timestamp validation continues against the separately selected TSA source. Expiry inventory includes the active external signer and pinned issuing certificates, without reading private-key fields.
