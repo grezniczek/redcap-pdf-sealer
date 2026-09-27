@@ -80,6 +80,17 @@ try {
     // enabled projects where the superuser is not a project member.
     $enabledPids = $framework->getProjectsWithModuleEnabled();
     if ($enabledPids !== []) {
+        // Any binding (including pending issuance/enrollment) already fixes the provider.
+        $bindings = (new \DE\RUB\PDFSealerExternalModule\Pki\PrimaryLogReader($framework))->query(
+            'SELECT redcap_pid WHERE message = ? AND ISNULL(project_id) GROUP BY redcap_pid',
+            ['project_identity_binding'],
+        );
+        if ($bindings === false) { throw new RuntimeException('Project bindings unavailable'); }
+        $assignedPids = [];
+        while ($binding = $bindings->fetch_assoc()) { $assignedPids[] = $binding['redcap_pid']; }
+        $enabledPids = array_values(array_diff($enabledPids, $assignedPids));
+    }
+    if ($enabledPids !== []) {
         $rows = $framework->query('SELECT project_id, app_title FROM redcap_projects WHERE project_id IN ('
             . implode(',', array_fill(0, count($enabledPids), '?')) . ') ORDER BY app_title, project_id', $enabledPids);
         if ($rows === false) { throw new RuntimeException('Project selector unavailable'); }
@@ -234,7 +245,7 @@ $framework->tt_transferToJavascriptModuleObject('provider_assigned');
                     <label for="provider-pid"><?= $escape($framework->tt('provider_pid')) ?></label>
                     <div class="mb-3">
                         <select class="form-select form-select-sm" id="provider-pid" required>
-                            <option value="" selected><?= $escape($framework->tt('provider_choose_project')) ?></option>
+                            <option value="" selected><?= $escape($framework->tt($assignmentProjects === [] ? 'provider_no_unassigned_projects' : 'provider_choose_project')) ?></option>
                             <?php foreach ($assignmentProjects as $project): ?>
                                 <option value="<?= $escape($project['project_id']) ?>"><?= $escape('(' . $project['project_id'] . ') ' . $project['app_title']) ?></option>
                             <?php endforeach; ?>
@@ -463,6 +474,10 @@ $framework->tt_transferToJavascriptModuleObject('provider_assigned');
                 if (response?.ok && action === 'assign') {
                     message.textContent = module.tt('provider_assigned', assignedProviderName, assignedProjectName);
                     form.reset();
+                    assignmentProject.find('option').filter(function () { return this.value === String(payload.pid); }).remove();
+                    if (assignmentProject[0].options.length === 1) {
+                        assignmentProject[0].options[0].textContent = <?= json_encode($framework->tt('provider_no_unassigned_projects'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+                    }
                     assignmentProject.trigger('change');
                 }
                 message.hidden = false;
@@ -472,8 +487,8 @@ $framework->tt_transferToJavascriptModuleObject('provider_assigned');
                 message.textContent = <?= json_encode($framework->tt('provider_request_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
                 message.hidden = false;
             } finally {
-                fields.disabled = false;
-                if (action === 'assign') assignmentProject.prop('disabled', false);
+                fields.disabled = action === 'assign' && assignmentProject[0].options.length === 1;
+                if (action === 'assign') assignmentProject.prop('disabled', fields.disabled);
             }
         });
     });
