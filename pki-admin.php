@@ -364,6 +364,19 @@ $framework->initializeJavascriptModuleObject();
     const serverEpoch = <?= time() ?>;
     const snapshotCard = document.getElementById('pdf-sealer-diagnostic-snapshot');
     const cacheMessage = document.getElementById('pdf-sealer-diagnostic-cache-message');
+    const diagnosticDateTimeFormat = <?= json_encode(\DateTimeRC::get_user_format_full(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    const formatDiagnosticTime = date => {
+        const [dateFormat, clockFormat] = diagnosticDateTimeFormat.split('_');
+        const pad = value => String(value).padStart(2, '0');
+        const parts = {Y: String(date.getFullYear()).padStart(4, '0'), M: pad(date.getMonth() + 1), D: pad(date.getDate())};
+        const hours = date.getHours();
+        const clock = (clockFormat === '12' ? hours % 12 || 12 : pad(hours))
+            + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds())
+            + (clockFormat === '12' ? (hours >= 12 ? 'pm' : 'am') : '');
+        const zone = new Intl.DateTimeFormat(undefined, {timeZoneName: 'short'})
+            .formatToParts(date).find(part => part.type === 'timeZoneName').value;
+        return dateFormat.replace(/[YMD]/g, part => parts[part]) + ' ' + clock + ' ' + zone;
+    };
     const renderSnapshot = () => {
         if (!snapshot) return;
         const seconds = serverEpoch + (Date.now() - loadedAt) / 1000 - snapshot.completed_at;
@@ -374,10 +387,10 @@ $framework->initializeJavascriptModuleObject();
         snapshotCard.className = 'pdf-sealer-card pdf-sealer-snapshot ' + tint;
         document.getElementById('pdf-sealer-diagnostic-age').textContent = future ? snapshotText.clock_warning
             : days === 0 ? snapshotText.recent : days === 1 ? snapshotText.one_day : snapshotText.days_ago.replace('{days}', days);
-        const date = new Date(snapshot.completed_at * 1000).toISOString();
+        const date = new Date(snapshot.completed_at * 1000);
         const timeElement = document.getElementById('pdf-sealer-diagnostic-time');
-        timeElement.dateTime = date;
-        timeElement.textContent = date.replace('T', ' ').replace('.000Z', ' UTC');
+        timeElement.dateTime = date.toISOString();
+        timeElement.textContent = formatDiagnosticTime(date);
         document.getElementById('pdf-sealer-diagnostic-outcome').textContent = snapshot.passed ? diagnosticText.complete : diagnosticText.incomplete;
         diagnosticResults.querySelectorAll('[data-diagnostic-check]').forEach(cell => {
             const status = snapshot.checks[cell.dataset.diagnosticCheck];
