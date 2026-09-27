@@ -11,7 +11,6 @@ namespace ExternalModules {
 
 namespace {
     use DE\RUB\PDFSealerExternalModule\PDFSealerExternalModule;
-    use DE\RUB\PDFSealerExternalModule\Timestamp\TimestampSettings;
 
     require dirname(__DIR__) . '/PDFSealerExternalModule.php';
 
@@ -54,6 +53,8 @@ namespace {
             return true;
         }
 
+        public function getModuleInstance(): object { return (object) ['PREFIX' => 'pdf_sealer']; }
+        public function prefixSettingKey(string $key): string { return $key; }
         public function isSuperUser(): bool { return $this->superuser; }
         public function getProjectId(): ?int { return $this->projectId; }
         public function tt(string $key): string { return $key; }
@@ -66,7 +67,21 @@ namespace {
         }
     }
 
+    final class SettingResult
+    {
+        public function __construct(private ?array $row) {}
+        public function fetch_assoc(): ?array { $row = $this->row; $this->row = null; return $row; }
+    }
+    function db_query(string $sql, array $params, mixed ...$rest): SettingResult
+    {
+        global $framework;
+        check(str_contains($sql, 's.project_id IS NULL') && $rest[2] === true, 'Settings not read from primary/system scope');
+        $value = $framework->settings[$params[1]] ?? null;
+        return new SettingResult($value === null ? null : ['value' => $value, 'type' => 'string']);
+    }
     $framework = new FakeFramework();
+    $providers = new \DE\RUB\PDFSealerExternalModule\Pki\ProviderRepository($framework);
+    $providers->initialize(str_repeat('a', 32), str_repeat('b', 32));
     $module = new PDFSealerExternalModule();
     $module->framework = $framework;
 
@@ -99,28 +114,12 @@ namespace {
     check(in_array('send_test_alarm', $config['auth-ajax-actions'], true)
         && !in_array('send_test_alarm', $config['no-auth-ajax-actions'], true), 'Test alarm is not authenticated');
 
-    $defaults = TimestampSettings::fromStored(null, null);
-    check($defaults->mode === 'internal' && $defaults->fallback, 'Default timestamp behavior changed');
-    foreach (['', '1', 'true'] as $value) {
-        check(TimestampSettings::fromStored('internal', $value)->fallback, 'Legacy enabled fallback changed');
-    }
-    foreach (['0', 'false'] as $value) {
-        check(!TimestampSettings::fromStored('none', $value)->fallback, 'Legacy disabled fallback changed');
-    }
-    foreach ([['external', '1'], ['', '1'], ['internal', true], ['internal', 'bad']] as [$mode, $fallback]) {
-        try {
-            TimestampSettings::fromStored($mode, $fallback);
-            throw new \LogicException('Invalid stored timestamp setting accepted');
-        } catch (\RuntimeException) {}
-    }
     foreach (['internal', 'none'] as $mode) {
         foreach ([false, true] as $fallback) {
             $payload = ['timestamp_mode' => $mode, 'bb_fallback' => $fallback];
             $result = $module->redcap_module_ajax('save_timestamp_settings', $payload, null);
             check($result === ['ok' => true] + $payload, 'Timestamp choices not returned');
-            check($framework->settings['timestamp_mode'] === $mode
-                && $framework->settings['bb_fallback'] === ($fallback ? '1' : '0'), 'Wrong stored setting types');
-            $parsed = TimestampSettings::fromStored($framework->settings['timestamp_mode'], $framework->settings['bb_fallback']);
+            $parsed = $providers->timestampSettings('builtin-ca');
             check($parsed->mode === $mode && $parsed->fallback === $fallback, 'Saved settings differ from sealing interpretation');
             check($framework->transaction === null, 'Settings transaction left open');
         }
@@ -134,7 +133,7 @@ namespace {
         check($result === ['ok' => false, 'message' => 'timestamp_settings_invalid'], 'Malformed payload was accepted');
     }
     check([$framework->settings, $framework->queries] === $before, 'Invalid payload started a transaction or changed settings');
-    foreach (['timestamp_mode', 'bb_fallback'] as $key) {
+    foreach (['ca_provider_builtin-ca'] as $key) {
         $framework->failKey = $key;
         $result = $module->redcap_module_ajax('save_timestamp_settings', ['timestamp_mode' => 'internal', 'bb_fallback' => false], null);
         check($result === ['ok' => false, 'message' => 'timestamp_settings_save_failed'], 'Write failure not reported');

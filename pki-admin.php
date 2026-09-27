@@ -13,7 +13,6 @@ use DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationService;
 use DE\RUB\PDFSealerExternalModule\Pki\PrimarySystemSettingReader;
 use DE\RUB\PDFSealerExternalModule\Pki\ProjectBindingRepository;
 use DE\RUB\PDFSealerExternalModule\Pki\SecretProtector;
-use DE\RUB\PDFSealerExternalModule\Timestamp\TimestampSettings;
 
 /** @var \DE\RUB\PDFSealerExternalModule\PDFSealerExternalModule $module */
 $framework = $module->framework;
@@ -56,7 +55,7 @@ $settings = new PrimarySystemSettingReader($framework);
 $organization = $settings->get('organization');
 $timestampSettings = null;
 try {
-    $timestampSettings = TimestampSettings::fromStored($settings->get('timestamp_mode'), $settings->get('bb_fallback'));
+    $timestampSettings = $identities->providers()->timestampSettings(\DE\RUB\PDFSealerExternalModule\Pki\ProviderRepository::BUILTIN_CA);
 } catch (Throwable) {
     // Show an explicit unknown state; do not silently replace invalid stored settings with defaults.
 }

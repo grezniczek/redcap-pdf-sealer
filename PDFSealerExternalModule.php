@@ -152,9 +152,8 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
                 throw new \RuntimeException('Could not start settings transaction');
             }
             $started = true;
-            $this->framework->setSystemSetting('timestamp_mode', $payload['timestamp_mode']);
-            // Keep string storage compatible with the primary-connection settings reader.
-            $this->framework->setSystemSetting('bb_fallback', $payload['bb_fallback'] ? '1' : '0');
+            (new \DE\RUB\PDFSealerExternalModule\Pki\ProviderRepository($this->framework))
+                ->saveBuiltinTimestamp($payload['timestamp_mode'], $payload['bb_fallback']);
             if ($this->framework->query('COMMIT', []) === false) {
                 throw new \RuntimeException('Could not commit settings transaction');
             }

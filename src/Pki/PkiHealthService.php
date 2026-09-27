@@ -50,7 +50,7 @@ final class PkiHealthService
             if ($tsa === null || $tsa->role !== 'tsa') {
                 return new PkiHealthReport(PkiHealth::Degraded, 'TSA_RECORD_MISSING', $tsaId);
             }
-            $this->assertTsa($tsa, $root, $now);
+            $this->assertTsa($tsa, $root->certificateDer, $now);
         } catch (Throwable $e) {
             return new PkiHealthReport(PkiHealth::Degraded, 'TSA_IDENTITY_INVALID', $tsaId ?? null);
         }
@@ -58,9 +58,42 @@ final class PkiHealthService
         return new PkiHealthReport(PkiHealth::Ready);
     }
 
+    public function inspectIssuance(string $rootId, int $now): PkiHealthReport
+    {
+        try {
+            $root = $this->identities->find($rootId);
+            if ($root === null || $root->role !== 'root') { throw new RuntimeException('Issuer unavailable'); }
+            $this->assertRoot($root, $now);
+            return new PkiHealthReport(PkiHealth::Ready);
+        } catch (Throwable) {
+            return new PkiHealthReport(PkiHealth::Broken, 'ROOT_IDENTITY_INVALID', $rootId);
+        }
+    }
+
+    public function inspectTimestamp(string $sourceId, int $now): PkiHealthReport
+    {
+        try {
+            $source = $this->identities->providers()->source($sourceId);
+            $rootDer = $this->identities->publicCertificate($source['issuer_identity_id'], 'root');
+            $this->assertRootCertificate($rootDer, $now);
+            $tsa = $this->identities->find($source['identity_id']);
+            if ($tsa === null || $tsa->role !== 'tsa') { throw new RuntimeException('TSA unavailable'); }
+            $this->assertTsa($tsa, $rootDer, $now);
+            return new PkiHealthReport(PkiHealth::Ready);
+        } catch (Throwable) {
+            return new PkiHealthReport(PkiHealth::Degraded, 'TSA_IDENTITY_INVALID', $source['identity_id'] ?? null);
+        }
+    }
+
     private function assertRoot(StoredIdentity $root, int $now): void
     {
-        $der = $root->certificateDer;
+        $this->assertRootCertificate($root->certificateDer, $now);
+        $key = $root->privateKey($this->protector);
+        unset($key);
+    }
+
+    public function assertRootCertificate(string $der, int $now): void
+    {
         $this->certificate->assertValidAt($der, $now);
         if (!$this->certificate->isCertificateAuthority($der)) {
             throw new RuntimeException('Root certificate is not a CA');
@@ -79,8 +112,6 @@ final class PkiHealthService
             || openssl_x509_verify(Certificate::derToPem($der), $publicKey) !== 1) {
             throw new RuntimeException('Root certificate is not self-signed');
         }
-        $key = $root->privateKey($this->protector);
-        unset($key);
     }
 
     private function isRsa3072(OpenSSLAsymmetricKey $key): bool
@@ -89,7 +120,7 @@ final class PkiHealthService
         return is_array($details) && $details['type'] === OPENSSL_KEYTYPE_RSA && $details['bits'] === 3072;
     }
 
-    private function assertTsa(StoredIdentity $tsa, StoredIdentity $root, int $now): void
+    private function assertTsa(StoredIdentity $tsa, string $rootDer, int $now): void
     {
         $der = $tsa->certificateDer;
         $this->certificate->assertValidAt($der, $now);
@@ -107,8 +138,8 @@ final class PkiHealthService
         }
         $this->certificate->assertUsableForSigning($der);
         $tsaFields = $this->certificate->fields($der);
-        $rootFields = $this->certificate->fields($root->certificateDer);
-        $rootPublic = openssl_pkey_get_public(Certificate::derToPem($root->certificateDer));
+        $rootFields = $this->certificate->fields($rootDer);
+        $rootPublic = openssl_pkey_get_public(Certificate::derToPem($rootDer));
         $tsaPublic = openssl_pkey_get_public(Certificate::derToPem($der));
         if (!$rootPublic instanceof OpenSSLAsymmetricKey || !$tsaPublic instanceof OpenSSLAsymmetricKey
             || !$this->isRsa3072($tsaPublic) || $tsaFields['issuer'] !== $rootFields['subject']

@@ -26,34 +26,30 @@ final class ProjectIdentityService
     {
         ProjectBindingRepository::assertPid($pid);
         return $this->lock->withLock($pid, function () use ($pid): StoredIdentity {
-            $status = $this->health->inspect(time())->status;
-            if ($status !== PkiHealth::Ready && $status !== PkiHealth::Degraded) {
-                throw new RuntimeException('Root PKI is not usable for project issuance');
-            }
-            $rootId = $this->identities->activeId('root');
-            $root = $rootId === null ? null : $this->identities->find($rootId);
-            if ($root === null || $root->role !== 'root') {
-                throw new RuntimeException('Active root identity is missing');
-            }
-            $rootCertificate = openssl_x509_parse(Certificate::derToPem($root->certificateDer));
-            $organization = $rootCertificate['subject']['O'] ?? null;
-            if (!is_string($organization) || $organization === '') {
-                throw new RuntimeException('Active root organization is missing');
-            }
-
+            $providers = $this->identities->providers();
             $binding = $this->bindings->find($pid);
-            if ($binding === null) {
-                $uuid = $this->issuer->newProjectUuid();
-                $this->bindings->bindUuid($pid, $uuid);
-                $binding = new ProjectBinding($uuid, null);
-            }
-            if ($binding->identityId !== null) {
+            $providerId = $binding?->providerId ?? $providers->defaultId();
+            $provider = $providers->provider($providerId);
+            if ($binding?->identityId !== null) {
                 $identity = $this->identities->find($binding->identityId);
                 if ($identity === null) {
                     throw new RuntimeException('Active project identity is missing');
                 }
-                $this->assertProjectIdentity($identity, $binding->uuid, $root);
+                $this->assertProjectIdentity($identity, $binding->uuid, $providerId);
                 return $identity;
+            }
+
+            if ($this->health->inspectIssuance($provider['issuer_identity_id'], time())->status !== PkiHealth::Ready) {
+                throw new RuntimeException('Root PKI is not usable for project issuance');
+            }
+            $root = $this->identities->find($provider['issuer_identity_id']);
+            $rootCertificate = openssl_x509_parse(Certificate::derToPem($root->certificateDer));
+            $organization = $rootCertificate['subject']['O'] ?? null;
+            if (!is_string($organization) || $organization === '') { throw new RuntimeException('Issuer organization missing'); }
+            if ($binding === null) {
+                $uuid = $this->issuer->newProjectUuid();
+                $this->bindings->bindUuid($pid, $uuid, $providerId);
+                $binding = new ProjectBinding($uuid, null, $providerId);
             }
 
             // An interrupted issuance may have written the identity before its active binding.
@@ -64,13 +60,13 @@ final class ProjectIdentityService
                     $binding->uuid,
                     $root->asGeneratedIdentity($this->protector),
                 );
-                $identityId = $this->identities->append('project', $generated, $binding->uuid);
+                $identityId = $this->identities->append('project', $generated, $binding->uuid, $providerId, $root->id);
                 $identity = $this->identities->find($identityId);
                 if ($identity === null) {
                     throw new RuntimeException('Issued project identity is missing');
                 }
             }
-            $this->assertProjectIdentity($identity, $binding->uuid, $root);
+            $this->assertProjectIdentity($identity, $binding->uuid, $providerId);
             $this->bindings->activate($pid, $binding->uuid, $identity->id);
             return $identity;
         });
@@ -121,23 +117,28 @@ final class ProjectIdentityService
                 return $status;
             }
             $status['state'] = 'unusable';
-            $rootId = $this->identities->activeId('root');
-            $root = $rootId === null ? null : $this->identities->find($rootId);
-            if ($root !== null && $root->role === 'root') {
-                $this->assertProjectIdentity($identity, $binding->uuid, $root, $now);
-                $status['state'] = 'ready';
-            }
+            $this->identities->providers()->provider($binding->providerId);
+            $this->assertProjectIdentity($identity, $binding->uuid, $binding->providerId, $now);
+            $status['state'] = 'ready';
         } catch (\Throwable) {
             // Do not expose internal storage or key diagnostics in project UI.
         }
         return $status;
     }
 
-    private function assertProjectIdentity(StoredIdentity $identity, string $uuid, StoredIdentity $root, ?int $now = null): void
+    public function issuerCertificate(StoredIdentity $identity): string
     {
-        if ($identity->role !== 'project' || $identity->projectUuid !== $uuid) {
+        if ($identity->issuerId === null) { throw new RuntimeException('Project issuer is missing'); }
+        return $this->identities->publicCertificate($identity->issuerId, 'root');
+    }
+
+    private function assertProjectIdentity(StoredIdentity $identity, string $uuid, string $providerId, ?int $now = null): void
+    {
+        if ($identity->role !== 'project' || $identity->projectUuid !== $uuid || $identity->providerId !== $providerId) {
             throw new RuntimeException('Project identity binding mismatch');
         }
+        $rootDer = $this->issuerCertificate($identity);
+        $this->health->assertRootCertificate($rootDer, $now ?? time());
         $der = $identity->certificateDer;
         $certificate = new Certificate();
         $certificate->assertValidAt($der, $now ?? time());
@@ -148,14 +149,14 @@ final class ProjectIdentityService
         }
         $pem = Certificate::derToPem($der);
         $parsed = openssl_x509_parse($pem);
-        $rootPublic = openssl_pkey_get_public(Certificate::derToPem($root->certificateDer));
+        $rootPublic = openssl_pkey_get_public(Certificate::derToPem($rootDer));
         $projectPublic = openssl_pkey_get_public($pem);
         $keyDetails = $projectPublic instanceof OpenSSLAsymmetricKey ? openssl_pkey_get_details($projectPublic) : false;
         if (!is_array($parsed) || ($parsed['subject']['CN'] ?? null) !== 'REDCap Project ' . $uuid
             || !$rootPublic instanceof OpenSSLAsymmetricKey
             || !is_array($keyDetails) || $keyDetails['type'] !== OPENSSL_KEYTYPE_RSA || $keyDetails['bits'] !== 3072
             || openssl_x509_verify($pem, $rootPublic) !== 1) {
-            throw new RuntimeException('Project certificate is not issued by the active root');
+            throw new RuntimeException('Project certificate does not match its recorded issuer');
         }
         $key = $identity->privateKey($this->protector);
         unset($key);

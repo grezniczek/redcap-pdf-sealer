@@ -13,6 +13,7 @@ php tests/dependency_isolation.php
 php tests/timestamp_spike.php
 php tests/certificate_serials.php
 php tests/pki_primitives.php
+php tests/providers.php
 php tests/pki_storage.php
 php tests/pki_initialization.php
 php tests/project_identity.php

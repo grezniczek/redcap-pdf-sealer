@@ -35,7 +35,8 @@ final class PkiInitializationService
                 || $this->identities->hasRole('tsa')
                 || $this->identities->hasRole('project')
                 || $this->identities->activeId('tsa') !== null
-                || $this->bindings->hasAny()) {
+                || $this->bindings->hasAny()
+                || $this->identities->providers()->hasConfiguration()) {
                 throw new RuntimeException('Existing PKI material prevents initialization');
             }
 
@@ -49,6 +50,7 @@ final class PkiInitializationService
                 $this->identities->activate('root', $rootId);
                 $tsaId = $this->identities->append('tsa', $tsa);
                 $this->identities->activate('tsa', $tsaId);
+                $this->identities->providers()->initialize($rootId, $tsaId);
                 if ($this->health->inspect(time())->status !== PkiHealth::Ready) {
                     throw new RuntimeException('Initialized PKI did not pass health checks');
                 }

@@ -27,7 +27,12 @@ final class IdentityRepository
         $this->settings = $settings ?? new PrimarySystemSettingReader($framework);
     }
 
-    public function append(string $role, GeneratedIdentity $identity, ?string $projectUuid = null): string
+    public function providers(): ProviderRepository
+    {
+        return new ProviderRepository($this->framework, $this->settings);
+    }
+
+    public function append(string $role, GeneratedIdentity $identity, ?string $projectUuid = null, ?string $providerId = null, ?string $issuerId = null): string
     {
         $this->assertRole($role);
         if (($role === 'project') !== ($projectUuid !== null)) {
@@ -35,6 +40,14 @@ final class IdentityRepository
         }
         if ($projectUuid !== null && (!is_string($projectUuid) || preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/D', $projectUuid) !== 1)) {
             throw new RuntimeException('Invalid project UUID');
+        }
+        if ($role === 'project') {
+            ProviderRepository::assertId($providerId);
+            if ($issuerId === null || preg_match('/^[0-9a-f]{32}$/D', $issuerId) !== 1) {
+                throw new RuntimeException('Project issuer reference is required');
+            }
+        } elseif ($providerId !== null || $issuerId !== null) {
+            throw new RuntimeException('Unexpected project provenance');
         }
         $certificate = Certificate::derToPem($identity->certificateDer);
         if (!openssl_x509_check_private_key($certificate, $identity->privateKey())) {
@@ -49,6 +62,8 @@ final class IdentityRepository
             'identity_id' => $id,
             'identity_role' => $role,
             'project_uuid' => $projectUuid,
+            'provider_id' => $providerId,
+            'issuer_identity_id' => $issuerId,
             'certificate_der_b64' => base64_encode($identity->certificateDer),
             'certificate_sha256' => hash('sha256', $identity->certificateDer),
             'private_key_ciphertext' => $ciphertext,
@@ -65,7 +80,7 @@ final class IdentityRepository
             throw new RuntimeException('Invalid identity ID');
         }
         $result = $this->reader->query(
-            'SELECT log_id, identity_id, identity_role, project_uuid, certificate_der_b64, certificate_sha256, private_key_ciphertext WHERE message = ? AND identity_id = ? AND ISNULL(project_id) ORDER BY log_id DESC LIMIT 2',
+            'SELECT log_id, identity_id, identity_role, project_uuid, provider_id, issuer_identity_id, certificate_der_b64, certificate_sha256, private_key_ciphertext WHERE message = ? AND identity_id = ? AND ISNULL(project_id) ORDER BY log_id DESC LIMIT 2',
             [self::MESSAGE, $id],
         );
         if ($result === false) {
@@ -95,7 +110,37 @@ final class IdentityRepository
             || ($projectUuid !== null && (!is_string($projectUuid) || preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/D', $projectUuid) !== 1))) {
             throw new RuntimeException('Identity role/binding mismatch');
         }
-        return new StoredIdentity($id, $row['identity_role'], $der, $row['private_key_ciphertext'], $projectUuid);
+        $providerId = $row['provider_id'] ?? null;
+        $issuerId = $row['issuer_identity_id'] ?? null;
+        if ($projectUuid !== null) {
+            ProviderRepository::assertId($providerId);
+            if (!is_string($issuerId) || preg_match('/^[0-9a-f]{32}$/D', $issuerId) !== 1) {
+                throw new RuntimeException('Malformed project issuer reference');
+            }
+        }
+        return new StoredIdentity($id, $row['identity_role'], $der, $row['private_key_ciphertext'], $projectUuid, $providerId, $issuerId);
+    }
+
+    /** Read a chain certificate without selecting or decrypting its private key. */
+    public function publicCertificate(string $id, string $role): string
+    {
+        if (preg_match('/^[0-9a-f]{32}$/D', $id) !== 1) { throw new RuntimeException('Invalid identity ID'); }
+        $this->assertRole($role);
+        $result = $this->reader->query(
+            'SELECT identity_role, certificate_der_b64, certificate_sha256 WHERE message = ? AND identity_id = ? AND ISNULL(project_id) ORDER BY log_id DESC LIMIT 2',
+            [self::MESSAGE, $id],
+        );
+        if ($result === false) { throw new RuntimeException('Public certificate lookup failed'); }
+        $row = $result->fetch_assoc();
+        if ($row === null || $result->fetch_assoc() !== null || ($row['identity_role'] ?? null) !== $role
+            || !is_string($row['certificate_der_b64'] ?? null) || !is_string($row['certificate_sha256'] ?? null)) {
+            throw new RuntimeException('Public certificate unavailable');
+        }
+        $der = base64_decode($row['certificate_der_b64'], true);
+        if ($der === false || !hash_equals($row['certificate_sha256'], hash('sha256', $der))) {
+            throw new RuntimeException('Public certificate digest mismatch');
+        }
+        return $der;
     }
 
     /** Used only to recover issuance interrupted before its project binding was activated. */

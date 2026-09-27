@@ -12,7 +12,6 @@ use DE\RUB\PDFSealerExternalModule\Pki\IdentityRepository;
 use DE\RUB\PDFSealerExternalModule\Pki\PkiHealth;
 use DE\RUB\PDFSealerExternalModule\Pki\PkiHealthReport;
 use DE\RUB\PDFSealerExternalModule\Pki\PkiHealthService;
-use DE\RUB\PDFSealerExternalModule\Pki\PrimarySystemSettingReader;
 use DE\RUB\PDFSealerExternalModule\Pki\ProjectBindingRepository;
 use DE\RUB\PDFSealerExternalModule\Pki\ProjectIdentityService;
 use DE\RUB\PDFSealerExternalModule\Pki\ProjectIssueLock;
@@ -20,8 +19,6 @@ use DE\RUB\PDFSealerExternalModule\Pki\SecretProtector;
 use DE\RUB\PDFSealerExternalModule\Timestamp\InternalTimestampProvider;
 use DE\RUB\PDFSealerExternalModule\Timestamp\InternalTsaService;
 use DE\RUB\PDFSealerExternalModule\Timestamp\TsaIdentity;
-use DE\RUB\PDFSealerExternalModule\Timestamp\TsaPolicy;
-use DE\RUB\PDFSealerExternalModule\Timestamp\TimestampSettings;
 use ExternalModules\PdfFinalizeResult;
 use RuntimeException;
 use Throwable;
@@ -68,36 +65,27 @@ final class PdfFinalizeService
             $protector = new SecretProtector();
             $identities = new IdentityRepository($this->framework, $protector);
             $health = new PkiHealthService($identities, $protector);
-            $report = $health->inspect(time());
-            if ($report->status === PkiHealth::Uninitialized || $report->status === PkiHealth::Broken) {
-                $this->alarm($report);
-                return $this->failed($events, $event, $context, (int) $pid, 'PKI_NOT_READY', $report->errorCode ?? $report->status->value);
-            }
-            if ($report->status === PkiHealth::Degraded) {
-                $this->alarm($report);
-            }
-
-            $settings = new PrimarySystemSettingReader($this->framework);
-            $timestampSettings = TimestampSettings::fromStored(
-                $settings->get('timestamp_mode'), $settings->get('bb_fallback'),
-            );
-            $mode = $timestampSettings->mode;
-            $fallback = $timestampSettings->fallback;
+            $bindings = new ProjectBindingRepository($this->framework);
+            $providers = $identities->providers();
             $source = file_get_contents($path);
             if (!is_string($source)) {
                 return $this->failed($events, $event, $context, (int) $pid, 'INPUT_READ_FAILED', 'PDF working copy is unreadable');
             }
             $event['input_sha256'] = hash('sha256', $source);
 
-            $rootId = $identities->activeId('root');
-            $root = $rootId === null ? null : $identities->find($rootId);
-            if ($root === null || $root->role !== 'root') {
-                throw new RuntimeException('Active root identity is unavailable');
-            }
-            $project = (new ProjectIdentityService(
-                new ProjectBindingRepository($this->framework), $identities, $protector,
+            $projects = new ProjectIdentityService(
+                $bindings, $identities, $protector,
                 CertificateIssuer::forFramework($this->framework), $health, new ProjectIssueLock(),
-            ))->getOrIssue((int) $pid);
+            );
+            $project = $projects->getOrIssue((int) $pid);
+            $rootCert = $projects->issuerCertificate($project);
+            $provider = $providers->provider($project->providerId);
+            $timestampSettings = $providers->timestampSettings($project->providerId);
+            $mode = $timestampSettings->mode;
+            $fallback = $timestampSettings->fallback;
+            $issuanceHealth = $health->inspectIssuance($provider['issuer_identity_id'], time());
+            if ($issuanceHealth->status !== PkiHealth::Ready) { $this->alarm($issuanceHealth); }
+
             $certificate = openssl_x509_parse(\DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate::derToPem($project->certificateDer));
             if (!is_array($certificate) || !is_string($certificate['serialNumberHex'] ?? null)) {
                 throw new RuntimeException('Project certificate serial is unavailable');
@@ -109,12 +97,12 @@ final class PdfFinalizeService
             $key = $project->privateKey($protector);
             $now = self::requestTime();
             if ($mode === 'none') {
-                $sealed = $this->builder->seal($source, $project->certificateDer, $key, [$root->certificateDer], $now);
+                $sealed = $this->builder->seal($source, $project->certificateDer, $key, [$rootCert], $now);
                 $result = new PdfSealResult($sealed, 'pades-b-b');
             } else {
                 $result = $this->sealWithFallback(
-                    $source, $project->certificateDer, $key, $root->certificateDer,
-                    $identities, $protector, $settings, $report, $fallback, $now,
+                    $source, $project->certificateDer, $key, $rootCert,
+                    $identities, $protector, $health, $provider['timestamp_source'], $fallback, $now,
                 );
             }
             $written = file_put_contents($path, $result->pdf, LOCK_EX);
@@ -139,6 +127,7 @@ final class PdfFinalizeService
                 'timestamp_time' => $result->timestampTime,
             ]);
         } catch (Throwable $e) {
+            if (isset($health)) { $this->alarm($health->inspect(time())); }
             error_log('PDF Sealer finalization failed: ' . get_class($e));
             return $this->failed($events, $event, $context, (int) $pid, 'PDF_SEAL_FAILED', 'PDF sealing failed');
         }
@@ -207,29 +196,25 @@ final class PdfFinalizeService
         string $rootCert,
         IdentityRepository $identities,
         SecretProtector $protector,
-        PrimarySystemSettingReader $settings,
-        PkiHealthReport $health,
+        PkiHealthService $health,
+        string $sourceId,
         bool $fallback,
         int $now,
     ): PdfSealResult {
         try {
-            if ($health->status !== PkiHealth::Ready) {
+            $report = $health->inspectTimestamp($sourceId, $now);
+            if ($report->status !== PkiHealth::Ready) {
+                $this->alarm($report);
                 throw new RuntimeException('TSA is unavailable');
             }
-            $configuredPolicy = $settings->get('tsa_policy_oid');
-            if ($configuredPolicy !== null && !is_string($configuredPolicy)) {
-                throw new RuntimeException('TSA policy OID setting is invalid');
-            }
-            $policy = $configuredPolicy === null || $configuredPolicy === ''
-                ? TsaPolicy::DEFAULT_OID : $configuredPolicy;
-            $tsaId = $identities->activeId('tsa');
-            $tsa = $tsaId === null ? null : $identities->find($tsaId);
-            if ($tsa === null || $tsa->role !== 'tsa') {
-                throw new RuntimeException('Active TSA identity is unavailable');
-            }
+            $timestamp = $identities->providers()->source($sourceId);
+            $policy = $timestamp['policy_oid'];
+            $tsa = $identities->find($timestamp['identity_id']);
+            if ($tsa === null || $tsa->role !== 'tsa') { throw new RuntimeException('TSA unavailable'); }
+            $tsaRoot = $identities->publicCertificate($timestamp['issuer_identity_id'], 'root');
             $provider = new InternalTimestampProvider(
                 new InternalTsaService($policy),
-                new TsaIdentity($tsa->certificateDer, $tsa->privateKey($protector), [$rootCert]),
+                new TsaIdentity($tsa->certificateDer, $tsa->privateKey($protector), [$tsaRoot]),
             );
             return $this->builder->sealTimestamped($source, $projectCert, $key, [$rootCert], $now, $provider, $now);
         } catch (Throwable $e) {

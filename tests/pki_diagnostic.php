@@ -140,16 +140,20 @@ $tsa = $issuer->createTsa('Test Institution', $root);
 $tsaId = $repository->append('tsa', $tsa);
 $repository->activate('tsa', $tsaId);
 // Diagnostics test both capabilities even when production selects B-B only.
-$framework->settings['timestamp_mode'] = 'none';
-$framework->settings['bb_fallback'] = '1';
+$repository->providers()->initialize($rootId, $tsaId);
+$repository->providers()->saveBuiltinTimestamp('none', true);
+$source = $repository->providers()->source('builtin-tsa');
 check($run()['passed'], 'Healthy default-policy diagnostic failed');
-$framework->settings['tsa_policy_oid'] = '1.3.6.1.4.1.55555.1';
+$source['policy_oid'] = '1.3.6.1.4.1.55555.1';
+$framework->settings['tsa_source_builtin-tsa'] = json_encode($source);
 check($run()['passed'], 'Explicit-policy diagnostic failed');
-$framework->settings['tsa_policy_oid'] = 'invalid-policy';
+$source['policy_oid'] = 'invalid-policy';
+$framework->settings['tsa_source_builtin-tsa'] = json_encode($source);
 $result = $run();
 check(!$result['passed'] && $result['checks']['timestamp'] === 'failed'
     && $result['checks']['bt'] === 'skipped' && $result['checks']['bb'] === 'passed', 'Bad policy was hidden by fallback');
-unset($framework->settings['tsa_policy_oid']);
+$source['policy_oid'] = \DE\RUB\PDFSealerExternalModule\Timestamp\TsaPolicy::DEFAULT_OID;
+$framework->settings['tsa_source_builtin-tsa'] = json_encode($source);
 
 $identityIndexes = [];
 foreach ($framework->logs as $index => $row) {

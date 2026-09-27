@@ -12,7 +12,7 @@ Third-party attribution, reproducible namespace prefixing, and release-content c
 
 Project-copy and metadata-only XML export/import acceptance passed on this instance (524 → 525 and 524 → 526): no inherited signing identities, distinct destination certificates/public keys, and identity reuse on second sealing. Direct copy retained the pipeline but left the EM disabled; XML import required explicit enablement and pipeline assignment. Evidence and scope limits are recorded below. PMT setup and first sealing also passed for PID 527, with a distinct destination signer and user-reported Acrobat acceptance; PMT signer reuse was not separately tested. Missing pipeline transfer through XML and PMT is a deferred Core/Framework integration gap, not the intended final behavior; see [the deferred slice](#deferred-pdf-finalization-pipeline-transfer).
 
-The next lifecycle work follows the [provider-aware design](provider_lifecycle_design.md): built-in and external CA providers, locally generated project keys/CSRs, and per-provider internal/external timestamp sources selected exclusively in the Control Center. This is planned work; external enrollment, timestamp sources, monitoring, and renewal are not implemented. The user confirmed greenfield scope: this is the only deployment, and development PKI/configuration can be discarded and recreated as needed; no legacy migration or compatibility layer is required. Fallback defaults and the implementation sequence are proposals recorded in that design.
+The [provider-aware foundation](#provider-and-timestamp-source-foundation) is implemented for built-in operation: explicit CA/source configuration, provider-pinned project bindings, recorded issuer certificates, and separate issuance/signing/timestamp checks. The dev PKI was reset and freshly initialized under the new model. External enrollment with local keys/CSRs, external timestamp sources, monitoring, and renewal remain planned in the [lifecycle design](provider_lifecycle_design.md). No legacy migration or compatibility layer is required for this sole deployment.
 
 ## Implementation history
 
@@ -408,3 +408,27 @@ Scope for the later slice:
 - Verify XML and PMT round-trips, including multiple ordered operations and empty/absent plans, and retain direct-copy behavior. Confirm the expected project status before module enablement and execution after explicit enablement.
 
 No Core or Framework implementation work for pipeline transfer was performed in this documentation slice. The separately submitted PMT optional-records queue fix is independent of this integration work.
+
+
+## Provider and timestamp source foundation
+
+Implemented on **2026-09-27** as a greenfield slice. `ProviderRepository` stores the built-in CA provider, internal timestamp source, and default CA selection in system settings. Provider/source references are validated on reads from the primary database. Unsupported kinds are rejected; this slice does not expose external CA registration, CSR/import actions, network TSA endpoints, or alternative timestamp sources.
+
+Initialization atomically creates root/TSA identities and their provider/source configuration. Project UUID bindings pin a provider; project certificate records pin both provider and issuing identity. Changing the default affects only new bindings. Existing signers use their recorded public issuing certificate, rather than depending on the current issuance pointer or decrypting the root key for certificate validation. Private-key health still gates new issuance. The internal TSA validates its own key and public issuing chain separately. Normal validity/profile checks continue to apply.
+
+The CC timestamp controls now update the built-in provider's internal/none selection and boolean B-B fallback in one stored JSON record. No project-facing setting or new authorization bypass was added. The internal source owns its policy OID. Standalone `timestamp_mode`, `bb_fallback`, and `tsa_policy_oid` system settings are no longer read. Initial built-in defaults are internal B-T with B-B fallback enabled. CC diagnostics check TSA capability independently of root private-key availability; root failure still prevents the diagnostic from issuing its disposable signer.
+
+Verification:
+
+- Eleven targeted PHP 8.5 suites passed: providers, initialization, project identities, storage, CC AJAX, diagnostics, public trust, project trust link, pipeline status, B-B, and B-T. PHP syntax checks passed across source and test files.
+- Five focused PHP 8.2 suites passed: providers, initialization, project identities, CC AJAX, and diagnostics.
+- Coverage includes partial provider-write rollback, pinned assignments when the default changes, changed current issuer references, rejected malformed/unsupported configuration, and B-B/B-T signatures from an existing project identity while the root private key is corrupt. New issuance is rejected in that state.
+- The updated live Framework harness passed B-T, B-B fallback, strict timestamp failure, B-B-only mode, project logging, failure diagnostics, identity storage, and rollback.
+- Fresh initialization on the real instance produced READY health and all seven diagnostic checks passed. The result was cached for CC display. PID 527's fresh identity was issued and reused without replacement.
+- The previewed Core pipeline harness passed ten B-T seals (five synthetic consent/merged fixtures through both file and contents entry points), cryptographic/timestamp and content-preservation checks, document-type bypass, and controlled rejection of a previously certified PDF. Test log writes rolled back; no edocs were created.
+
+Authorized development reset: previewed `redcap_devctl` deletes removed **17** old `pki_identity`/`project_identity_binding` records (their parameters cascaded) and **six** obsolete PKI/configuration/diagnostic settings. Project data, PDFs, pipeline assignments, module enablement, alarm recipients, and prior project outcome logs were retained. Old integer-serial reservations were retained. The new built-in CA/TSA were created through the initialization service for **GR's Dev Instance**. PID 527 now uses UUID `22d00762-7f47-44b8-ae0a-7f495a54b955`, identity `485505e149ea5c2930d4f9befbfdd7e0`, certificate SHA-256 `89eb8ba8346e434c3186f726a5ffecfbefd5a33e186c09feafbdc2b3488cc6a1`. Other enabled projects will receive new bindings on their next eligible seal. Earlier acceptance identifiers above are historical, not current live state.
+
+Dev-control supports previewed database resets but cannot invoke application initialization or rollback-contained service tests. Those checks used the existing PHP application harness and a temporary initialization script; a previewable application-service runner remains a possible dev-control enhancement. Browser acceptance of the changed CC settings storage and a new saved eConsent PDF is not claimed by these automated checks.
+
+Next planned slice: expiry monitoring and advance alarms over this foundation. Provider-management/enrollment UI and external timestamp transport remain later slices.

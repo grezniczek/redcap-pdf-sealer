@@ -41,7 +41,7 @@ The default **PDF Sealer TSA Policy v1** OID is:
 
 It is derived from UUID `8c0f7132-9d42-4240-b259-da71e931ca3e` under the `2.25` arc. It identifies this built-in policy; it does not claim external accreditation. An unset policy does not cause B-B fallback.
 
-The advanced system setting `tsa_policy_oid` can override the default; there is currently no UI control for it. Normal administration should use the built-in policy. If a timestamp request includes `reqPolicy`, the responder accepts only the active policy and rejects unsupported values with `unacceptedPolicy`. Normal module requests omit this optional field and validate the response's policy.
+The internal timestamp source stores its policy OID; there is currently no UI control for overriding it. Normal administration should use the built-in policy. If a timestamp request includes `reqPolicy`, the responder accepts only the active policy and rejects unsupported values with `unacceptedPolicy`. Normal module requests omit this optional field and validate the response's policy.
 
 ## Interpreting viewer results
 

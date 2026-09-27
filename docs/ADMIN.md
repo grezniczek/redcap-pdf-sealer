@@ -34,9 +34,9 @@ Settings on the **TSA** tab apply to future sealing operations across all enable
 | Allow sealing without a timestamp (B-B fallback) | If internal timestamping fails, attempts a B-B seal. Enabled by default. |
 | Fail the sealing operation | If internal timestamping fails, the operation fails instead of using B-B. |
 
-The fallback preference is retained while timestamping is disabled. Invalid stored settings produce a warning and need correction. The built-in TSA policy is used automatically; normal setup does not require an OID to be configured. See [timestamp policy](sealing-and-validation.md) for the advanced override.
+These controls configure the built-in CA provider and remain available only in the Control Center. The fallback preference is retained while timestamping is disabled. Invalid stored settings produce a warning and need correction. The built-in TSA policy is used automatically; normal setup does not require an OID to be configured. See [timestamp policy](sealing-and-validation.md) for the advanced override.
 
-**“Fail the sealing operation” does not mean “block the PDF.”** On failure, the Framework discards the failed working copy and retains the preceding PDF for REDCap to store or deliver. Root or project-key failures also fail the operation. Decide how your local process handles failed or fallback seals.
+**“Fail the sealing operation” does not mean “block the PDF.”** On failure, the Framework discards the failed working copy and retains the preceding PDF for REDCap to store or deliver. Project-key or signing-chain failures also fail the operation. A root private-key failure blocks new certificate issuance but does not by itself block an existing usable project signer. Decide how your local process handles failed or fallback seals.
 
 ## Enable sealing in projects
 

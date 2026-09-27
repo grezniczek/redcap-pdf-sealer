@@ -35,7 +35,7 @@ final class ProjectBindingRepository
     {
         self::assertPid($pid);
         $result = $this->reader->query(
-            'SELECT project_uuid, identity_id WHERE message = ? AND redcap_pid = ? AND ISNULL(project_id) ORDER BY log_id DESC LIMIT 2',
+            'SELECT project_uuid, identity_id, provider_id WHERE message = ? AND redcap_pid = ? AND ISNULL(project_id) ORDER BY log_id DESC LIMIT 2',
             [self::MESSAGE, (string) $pid],
         );
         if ($result === false) {
@@ -49,21 +49,21 @@ final class ProjectBindingRepository
         $previous = $result->fetch_assoc();
         if ($previous !== null) {
             $prior = $this->parse($previous);
-            if ($prior->uuid !== $binding->uuid || ($prior->identityId !== null && $binding->identityId === null)) {
+            if ($prior->uuid !== $binding->uuid || $prior->providerId !== $binding->providerId || ($prior->identityId !== null && $binding->identityId === null)) {
                 throw new RuntimeException('Conflicting project identity binding');
             }
         }
         return $binding;
     }
 
-    public function bindUuid(int $pid, string $uuid): void
+    public function bindUuid(int $pid, string $uuid, string $providerId): void
     {
         self::assertPid($pid);
         self::assertUuid($uuid);
         if ($this->find($pid) !== null) {
             throw new RuntimeException('Project UUID is already bound');
         }
-        $this->append($pid, $uuid, null);
+        $this->append($pid, $uuid, null, $providerId);
     }
 
     public function activate(int $pid, string $uuid, string $identityId): void
@@ -77,17 +77,19 @@ final class ProjectBindingRepository
         if ($current === null || $current->uuid !== $uuid || $current->identityId !== null) {
             throw new RuntimeException('Project identity activation requires an unassigned UUID binding');
         }
-        $this->append($pid, $uuid, $identityId);
+        $this->append($pid, $uuid, $identityId, $current->providerId);
     }
 
-    private function append(int $pid, string $uuid, ?string $identityId): void
+    private function append(int $pid, string $uuid, ?string $identityId, string $providerId): void
     {
+        ProviderRepository::assertId($providerId);
         $logId = $this->framework->log(self::MESSAGE, [
             'project_id' => null,
             'record' => '',
             'redcap_pid' => (string) $pid,
             'project_uuid' => $uuid,
             'identity_id' => $identityId,
+            'provider_id' => $providerId,
         ]);
         if ((!is_int($logId) && !ctype_digit((string) $logId)) || (int) $logId < 1) {
             throw new RuntimeException('Project binding insertion failed');
@@ -102,7 +104,8 @@ final class ProjectBindingRepository
         if ($id !== null && (!is_string($id) || preg_match('/^[0-9a-f]{32}$/D', $id) !== 1)) {
             throw new RuntimeException('Malformed project identity binding');
         }
-        return new ProjectBinding($uuid, $id);
+        ProviderRepository::assertId($row['provider_id'] ?? null);
+        return new ProjectBinding($uuid, $id, $row['provider_id']);
     }
 
     public static function assertPid(int $pid): void

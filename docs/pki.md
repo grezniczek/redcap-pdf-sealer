@@ -22,7 +22,9 @@ The project UUID is pseudonymous and stable within the stored project binding. T
 
 Explicit administrator initialization creates the root and TSA together. It refuses to overwrite existing or orphaned PKI material. Health inspection never silently creates replacement keys.
 
-A project's UUID and certificate binding are established on first sealing use. Subsequent operations reuse the identity. Locks serialize initialization and project issuance to prevent competing requests from creating conflicting active identities. Opening either status page is read-only with respect to certificate issuance.
+Initialization also creates the built-in CA provider and internal timestamp source. The CA provider records its issuing identity and timestamp policy; the source separately records its TSA identity, issuing certificate, and policy OID. Only built-in operation is currently available; external enrollment and external timestamp services are planned.
+
+A project's UUID, provider assignment, and certificate binding are established on first sealing use. Subsequent operations reuse the identity and its recorded issuing certificate. Changing the default provider does not reassign existing projects. Locks serialize initialization and project issuance to prevent competing requests from creating conflicting active identities. Opening either status page is read-only with respect to certificate issuance.
 
 ## Certificate serials
 
@@ -37,7 +39,7 @@ Existing certificates are reused across PHP versions; changing PHP does not reis
 
 ## Storage and recovery
 
-Certificates, encrypted private keys, project bindings, and integer serial reservations are stored in system-scoped External Module log records. Active root/TSA references and configuration are held in system settings. These records are PKI storage, not disposable diagnostic logs.
+Certificates, encrypted private keys, project bindings, and integer serial reservations are stored in system-scoped External Module log records. Active root/TSA references, provider/source configuration, and the default provider are held in system settings. Each project certificate also records its provider and issuing identity. These records are PKI storage, not disposable diagnostic logs.
 
 Private keys are encrypted with REDCap's installation encryption helpers and decrypted for use in server memory. This is software key storage within the REDCap installation; the root signing key is online, and no hardware security module or offline root ceremony is provided. Public certificate downloads contain no private keys.
 
@@ -52,7 +54,9 @@ When integer serials have been used, restoring an older backup or cloning the in
 | UNINITIALIZED | No root has been initialized. Sealing cannot proceed. |
 | READY | Active root and TSA pass the module's checks, including validity and usable matching keys. Project identity health is checked separately. |
 | DEGRADED | The root is usable but the TSA is unavailable or invalid. B-B can still be used according to timestamp settings. |
-| BROKEN | Root identity, binding, or key checks fail. Sealing fails. |
+| BROKEN | Built-in root identity, binding, or key checks fail. New issuance fails; existing project signing capability is checked independently. |
+
+The table summarizes built-in issuance health. Sealing checks the project key/certificate and its recorded public issuer certificate separately; a missing or corrupt root private key alone does not prevent reuse of a valid project signer. The internal TSA is likewise checked against its own public issuing certificate and private key. Certificate validity and chain checks still apply.
 
 Missing or corrupt existing identities are not treated as permission to silently replace them. Automatic certificate renewal, rotation, and expiry-warning scheduling are not implemented. An expired project certificate is reported and rejected rather than automatically renewed. Retaining historical root certificates supports public inspection but is not a rotation workflow.
 

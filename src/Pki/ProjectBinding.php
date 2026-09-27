@@ -9,5 +9,6 @@ final readonly class ProjectBinding
     public function __construct(
         public string $uuid,
         public ?string $identityId,
+        public string $providerId,
     ) {}
 }

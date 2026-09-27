@@ -113,6 +113,10 @@ check([$framework->logs, $framework->settings, $lockCalls] === $snapshot, 'Statu
 $root = $issuer->createRoot('Test Institution');
 $rootId = $identities->append('root', $root);
 $identities->activate('root', $rootId);
+$tsa = $issuer->createTsa('Test Institution', $root);
+$tsaId = $identities->append('tsa', $tsa);
+$identities->activate('tsa', $tsaId);
+$identities->providers()->initialize($rootId, $tsaId);
 
 $first = $service->getOrIssue(461);
 $snapshot = [$framework->logs, $framework->settings, $lockCalls];
@@ -141,14 +145,25 @@ $other = $service->getOrIssue(462);
 check($other->id !== $first->id && $other->projectUuid !== $first->projectUuid,
     'Different projects share an identity');
 
+// Changing the default only affects new projects; an assigned provider remains pinned.
+$alternate = $identities->providers()->provider('builtin-ca');
+$alternate['id'] = 'alternate-ca';
+$framework->settings['ca_provider_alternate-ca'] = json_encode($alternate);
+$framework->settings['default_ca_provider'] = 'alternate-ca';
+check($service->getOrIssue(462)->providerId === 'builtin-ca', 'Default change moved an existing project');
+$alternateIdentity = $service->getOrIssue(467);
+check($alternateIdentity->providerId === 'alternate-ca' && $bindings->find(467)->providerId === 'alternate-ca',
+    'New project did not bind to the chosen default');
+$framework->settings['default_ca_provider'] = 'builtin-ca';
+
 $uuid = $issuer->newProjectUuid();
-$bindings->bindUuid(463, $uuid);
+$bindings->bindUuid(463, $uuid, 'builtin-ca');
 $snapshot = [$framework->logs, $framework->settings, $lockCalls];
 check($service->inspect(463) === ['state' => 'pending', 'uuid' => $uuid, 'certificate' => null],
     'Incomplete issuance reported as usable');
 check([$framework->logs, $framework->settings, $lockCalls] === $snapshot, 'Status completed pending issuance');
 $unbound = $issuer->createProject('Test Institution', $uuid, $root);
-$unboundId = $identities->append('project', $unbound, $uuid);
+$unboundId = $identities->append('project', $unbound, $uuid, 'builtin-ca', $rootId);
 check($service->getOrIssue(463)->id === $unboundId,
     'Interrupted issuance did not reuse its identity');
 check($bindings->find(463)?->identityId === $unboundId,
@@ -174,7 +189,10 @@ $status = $service->inspect(461);
 check($status['state'] === 'unusable' && $status['certificate'] !== null, 'Bad key status lost public certificate details');
 check([$framework->logs, $framework->settings, $lockCalls] === $snapshot, 'Status repaired corrupt identity');
 
-$framework->settings['active_root_identity_id'] = str_repeat('0', 32);
+$savedProvider = $framework->settings['ca_provider_builtin-ca'];
+$provider = json_decode($savedProvider, true);
+$provider['issuer_identity_id'] = str_repeat('0', 32);
+$framework->settings['ca_provider_builtin-ca'] = json_encode($provider);
 try {
     $service->getOrIssue(464);
     throw new RuntimeException('Broken root was accepted');
@@ -182,8 +200,36 @@ try {
     check($e->getMessage() === 'Root PKI is not usable for project issuance', 'Unexpected root failure');
 }
 check(count($framework->logs) === $before, 'Broken root created project PKI material');
-check($service->inspect(462)['state'] === 'unusable', 'Missing active root reported usable');
-$framework->settings['active_root_identity_id'] = $rootId;
+check($service->inspect(462)['state'] === 'ready', 'Existing signer depended on current issuance pointer');
+check($service->getOrIssue(462)->id === $other->id, 'Current issuer change replaced existing signer');
+$framework->settings['ca_provider_builtin-ca'] = $savedProvider;
+// A root private-key failure blocks issuance, not reuse or timestamping with existing keys.
+foreach ($framework->logs as &$row) {
+    if (($row['identity_id'] ?? null) === $rootId) { $row['private_key_ciphertext'] = 'redcap-v1:corrupt'; }
+}
+unset($row);
+check($service->getOrIssue(462)->id === $other->id && $service->inspect(462)['state'] === 'ready',
+    'Existing signer depended on root private key');
+check($health->inspectTimestamp('builtin-tsa', time())->status === \DE\RUB\PDFSealerExternalModule\Pki\PkiHealth::Ready,
+    'Timestamping depended on root private key');
+try {
+    $service->getOrIssue(466);
+    throw new RuntimeException('Issuance ignored unavailable root key');
+} catch (RuntimeException $e) {
+    check($e->getMessage() === 'Root PKI is not usable for project issuance', 'Unexpected issuance failure');
+}
+$builder = new \DE\RUB\PDFSealerExternalModule\Pdf\PdfSealBuilder();
+$sample = \DE\RUB\PDFSealerExternalModule\Diagnostics\PkiDiagnosticService::samplePdf();
+$verifier = new \DE\RUB\PDFSealerExternalModule\Diagnostics\SampleSealVerifier();
+$bb = $builder->seal($sample, $other->certificateDer, $other->privateKey($protector), [$service->issuerCertificate($other)], time());
+$verifier->verify($sample, $bb, $other->certificateDer);
+$timestamp = new \DE\RUB\PDFSealerExternalModule\Timestamp\InternalTimestampProvider(
+    new \DE\RUB\PDFSealerExternalModule\Timestamp\InternalTsaService(\DE\RUB\PDFSealerExternalModule\Timestamp\TsaPolicy::DEFAULT_OID),
+    new \DE\RUB\PDFSealerExternalModule\Timestamp\TsaIdentity($tsa->certificateDer, $tsa->privateKey(), [$root->certificateDer]),
+);
+$bt = $builder->sealTimestamped($sample, $other->certificateDer, $other->privateKey($protector), [$service->issuerCertificate($other)], time(), $timestamp, time());
+$verifier->verify($sample, $bt->pdf, $other->certificateDer, $tsa->certificateDer);
+check(count($framework->logs) === $before, 'Reuse or failed issuance changed identity storage');
 
 $unavailable = new ProjectIssueLock(static fn (): FakeResult => new FakeResult([[0]]));
 try {
@@ -195,7 +241,7 @@ try {
 
 $framework->log('project_identity_binding', [
     'project_id' => null, 'record' => '', 'redcap_pid' => '462',
-    'project_uuid' => $issuer->newProjectUuid(), 'identity_id' => $other->id,
+    'project_uuid' => $issuer->newProjectUuid(), 'identity_id' => $other->id, 'provider_id' => 'builtin-ca',
 ]);
 try {
     $bindings->find(462);

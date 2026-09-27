@@ -118,7 +118,7 @@ check(!str_contains(json_encode($framework->logs, JSON_THROW_ON_ERROR), 'BEGIN P
 
 $uuid = $issuer->newProjectUuid();
 $project = $issuer->createProject('Test Institution', $uuid, $root);
-$projectId = $repository->append('project', $project, $uuid);
+$projectId = $repository->append('project', $project, $uuid, 'builtin-ca', $rootId);
 check($repository->find($projectId)?->projectUuid === $uuid, 'Project UUID was not stored');
 check($repository->find($projectId)?->privateKey($protector) instanceof OpenSSLAsymmetricKey,
     'Stored project key does not decrypt');

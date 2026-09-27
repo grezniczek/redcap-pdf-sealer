@@ -10,6 +10,10 @@ The design supports the built-in CA, one or more external CAs, and mixed operati
 
 The fallback defaults and implementation sequence below are recommendations for the implementation slices. This document makes no live changes.
 
+## Foundation implementation — 2026-09-27
+
+The first implementation slice adds explicit built-in provider/source records, provider-pinned project bindings, certificate issuer references, and independent issuance/project-signing/timestamp checks. Initialization creates fresh configuration; there is no legacy migration. The existing CC timestamp controls now update the built-in provider policy. Only the internal provider/source kind is executable; external enrollment, provider-management UI, network TSA sources, alternate-source fallback, monitoring, and renewal remain planned below.
+
 ## Responsibilities and configuration
 
 | Scope | Responsibility |

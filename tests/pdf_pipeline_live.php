@@ -29,7 +29,6 @@ use DE\RUB\PDFSealerExternalModule\Pki\ProjectBindingRepository;
 use DE\RUB\PDFSealerExternalModule\Pki\ProjectIdentityService;
 use DE\RUB\PDFSealerExternalModule\Pki\ProjectIssueLock;
 use DE\RUB\PDFSealerExternalModule\Pki\SecretProtector;
-use DE\RUB\PDFSealerExternalModule\Timestamp\TimestampSettings;
 use ExternalModules\ExternalModules;
 use ExternalModules\PdfFinalize;
 
@@ -46,7 +45,7 @@ checkSeal($projects->inspect($pid)['state'] === 'ready', 'Preflight requires an 
 checkSeal(PdfFinalize::getProjectExecutionPlan($pid) === ['pdf_sealer:seal'], 'Preflight requires a pipeline containing only pdf_sealer:seal');
 checkSeal(PdfFinalize::resolveOperation('pdf_sealer:seal', $pid) !== null, 'Sealer operation is not available');
 $settings = new PrimarySystemSettingReader($framework);
-$timestamp = TimestampSettings::fromStored($settings->get('timestamp_mode'), $settings->get('bb_fallback'));
+$timestamp = (new \DE\RUB\PDFSealerExternalModule\Pki\ProviderRepository($framework))->timestampSettings('builtin-ca');
 $expectedProfile = $timestamp->mode === 'internal' ? 'pades-b-t' : 'pades-b-b';
 $root = $identities->find($identities->activeId('root'));
 $rootPem = Certificate::derToPem($root->certificateDer);
@@ -63,7 +62,7 @@ foreach ([$logTable, 'redcap_projects', 'redcap_external_modules_log', 'redcap_e
 $autocommit = db_query('SELECT @@autocommit', [], null, MYSQLI_STORE_RESULT, true);
 checkSeal($autocommit !== false && (int) $autocommit->fetch_row()[0] === 1, 'Run in a fresh CLI connection with autocommit enabled');
 $before = [$bindings->find($pid), $identities->activeId('root'), $identities->activeId('tsa'),
-    $settings->get('timestamp_mode'), $settings->get('bb_fallback'), $settings->get('tsa_policy_oid')];
+    $settings->get('default_ca_provider'), $settings->get('ca_provider_builtin-ca'), $settings->get('tsa_source_builtin-tsa')];
 echo "Preflight: PID $pid, existing PKI/signer ready, single sealer pipeline, expected $expectedProfile.\n";
 echo "Run scope: five synthetic fixtures through Core file/bytes entry points; document-type bypass and already-certified rejection; test log writes rolled back. No setting changes, edoc writes, or email.\n";
 if (($argv[1] ?? '--preview') !== '--run') { exit; }
@@ -163,5 +162,5 @@ foreach ($generations as $generation) {
         'EM failure diagnostic survived rollback');
 }
 checkSeal($before == [$bindings->find($pid), $identities->activeId('root'), $identities->activeId('tsa'),
-    $settings->get('timestamp_mode'), $settings->get('bb_fallback'), $settings->get('tsa_policy_oid')], 'Configuration/identity binding changed');
+    $settings->get('default_ca_provider'), $settings->get('ca_provider_builtin-ca'), $settings->get('tsa_source_builtin-tsa')], 'Configuration/identity binding changed');
 echo "Core/Framework pipeline acceptance passed; test log writes rolled back and temporary artifacts removed. Stored/downloaded edoc acceptance is a separate browser check.\n";

@@ -54,9 +54,8 @@ $previousRootId = $repository->activeId('root');
 $previousTsaId = $repository->activeId('tsa');
 $previousOrganization = $framework->getSystemSetting('organization');
 $previousRecipients = $framework->getSystemSetting('admin-alert-recipients');
-$previousPolicy = $framework->getSystemSetting('tsa_policy_oid');
-$previousTimestampMode = $framework->getSystemSetting('timestamp_mode');
-$previousFallback = $framework->getSystemSetting('bb_fallback');
+$providerKeys = ['default_ca_provider', 'ca_provider_builtin-ca', 'tsa_source_builtin-tsa'];
+$previousProviders = array_map(fn($key) => $framework->getSystemSetting($key), $providerKeys);
 \ExternalModules\ExternalModules::setProjectId('461');
 
 $probe = 'pdf-sealer-crypto-probe-' . bin2hex(random_bytes(8));
@@ -158,9 +157,13 @@ try {
             throw new RuntimeException('Could not read baseline project log ID');
         }
         $beforeLogId = (int) db_result($beforeLog, 0);
-        $framework->setSystemSetting('timestamp_mode', 'internal');
-        $framework->setSystemSetting('bb_fallback', '1');
-        $framework->setSystemSetting('tsa_policy_oid', '');
+        $providers = $repository->providers();
+        $providers->saveBuiltinTimestamp('internal', true);
+        $timestampSource = $providers->source('builtin-tsa');
+        $setPolicy = static function (string $oid) use ($framework, &$timestampSource): void {
+            $timestampSource['policy_oid'] = $oid;
+            $framework->setSystemSetting('tsa_source_builtin-tsa', json_encode($timestampSource, JSON_THROW_ON_ERROR));
+        };
         $result = $module->redcap_module_pdf_finalize($workingPath, $operation, $context);
         if (!$result->isModified() || !$result->isTerminal()
             || ($result->getMetadata()['seal_profile'] ?? null) !== 'pades-b-t'
@@ -172,7 +175,7 @@ try {
         assertFinalizedPdf($workingPath);
         $projectLogExpected[] = ['PDF seal succeeded', 'Profile: PAdES B-T'];
 
-        $framework->setSystemSetting('tsa_policy_oid', '1.3.6.1.4.1.55555.3161.1');
+        $setPolicy('1.3.6.1.4.1.55555.3161.1');
         file_put_contents($workingPath, $pdf);
         $result = $module->redcap_module_pdf_finalize($workingPath, $operation, $context);
         if (!$result->isModified() || ($result->getMetadata()['seal_profile'] ?? null) !== 'pades-b-t') {
@@ -181,7 +184,7 @@ try {
         assertFinalizedPdf($workingPath);
         $projectLogExpected[] = ['PDF seal succeeded', 'Profile: PAdES B-T'];
 
-        $framework->setSystemSetting('tsa_policy_oid', 'invalid-policy');
+        $setPolicy('invalid-policy');
         file_put_contents($workingPath, $pdf);
         $result = $module->redcap_module_pdf_finalize($workingPath, $operation, $context);
         if (!$result->isModified() || ($result->getMetadata()['seal_profile'] ?? null) !== 'pades-b-b'
@@ -191,7 +194,7 @@ try {
         assertFinalizedPdf($workingPath);
         $projectLogExpected[] = ['PDF seal succeeded', 'Profile: PAdES B-B (timestamp fallback)'];
 
-        $framework->setSystemSetting('bb_fallback', '0');
+        $providers->saveBuiltinTimestamp('internal', false);
         file_put_contents($workingPath, $pdf);
         $result = $module->redcap_module_pdf_finalize($workingPath, $operation, $context);
         if (!$result->isFailed() || file_get_contents($workingPath) !== $pdf) {
@@ -200,7 +203,7 @@ try {
         $projectLogExpected[] = ['PDF seal failed', 'Reference: ' . $generationId];
         $failureExpected[] = ['PDF_SEAL_FAILED', '461', true];
 
-        $framework->setSystemSetting('timestamp_mode', 'none');
+        $providers->saveBuiltinTimestamp('none', false);
         file_put_contents($workingPath, $pdf);
         $result = $module->redcap_module_pdf_finalize($workingPath, $operation, $context);
         if (!$result->isModified() || ($result->getMetadata()['seal_profile'] ?? null) !== 'pades-b-b') {
@@ -345,9 +348,7 @@ if ($repository->find($id) !== null || $bindings->find(461) !== null
     || $repository->activeId('tsa') !== $previousTsaId
     || $framework->getSystemSetting('organization') !== $previousOrganization
     || $framework->getSystemSetting('admin-alert-recipients') !== $previousRecipients
-    || $framework->getSystemSetting('tsa_policy_oid') !== $previousPolicy
-    || $framework->getSystemSetting('timestamp_mode') !== $previousTimestampMode
-    || $framework->getSystemSetting('bb_fallback') !== $previousFallback
+    || array_map(fn($key) => $framework->getSystemSetting($key), $providerKeys) !== $previousProviders
     || $alarms->lastMailedAt(hash('sha256', 'PROJECT_KEY_MISMATCH' . "\0" . $project->id)) !== null
     || $framework->queryLogs(
         'SELECT log_id WHERE message = ? AND generation_id = ? AND ISNULL(project_id) LIMIT 1',

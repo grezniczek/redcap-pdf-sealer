@@ -63,11 +63,16 @@ final readonly class PkiDiagnosticService
             if ($root === null || $root->role !== 'root') { throw new RuntimeException('Root unavailable'); }
             return $root->asGeneratedIdentity($this->protector);
         });
-        $tsa = $step('tsa', $root !== null, function () use ($health, $root) {
-            if ($health->status !== PkiHealth::Ready) { throw new RuntimeException('TSA is not ready'); }
-            $tsa = $this->identities->find($this->identities->activeId('tsa'));
-            if ($tsa === null || $tsa->role !== 'tsa') { throw new RuntimeException('TSA unavailable'); }
-            return new TsaIdentity($tsa->certificateDer, $tsa->privateKey($this->protector), [$root->certificateDer]);
+        $tsa = $step('tsa', true, function () {
+            $sourceId = \DE\RUB\PDFSealerExternalModule\Pki\ProviderRepository::BUILTIN_TSA;
+            $health = new PkiHealthService($this->identities, $this->protector);
+            if ($health->inspectTimestamp($sourceId, time())->status !== PkiHealth::Ready) {
+                throw new RuntimeException('TSA is not ready');
+            }
+            $source = $this->identities->providers()->source($sourceId);
+            $tsa = $this->identities->find($source['identity_id']);
+            $rootDer = $this->identities->publicCertificate($source['issuer_identity_id'], 'root');
+            return new TsaIdentity($tsa->certificateDer, $tsa->privateKey($this->protector), [$rootDer]);
         });
         $signer = $step('signer', $root !== null, function () use ($root) {
             $organization = $this->settings->get('organization');
@@ -82,7 +87,7 @@ final readonly class PkiDiagnosticService
             $verifier->verify($sample, $sealed, $signer->certificateDer);
         });
         $provider = $step('timestamp', $tsa !== null, function () use ($tsa) {
-            $policy = $this->settings->get('tsa_policy_oid');
+            $policy = $this->identities->providers()->source(\DE\RUB\PDFSealerExternalModule\Pki\ProviderRepository::BUILTIN_TSA)['policy_oid'];
             if ($policy === null || $policy === '') { $policy = TsaPolicy::DEFAULT_OID; }
             if (!is_string($policy)) { throw new RuntimeException('Invalid policy'); }
             $provider = new InternalTimestampProvider(new InternalTsaService($policy), $tsa);

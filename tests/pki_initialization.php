@@ -38,10 +38,14 @@ final class FakeFramework
     public array $logs = [];
     public array $settings = [];
     public bool $failTsaWrite = false;
+    public bool $failProviderWrite = false;
     private int $nextId = 0;
 
     public function getSystemSetting(string $key): mixed { return $this->settings[$key] ?? null; }
-    public function setSystemSetting(string $key, mixed $value): void { $this->settings[$key] = $value; }
+    public function setSystemSetting(string $key, mixed $value): void {
+        if ($this->failProviderWrite && $key === 'ca_provider_builtin-ca') { throw new RuntimeException('Provider write failure'); }
+        $this->settings[$key] = $value;
+    }
     public function log(string $message, array $parameters): int
     {
         check(array_key_exists('project_id', $parameters) && $parameters['project_id'] === null,
@@ -118,6 +122,8 @@ $framework = new FakeFramework();
 check($health->inspect(time())->status === PkiHealth::Uninitialized, 'Fresh PKI is not uninitialized');
 $service->initialize('Test Institution');
 check($health->inspect(time())->status === PkiHealth::Ready, 'Initialized root and TSA are not ready');
+check($identities->providers()->defaultId() === 'builtin-ca', 'Built-in provider not initialized');
+check($identities->providers()->source('builtin-tsa')['identity_id'] === $identities->activeId('tsa'), 'Source identity mismatch');
 check($framework->settings['organization'] === 'Test Institution', 'Organization was not persisted');
 check($identities->activeId('root') !== $identities->activeId('tsa'), 'Root and TSA share an identity');
 $count = count($framework->logs);
@@ -155,6 +161,19 @@ if (PHP_VERSION_ID < 80400) {
         'Retry recycled certificate serials after rollback');
 }
 
+$providerFailure = new FakeFramework();
+$providerFailure->failProviderWrite = true;
+[$providerService] = fixture($providerFailure);
+try {
+    $providerService->initialize('Test Institution');
+    throw new RuntimeException('Provider failure ignored');
+} catch (RuntimeException $e) {
+    check($e->getMessage() === 'Provider write failure', 'Unexpected provider failure');
+}
+check($providerFailure->settings === [] && array_filter($providerFailure->logs,
+    static fn(array $row): bool => $row['message'] !== CertificateSerialAllocator::MESSAGE) === [],
+    'Provider failure retained identities or partial settings');
+
 $orphanFramework = new FakeFramework();
 [$orphanService, $orphanHealth, $orphanIdentities, , $orphanIssuer] = fixture($orphanFramework);
 $orphanIdentities->append('root', $orphanIssuer->createRoot('Test Institution'));
@@ -168,7 +187,7 @@ try {
 
 $bindingFramework = new FakeFramework();
 [$bindingService, , , $bindingRepository, $bindingIssuer] = fixture($bindingFramework);
-$bindingRepository->bindUuid(461, $bindingIssuer->newProjectUuid());
+$bindingRepository->bindUuid(461, $bindingIssuer->newProjectUuid(), 'builtin-ca');
 try {
     $bindingService->initialize('Test Institution');
     throw new RuntimeException('Orphan binding was ignored');
