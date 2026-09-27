@@ -67,3 +67,25 @@ No edocs, project data, or PKI settings were modified. Temporary verification fi
 ### Dev-control tool limitation encountered
 
 `edoc_inspect`, `edoc_hash`, and `edoc_export` failed with “The REDCap CLI did not return a valid JSON envelope.” Database queries remained available. Direct reads of the identified edoc were denied by filesystem permissions, and passwordless sudo was unavailable. The user's stored-file hash closed the comparison without changing permissions. The edoc tools should expose the underlying CLI error in a sanitized diagnostic so this failure can be investigated; their envelope/export failure remains unresolved.
+
+## PHP 8.2 first-project acceptance — PID 524
+
+On 2026-09-27, following the certificate-serial compatibility fix, the user reported that all Control Center diagnostic checks pass. With the web runtime previously reported as PHP 8.2.34, they created **PID 524**, enabled PDF Sealer, configured eConsent, submitted a survey for **record 1**, and downloaded the resulting PDF from the **File Repository**. The user confirms Acrobat accepted it as **certified and not modified**.
+
+Read-only database inspection through `redcap_devctl`, followed by OpenSSL parsing of the stored public certificate, established:
+
+| Evidence | Value |
+| --- | --- |
+| Project UUID | `08246aca-8f7d-4e44-8be1-293cd171d9d1` |
+| Integer serial reservation | EM log **35937**, purpose `issuance`, role `project` |
+| Certificate identity record | EM log **35938**, identity `41754b15ec74d6b2ec773d511f6b0236` |
+| Active project binding | EM log **35939** |
+| Certificate serial | **35937**, hexadecimal **8C61**; matches the reservation |
+| Certificate SHA-256 | `5ea92dd263b4bc7d4495263ea5f3953f0a0349a8751ecffcaeea8d7f3fec73d9` |
+| Issuing-root SHA-256 recorded in reservation | `3b46357df86ae4d145fc2a4dc393c308cbb035a7857ecbe387c8fa7d39764734` |
+| Project Logging | Entry **1033**, `PDF seal succeeded`, **PAdES B-B**, record **1**, event **1589** |
+| Logged workflow time | **2026-09-27 13:07:15**, instance local time; identity/binding persisted by **13:07:16** |
+
+This completes the requested live acceptance of the PHP 8.2 integer-serial path: a new project certificate was issued, used in the eConsent workflow, and the downloaded artifact was accepted by Acrobat. It also confirms that the success log retains record/event context. The Control Center diagnostic tests both B-B and B-T; this specific live PDF was logged as **B-B**, so it is not additional live timestamp evidence.
+
+The downloaded PDF was not supplied for independent analysis. No stored/downloaded hash comparison, new DSS validation, or concurrent-issuance test was performed in this round. The stored public certificate was parsed without reading private-key material. Database access was read-only; no edocs, project data, or PKI settings were modified by the agent.

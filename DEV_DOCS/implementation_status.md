@@ -2,7 +2,7 @@
 
 ## Current summary — 2026-09-27
 
-**PHP compatibility:** PHP 8.4+ is recommended; PHP 8.2 remains the minimum. Issuance now selects random 128-bit serials on PHP 8.4+ and EM-log-reserved integer serials on PHP 8.2/8.3. See the compatibility fix below and the [serial allocation/recovery rules](../docs/pki.md#certificate-serials).
+**PHP compatibility:** PHP 8.4+ is recommended; PHP 8.2 remains the minimum. Issuance now selects random 128-bit serials on PHP 8.4+ and EM-log-reserved integer serials on PHP 8.2/8.3. Live CC diagnostics and fresh-project integer-serial issuance passed in PID 524, with user-confirmed Acrobat acceptance of its B-B PDF. See the compatibility fix and acceptance notes below and the [serial allocation/recovery rules](../docs/pki.md#certificate-serials).
 
 PDF Sealer produces terminal B-T or B-B seals for eligible eConsent PDFs when its operation is assigned and PKI is usable. Control Center administration, project status, public certificates, and their UI refinements have user approval. The root README and packaged project/admin/technical guides describe current behavior; [DEV_DOCS](README.md) holds implementation and testing material.
 
@@ -229,4 +229,12 @@ Initialization reserves before its identity-storage transaction, so a later roll
 
 Verification: all 17 selected suites pass on PHP 8.2.34, including serial bounds/failures, PKI profiles/storage/initialization, project identities, diagnostic persistence, public trust, B-B/B-T sealing, and all five synthetic REDCap PDF fixtures in both profiles. PHP 8.5.11 passes serial allocation/branch checks, PKI profiles, initialization rollback/retry, diagnostics, and B-B/B-T sealing. The integer maximum survives an actual OpenSSL issuance, and the PHP 8.5 path succeeds with an allocator configured to throw if called. Test runs used a temporary RANDFILE to avoid the PHP 8.5 CLI attempting to write random state outside the sandbox. All 124 PHP files pass PHP 8.2 syntax checks; config/documentation paths, edited guide links, translation parsing, dependency reproducibility, attribution, and diff checks pass.
 
-A read-only `redcap_devctl` schema query confirmed that the main instance's EM `log_id` is an InnoDB unsigned BIGINT AUTO_INCREMENT. No live database writes, certificates, PHP settings, cron settings, Core, or Framework files were changed. Actual simultaneous live database issuance and a live PHP 8.2 first-project seal were not performed; the next acceptance check is the Control Center diagnostic followed by first sealing in a fresh synthetic project. Existing project 461 does not exercise new certificate issuance while it reuses its current signer.
+A read-only `redcap_devctl` schema query confirmed that the main instance's EM `log_id` is an InnoDB unsigned BIGINT AUTO_INCREMENT. No live database writes, certificates, PHP settings, cron settings, Core, or Framework files were changed during the implementation checks. Actual simultaneous live database issuance was not tested. The initially pending browser diagnostic and fresh-project issuance checks were subsequently completed in PID 524, as recorded below.
+
+## Live PHP 8.2 acceptance — PID 524 (2026-09-27)
+
+The user reports that all Control Center diagnostic checks pass. They created project 524, enabled PDF Sealer, configured eConsent, submitted record 1, and downloaded its resulting PDF from the File Repository. Acrobat accepted that download as certified and unmodified.
+
+Read-only `redcap_devctl` inspection confirms that a new project identity was created: serial reservation **35937**, certificate record **35938**, and active binding **35939**. Parsing the stored public certificate with PHP 8.2/OpenSSL confirms serial **35937** (hex **8C61**), exactly matching the reservation. Project Logging entry **1033** records **PDF seal succeeded**, **PAdES B-B**, record **1**, event **1589**. This verifies that the live workflow exercised new integer-serial issuance, rather than reusing project 461's existing signer.
+
+This closes the requested PHP 8.2 diagnostic and first-project browser acceptance. The live PDF in this check was B-B; the passing diagnostic covers both B-B and B-T in-process. Acrobat acceptance is user-reported, and no downloaded PDF was supplied for independent byte/hash or timestamp analysis in this round. See [the acceptance record](pdf_pipeline_acceptance.md#php-82-first-project-acceptance--pid-524) for the identifiers and evidence boundaries. Only developer documentation was changed; database inspection did not modify live data or PKI.
