@@ -12,6 +12,8 @@ Third-party attribution, reproducible namespace prefixing, and release-content c
 
 Project-copy and metadata-only XML export/import acceptance passed on this instance (524 → 525 and 524 → 526): no inherited signing identities, distinct destination certificates/public keys, and identity reuse on second sealing. Direct copy retained the pipeline but left the EM disabled; XML import required explicit enablement and pipeline assignment. Evidence and scope limits are recorded below. PMT setup and first sealing also passed for PID 527, with a distinct destination signer and user-reported Acrobat acceptance; PMT signer reuse was not separately tested. Missing pipeline transfer through XML and PMT is a deferred Core/Framework integration gap, not the intended final behavior; see [the deferred slice](#deferred-pdf-finalization-pipeline-transfer).
 
+The next lifecycle work follows the [provider-aware design](provider_lifecycle_design.md): built-in and external CA providers, locally generated project keys/CSRs, and per-provider internal/external timestamp sources selected exclusively in the Control Center. This is planned work; external enrollment, timestamp sources, monitoring, and renewal are not implemented. Fallback defaults and the implementation sequence are proposals recorded in that design.
+
 ## Implementation history
 
 The sections below record bounded implementation slices, including tests and limitations at the time. Earlier counts and approaches may be superseded by later entries; they are not a second current specification. The [original plan](PDF_Sealer_EM_Implementation_Plan.md) is preserved as design history.

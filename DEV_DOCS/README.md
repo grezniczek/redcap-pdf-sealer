@@ -14,6 +14,7 @@ Start here for implementation, testing, acceptance evidence, and release mainten
 | Document | Purpose |
 | --- | --- |
 | [Implementation status](implementation_status.md) | Current summary followed by chronological implementation and verification notes |
+| [Providers and certificate lifecycle](provider_lifecycle_design.md) | Planned CA providers, local key/CSR enrollment, CC-only timestamp policies and fallbacks, and lifecycle implementation sequence |
 | [Testing](testing.md) | Commands and prerequisites formerly mixed into the root README |
 | [Fixture coverage](pdf_fixture_coverage.md) | Automated PDF matrix and coverage boundaries |
 | [Pipeline acceptance](pdf_pipeline_acceptance.md) | Real dispatch harness and stored/downloaded-byte evidence |
