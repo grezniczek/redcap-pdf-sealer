@@ -252,7 +252,7 @@ The actual JavaScript display block was exercised in Node with Europe/Berlin and
 
 The profile-format refinement was checked against REDCap's actual `DateTimeRC::format_user_datetime()` output: 108 comparisons across all 18 supported formats, midnight/noon, winter/summer dates, and Europe/Berlin and America/New_York time zones passed. The system-default fallback, PHP syntax, and diff checks also passed. No profile settings were changed.
 
-## Project-copy acceptance — PID 524 → 525 (in progress)
+## Project-copy acceptance — PID 524 → 525 (passed for tested scope)
 
 The user copied PID 524 into PID **525**, **PDF Sealer Test COPY**, and reported taking no further action. Read-only `redcap_devctl` inspection before enablement or first sealing confirmed:
 
@@ -283,4 +283,10 @@ Read-only database inspection and OpenSSL verification of stored public certific
 
 The destination UUID, certificate, and public key differ from PID 524. The source certificate's computed SHA-256 still matches its baseline above; its public-key SPKI DER SHA-256 is `ea1b6a28559255020eeaaf84491de0f84197bf32b5e3684dd4df74f775c0632e`. Both project certificate signatures verify under the same unchanged root, and the active root/TSA identity pointers remain unchanged. These checks used public certificates only; no private-key material or downloaded PDF bytes were read. Acrobat acceptance is user-reported and no new stored/downloaded hash comparison is claimed.
 
-Next: submit a second new eConsent in PID 525 and verify reuse of the identity recorded above. XML export/import acceptance remains pending.
+### Second seal in the copied project — identity reuse passed
+
+The user submitted a second eConsent in PID 525, record **2**. Read-only `redcap_devctl` inspection found Project Logging entry **1049**, **PDF seal succeeded**, **PAdES B-B**, record **2**, event **1590**, at **2026-09-27 14:08:09** instance local time.
+
+The destination still has exactly the original two binding entries (UUID allocation 35984 and activation 35986), referencing UUID `8e9c939a-1b0e-42da-a647-8cfffdee9390` and identity `3a88b697d70642cf037f6cf328cdcae0`. Its UUID has exactly one certificate identity record, **35985**, with the same certificate SHA-256 recorded above. No new identity or binding was created for record 2. The successful second seal and unchanged identity storage confirm reuse through the existing project-identity path; the record 2 PDF itself was not supplied for independent certificate extraction or byte validation.
+
+The tested settings-only project-copy workflow passes: no inherited source identity, fresh destination issuance on first use, distinct public keys under the shared root, and subsequent identity reuse. Non-default EM option transfer, copied records/files, and XML export/import are outside this completed scope. Next: inspect a metadata-only REDCap XML export from PID 524, then test a new project created from it before and after its first seal.
