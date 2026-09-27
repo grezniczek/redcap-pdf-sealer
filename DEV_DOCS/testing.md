@@ -144,7 +144,9 @@ No live retirements or provider transitions were performed by the automated suit
 
 Run `RANDFILE=/tmp/pdf-sealer-transition-random php -d xdebug.mode=off tests/provider_transitions.php` (also with `php8.2`). The suite uses real disposable crypto and fake persistence: current signer/UUID/history preservation, builtin/external target activation, pending cancellation and rollback, stale reviews, retirement on either side, one pending operation, no-signer transitions, and lock interleavings. The actual finalizer and sample verifier check that B-B remains effective during preparation and B-T becomes effective only after activation. Transition tests passed on PHP 8.2 and 8.5. Existing retirement, project identity, storage, and AJAX regression suites passed on PHP 8.5. Changed PHP files passed PHP 8.2 lint; page JavaScript syntax, JSON/INI parsing, language keys, packaged-guide links, and diff checks also passed. No live data is changed.
 
-Browser acceptance (pending):
+The user confirmed review works after the fix, supplied a new CSR, and reported “Looking good” after receiving the signed certificate and activation/PDF-check instructions. This is positive workflow feedback; no separate cancellation result or Acrobat diagnostic was reported, and no resulting PDF was supplied for independent inspection.
+
+Browser regression procedure (cancellation remains unconfirmed):
 
 1. In CC **CA providers → Change project provider**, review the working external test project. Select the built-in CA and **Issue and activate built-in replacement**. Confirm the project retains its UUID, shows the new certificate/provider, and a new eConsent PDF is accepted in Acrobat.
 2. Prepare a change back to the disposable external CA. The project should show its current built-in signer and the external replacement provider. Generate/download a fresh CSR; the current signer must remain usable before activation. Supply the CSR path for signing with the existing disposable CA helper, then upload/review/activate its returned certificate. Confirm another eConsent PDF is accepted and the provider switches only on activation.
