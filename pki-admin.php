@@ -184,11 +184,11 @@ $framework->initializeJavascriptModuleObject();
             <form id="pdf-sealer-provider-register">
                 <fieldset>
                     <label for="provider-name"><?= $escape($framework->tt('provider_name')) ?></label>
-                    <input class="form-control mb-3" id="provider-name" maxlength="128" required>
+                    <input class="form-control form-control-sm mb-3" id="provider-name" maxlength="128" required>
                     <label for="provider-chain"><?= $escape($framework->tt('provider_chain')) ?></label>
-                    <input class="form-control mb-3" id="provider-chain" type="file" accept=".pem,.crt,.cer" required>
+                    <input class="form-control form-control-sm mb-3" id="provider-chain" type="file" accept=".pem,.crt,.cer" required>
                     <label for="provider-source"><?= $escape($framework->tt('timestamp_mode_label')) ?></label>
-                    <select class="form-select mb-3" id="provider-source" required>
+                    <select class="form-select form-select-sm mb-3" id="provider-source" required>
                         <option value="" selected disabled><?= $escape($framework->tt('timestamp_settings_choose')) ?></option>
                         <option value="none"><?= $escape($framework->tt('timestamp_mode_none')) ?></option>
                         <?php if ($builtinSourceAvailable): ?><option value="builtin-tsa"><?= $escape($framework->tt('timestamp_mode_internal')) ?></option><?php endif; ?>
@@ -204,9 +204,9 @@ $framework->initializeJavascriptModuleObject();
             <form id="pdf-sealer-provider-assign">
                 <fieldset <?= $providerCatalog === [] ? 'disabled' : '' ?>>
                     <label for="provider-pid"><?= $escape($framework->tt('provider_pid')) ?></label>
-                    <input class="form-control mb-3" type="number" min="1" step="1" id="provider-pid" required>
+                    <input class="form-control form-control-sm mb-3" type="number" min="1" step="1" id="provider-pid" required>
                     <label for="provider-selection"><?= $escape($framework->tt('provider_label')) ?></label>
-                    <select class="form-select mb-3" id="provider-selection" required>
+                    <select class="form-select form-select-sm mb-3" id="provider-selection" required>
                         <option value="" selected disabled><?= $escape($framework->tt('timestamp_settings_choose')) ?></option>
                         <?php foreach ($providerCatalog as $provider): ?><option value="<?= $escape($provider['id']) ?>"><?= $escape($provider['name'] ?? $framework->tt('provider_builtin')) ?></option><?php endforeach; ?>
                     </select>
