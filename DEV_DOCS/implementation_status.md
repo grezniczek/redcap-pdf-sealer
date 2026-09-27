@@ -251,3 +251,18 @@ The Control Center diagnostic completion time now uses the browser's local time 
 The actual JavaScript display block was exercised in Node with Europe/Berlin and America/New_York time zones for summer and winter dates; the expected local hours and unchanged ISO timestamp passed. PHP syntax and diff checks passed. Browser visual confirmation remains with the user; no diagnostic rerun is required to see a saved result in local time.
 
 The profile-format refinement was checked against REDCap's actual `DateTimeRC::format_user_datetime()` output: 108 comparisons across all 18 supported formats, midnight/noon, winter/summer dates, and Europe/Berlin and America/New_York time zones passed. The system-default fallback, PHP syntax, and diff checks also passed. No profile settings were changed.
+
+## Project-copy acceptance — PID 524 → 525 (in progress)
+
+The user copied PID 524 into PID **525**, **PDF Sealer Test COPY**, and reported taking no further action. Read-only `redcap_devctl` inspection before enablement or first sealing confirmed:
+
+- Both projects have the PDF execution plan `["pdf_sealer:seal"]`.
+- PDF Sealer is enabled in 524 but not 525; system-wide enablement is false. This matches Core/Framework copy behavior, which copies the execution plan and project settings while excluding the `enabled` flag.
+- PID 525 has no `project_identity_binding` records (no assigned UUID or active certificate) and no PDF sealing success/failure entries. The copied project did not inherit the source's identity binding.
+- Each project has one eConsent configuration and one PDF snapshot configuration. This establishes their presence, not field-by-field equivalence.
+- The source binding remains UUID `08246aca-8f7d-4e44-8be1-293cd171d9d1`, identity `41754b15ec74d6b2ec773d511f6b0236`, certificate record 35938, SHA-256 `5ea92dd263b4bc7d4495263ea5f3953f0a0349a8751ecffcaeea8d7f3fec73d9`.
+- Instance active root/TSA identity IDs are `3a7ad47fed2ff9ed3303cdc93ae8b563` and `1f023cc5f186584f7ebd026ed7d12f65`, respectively, for later comparison.
+
+The source has no persisted PDF Sealer project setting other than enablement, so this copy does not exercise transfer of a non-default `hide-project-trust-link` value. No private-key material was read and no live settings, records, or files were changed.
+
+Next: the user enables PDF Sealer in 525, checks the existing single-operation pipeline and unissued-certificate status, then submits a fresh eConsent and checks the saved download in Acrobat. Verify its new UUID/certificate/public key against the source, then a second submission must reuse the destination identity. XML export/import acceptance remains pending.
