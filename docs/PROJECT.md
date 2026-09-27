@@ -54,10 +54,20 @@ Contact your REDCap administrator with the project, relevant record/event if ava
 
 ## External CA assignments
 
-An administrator may assign a project to an external CA. The project status page shows the provider and **Awaiting signing certificate** until enrollment is completed. Certificate enrollment is not available in this version; local key/CSR generation and certificate upload will follow. An external assignment never silently switches to built-in issuance. A failed sealing operation can still leave an unsealed PDF available to REDCap, so review project Logging as well as the status page.
+An administrator may assign a project to an external CA. The project status page shows the provider and **Awaiting signing certificate** until enrollment is completed. Local key generation and CSR download are available on the project status page. Certificate upload and activation will follow. An external assignment never silently switches to built-in issuance. A failed sealing operation can still leave an unsealed PDF available to REDCap, so review project Logging as well as the status page.
 
 ## CA assignment required
 
 If the administrator has enabled the explicit-assignment policy, an unassigned project shows **CA assignment required**. Ask an administrator to assign a provider before expecting sealed PDFs. Project designers cannot change this policy or choose the provider.
 
 Until assignment, the sealing operation fails and project Logging records **PDF seal failed: CA assignment required**. This intentionally does **not** block eConsent completion: REDCap can still store or deliver the unsealed PDF. Assignment later permits subsequent sealing once the signing identity is ready; it does not seal previously generated PDFs retroactively. Existing project provider bindings continue working when this policy is enabled.
+
+## Generate and download a CSR
+
+After an administrator assigns an external CA, a project designer or administrator can open **PDF Sealer status** and select **Generate key and download CSR** under **External certificate enrollment**. The module creates a 3072-bit RSA key locally, encrypts it in REDCap, and downloads a public PEM certificate signing request (`.csr`). The subject uses the project's pseudonymous UUID, not its title or participant information.
+
+Send the CSR to the assigned CA through your institution's process. The private key is not downloadable, including by administrators. The CSR requests a non-CA certificate for digital/document signing; the CA controls the certificate it issues. Certificate upload and activation are not available yet, so generating a CSR does not enable sealing.
+
+Only one pending request is allowed. **Download CSR** retrieves the same request after refresh; retrying generation also returns that request instead of replacing its key. The page shows the request subject, file SHA-256, and creation time in your browser time zone and REDCap profile format.
+
+Use **Cancel pending request** only if you intend to discard it. After confirmation, the encrypted pending key is removed from active module storage; a returned certificate for that request cannot subsequently be activated. Backups can retain old data. Generate again to create a new key/CSR, and send the new CSR to the CA. Cancellation does not change an existing signing certificate or provider assignment.

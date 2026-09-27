@@ -139,3 +139,9 @@ The next slice begins local encrypted project-key and CSR storage, separate from
 ## Assignment gate implemented — 2026-09-27
 
 CC now offers a default-off requirement for explicit CA assignment, independent of CA count. It applies to projects without a binding. The policy save and automatic first issuance share a configuration lock; existing bindings continue working. The intended failure behavior is documented in both packaged guides: missing assignment blocks sealing while eConsent completion can store/deliver an unsealed PDF. Choosing a different installation default and transitioning an existing project binding remain separate future work.
+
+## Local key/CSR slice implemented — 2026-09-27
+
+The project status page now offers generation, repeated CSR download, and confirmed cancellation to authenticated project designers/admins for an explicitly assigned external provider. One pending enrollment is stored in `pending_enrollment_<PID>` system settings with an encrypted local key, separate from active identities. It persists until cancellation or future activation; cancellation deletes active pending storage, retains public audit metadata, and does not erase backups. Stale IDs cannot cancel/download a replacement. No private-key export path exists. The initial CSR subject is UUID-only CN; requested extensions describe the existing document-signing profile.
+
+Next: certificate upload, chain/profile/key validation, and atomic activation of the exact pending request. Controlled imported-key enrollment and renewal remain separate follow-ups. The disposable registration fixture's CA key was discarded; it can test CSR preparation but cannot issue a returned certificate.

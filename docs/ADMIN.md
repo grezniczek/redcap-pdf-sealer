@@ -68,9 +68,9 @@ Choose **No timestamp** or explicitly choose the **internal TSA** if initialized
 
 To assign a provider, enter the project ID and select the provider. PDF Sealer must be enabled there. Assignment reserves a project UUID; it does not issue a certificate or assign a PDF pipeline operation. A project with a different existing provider binding cannot be reassigned in this version. Registration does not change the installation default: unassigned projects use the built-in provider when initialized only if the explicit-assignment gate is off. An external-only setup requires explicit project assignments.
 
-**External certificate enrollment is not available yet.** An externally assigned project shows **Awaiting signing certificate**. Sealing reports `PROJECT_CERTIFICATE_REQUIRED` and does not issue a built-in certificate. REDCap's existing finalization failure behavior can still store/deliver the preceding unsealed PDF; this is not a delivery-blocking policy. Use an unbound test project to explore registration and assignment until enrollment is implemented. The built-in health summary and diagnostic continue to describe the built-in CA/TSA.
+**CSR preparation is available; external certificate upload and activation are not yet available.** An externally assigned project shows **Awaiting signing certificate**. Sealing reports `PROJECT_CERTIFICATE_REQUIRED` and does not issue a built-in certificate. REDCap's existing finalization failure behavior can still store/deliver the preceding unsealed PDF; this is not a delivery-blocking policy. Use a test project to explore registration, assignment, and CSR preparation until certificate activation is implemented. The built-in health summary and diagnostic continue to describe the built-in CA/TSA.
 
-Registration and assignment use authenticated CC-only AJAX and system-scoped audit records. No CA private key is requested or stored. Local project key/CSR creation and returned-certificate validation are the next enrollment steps.
+Registration and assignment use authenticated CC-only AJAX and system-scoped audit records. No CA private key is requested or stored. Project designers and administrators can generate a local project key, download its CSR, and explicitly cancel a pending request on the project status page. Returned-certificate validation and activation are the next steps.
 
 ## Diagnostic: capability check and saved result
 
@@ -131,3 +131,11 @@ Distribute trust instructions through your institution's established channels. R
 Automatic renewal/rotation, revocation publication, external TSA configuration, and PAdES B-LT/B-LTA are not implemented. Plan certificate lifecycle and recovery before operational reliance; [PKI](pki.md) describes the stored material and current behavior.
 
 For implementation history, reproducible tests, acceptance evidence, and release packaging, see the repository's [developer documentation](https://github.com/grezniczek/redcap-pdf-sealer/tree/main/DEV_DOCS). It is intentionally excluded from installation packages; the linked development branch may be newer than your installed version. See also the [overview](../README.md) and [third-party notices](../THIRD_PARTY_NOTICES.md).
+
+## Pending enrollment storage and recovery
+
+Pending enrollment is stored separately from active identities in system-scoped module settings, tied to the project UUID and provider. Its private key is encrypted with REDCap's installation-key protection; generation verifies an encryption/decryption round trip before saving. Include these settings and the installation encryption material in recoverable backups. Pending requests persist across refresh/restart and remain until explicit cancellation (or future activation); disabling a project/module does not intentionally discard them.
+
+Cancellation removes the encrypted pending key and CSR from active settings and retains only public audit identifiers/fingerprints. It cannot erase older backups or database recovery history. Restore keys and their related project/provider/CSR state consistently. A stale browser request cannot download or cancel a different, newer enrollment. Corrupt or mismatched pending storage is reported as unavailable and is not silently replaced.
+
+There is no project-key export, certificate activation, private-key import, automatic renewal, or cancellation-recovery UI in this slice. See the [project CSR workflow](PROJECT.md#generate-and-download-a-csr).

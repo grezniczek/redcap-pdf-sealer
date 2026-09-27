@@ -99,3 +99,9 @@ Add `--fixture` to write a disposable public chain to ignored `DEV_DOCS/interop-
 Browser acceptance: save the gate on, refresh to confirm persistence, and use an unbound test project. Its page should say **CA assignment required**. A completed eConsent should still produce the preceding unsealed PDF and the explicit project failure log. Then explicitly assign the built-in CA and test a subsequent eConsent; it should seal. Existing bound projects must continue sealing with the gate on. Restore the desired policy afterward. No live toggles were performed by the standalone suites.
 
 The user confirmed the assignment-gate browser checks passed on 2026-09-27; see [the acceptance note](implementation_status.md#explicit-ca-assignment-gate--2026-09-27). The procedure above remains a reference for future changes, not a request to repeat the completed checks.
+
+### Local project key and CSR preparation
+
+Run `RANDFILE=/tmp/pdf-sealer-enrollment-random php -d xdebug.mode=off tests/project_enrollment.php` (also with `php8.2`). This reuses the external-provider fake persistence/fixtures and uses real OpenSSL keys/CSRs, with independent `openssl req -verify -text` checks. No live database writes occur. `tests/pki_admin_ajax.php` exercises project action authorization and malformed payloads.
+
+Browser check: in a test project assigned to an external provider, generate/download the CSR, refresh and download again (same file SHA-256), cancel after confirmation, and generate again (different CSR). Verify pending metadata persists and the project remains awaiting a certificate; generating a CSR must not enable sealing. An ordinary user without design rights must not gain access. The registration fixture provider works for this check, but its discarded CA key prevents issued-certificate testing later. No private key should be offered as a download.

@@ -22,7 +22,7 @@ The project UUID is pseudonymous and stable within the stored project binding. T
 
 Explicit administrator initialization creates the root and TSA together. It refuses to overwrite existing or orphaned PKI material. Health inspection never silently creates replacement keys.
 
-Initialization also creates the built-in CA provider and internal timestamp source. The CA provider records its issuing identity and timestamp policy; the source separately records its TSA identity, issuing certificate, and policy OID. Only built-in operation is currently available; external enrollment and external timestamp services are planned.
+Initialization also creates the built-in CA provider and internal timestamp source. The CA provider records its issuing identity and timestamp policy; the source separately records its TSA identity, issuing certificate, and policy OID. Built-in sealing is available; external providers support assignment and local CSR preparation, while external certificate activation and external timestamp services remain planned.
 
 A project's UUID, provider assignment, and certificate binding are established on first sealing use. Subsequent operations reuse the identity and its recorded issuing certificate. Changing the default provider does not reassign existing projects. Locks serialize initialization and project issuance to prevent competing requests from creating conflicting active identities. Opening either status page is read-only with respect to certificate issuance.
 
@@ -74,7 +74,7 @@ External provider configuration stores only public CA certificates (ordered issu
 
 External chains are published on the trust page and included in expiry monitoring; shared external certificates are deduplicated by SHA-256 in that inventory. Provider registration is serialized with built-in initialization. Project assignment uses the same project lock as local issuance and atomically stores the UUID/provider binding and administrative audit. External-only pending bindings do not prevent later built-in initialization.
 
-Assigned external projects cannot seal yet: enrollment, certificate activation, and chain inclusion in signatures are a subsequent slice. Current assignments are immutable; renewal, provider transitions, and provider retirement remain future work.
+Assigned external projects can prepare a local key/CSR but cannot seal yet: certificate activation and chain inclusion in signatures are a subsequent slice. Current assignments are immutable; renewal, provider transitions, and provider retirement remain future work.
 
 ## Explicit-assignment gate
 
@@ -83,3 +83,11 @@ The system setting `require_ca_assignment` defaults to off when absent. Enabling
 Automatic first issuance takes the project issuance lock, then the shared PKI configuration lock, and reads the policy from the primary database. It holds both through binding, issuance, and activation. Policy saves take the configuration lock and commit the setting with an administrative audit. This ordering prevents a save from reporting success while an earlier automatic first issuance is still running. Already bound projects use their project lock and do not wait for the policy lock. Earlier completed bindings are retained.
 
 A required assignment returns an explicit sealing failure without creating a UUID, serial reservation, or certificate. The original PDF remains available to REDCap; eConsent completion and delivery are not blocked by this policy. Project Logging records the reason, while the corresponding EM failure entry retains diagnostic context.
+
+## Pending key and CSR lifecycle
+
+`pending_enrollment_<PID>` is a system-scoped JSON setting containing a random enrollment ID, project UUID, provider ID, creation time, public PEM CSR/file SHA-256, and encrypted private key. It is separate from `pki_identity` and never becomes an active signer merely by being generated. Generation and cancellation use the project issuance lock and a transaction covering storage plus the public `project_enrollment` audit. Repeat generation reuses the pending request. Download/cancel require its exact enrollment ID, preventing stale requests from affecting a replacement.
+
+Keys are RSA 3072; CSRs use SHA-256 and request `CA:false`, digitalSignature, and documentSigning (`1.3.6.1.5.5.7.3.36`). The subject contains only `CN=REDCap Project <UUID>`. No CA key is involved and no certificate serial is allocated. OpenSSL configuration uses Framework temporary files, which are removed; private keys are never written there. The key stays encrypted in durable settings, with no download endpoint. Page display and repeat downloads do not decrypt it.
+
+Pending enrollment is retained until explicitly canceled or consumed by future activation. Cancellation transactionally removes it from active settings while preserving public audit metadata, leaving any active signer unchanged. Backups/history may retain encrypted copies. Future activation must recheck the exact pending ID, key match, provider chain, validity, and signing profile under the same project lock; returned certificates and imported keys are not accepted yet.

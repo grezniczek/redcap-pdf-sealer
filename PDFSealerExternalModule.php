@@ -88,6 +88,9 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
         if ($action === 'download_public_root_certificate') {
             return $this->downloadPublicRootCertificate($payload);
         }
+        if (in_array($action, ['generate_project_csr', 'download_project_csr', 'cancel_project_csr'], true)) {
+            return $this->projectEnrollment($action, $payload, $project_id);
+        }
         if (!$this->framework->isSuperUser()
             || $project_id !== null
             || $this->framework->getProjectId() !== null) {
@@ -112,6 +115,36 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             return $this->downloadRootCertificate($payload);
         }
         throw new \RuntimeException($this->framework->tt('pki_invalid_request'));
+    }
+
+    private function projectEnrollment(string $action, mixed $payload, mixed $projectId): array
+    {
+        $pid = filter_var($projectId, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        $ambient = $this->framework->getProjectId();
+        $user = $this->framework->getUser();
+        if ($pid === false || $ambient === null || (string) $ambient !== (string) $pid
+            || !is_string($user->getUsername()) || $user->getUsername() === '' || !$user->hasDesignRights($pid)
+            || !in_array($pid, array_map('intval', $this->framework->getProjectsWithModuleEnabled()), true)) {
+            throw new \RuntimeException($this->framework->tt('project_status_access_denied'));
+        }
+        if (($action === 'generate_project_csr' && $payload !== null)
+            || ($action !== 'generate_project_csr' && (!is_array($payload) || count($payload) !== 1
+                || !is_string($payload['id'] ?? null) || preg_match('/^[a-f0-9]{32}$/D', $payload['id']) !== 1))) {
+            return ['ok' => false, 'message' => $this->framework->tt('pki_invalid_request')];
+        }
+        try {
+            $service = new \DE\RUB\PDFSealerExternalModule\Pki\ProjectEnrollmentService(
+                $this->framework, new \DE\RUB\PDFSealerExternalModule\Pki\ProjectBindingRepository($this->framework),
+                new \DE\RUB\PDFSealerExternalModule\Pki\ProviderRepository($this->framework), new SecretProtector(),
+                new \DE\RUB\PDFSealerExternalModule\Pki\ProjectIssueLock(),
+            );
+            if ($action === 'generate_project_csr') { return $service->generate($pid); }
+            if ($action === 'download_project_csr') { return $service->download($pid, $payload['id']); }
+            $service->cancel($pid, $payload['id']);
+            return ['ok' => true];
+        } catch (\Throwable) {
+            return ['ok' => false, 'message' => $this->framework->tt('enrollment_failed')];
+        }
     }
 
     private function manageCaProvider(string $action, mixed $payload): array

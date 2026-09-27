@@ -16,13 +16,14 @@ final class Rows {
 final class Framework {
     public array $settings = [], $logs = [], $paths = [];
     public ?array $snapshot = null;
-    public bool $failAudit = false, $failCatalog = false;
+    public bool $failAudit = false, $failCatalog = false, $failEnrollment = false;
     public function createTempFile(): string { return $this->paths[] = tempnam('/tmp', 'pdf-sealer-external-'); }
     public function getSystemSetting(string $key): mixed { return $this->settings[$key] ?? null; }
     public function setSystemSetting(string $key, mixed $value): void {
         if ($this->failCatalog && $key === 'external_ca_provider_ids') throw new RuntimeException('Catalog write failed');
         $this->settings[$key] = $value;
     }
+    public function removeSystemSetting(string $key): void { unset($this->settings[$key]); }
     public function getProjectsWithModuleEnabled(): array { return [101,102]; }
     public function getUser(): object { return new class { public function getUsername(): string { return 'admin'; } }; }
     public function query(string $sql, array $params): bool {
@@ -34,6 +35,7 @@ final class Framework {
     }
     public function log(string $message, array $values): int {
         check($values['project_id'] === null && $values['record'] === '', 'Wrong audit scope');
+        if ($message === 'project_enrollment' && $this->failEnrollment) throw new RuntimeException('Enrollment audit unavailable');
         if ($message === 'ca_provider_admin' && $this->failAudit) throw new RuntimeException('Audit unavailable');
         $this->logs[] = ['message'=>$message,'log_id'=>count($this->logs)+1] + $values;
         return count($this->logs);

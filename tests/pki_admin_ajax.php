@@ -24,6 +24,9 @@ namespace {
     final class FakeFramework
     {
         public bool $superuser = true;
+        public ?string $username = 'admin';
+        public bool $design = true;
+        public array $enabled = [461];
         public ?int $projectId = null;
         public bool $failWrite = false;
         public array $settings = [];
@@ -53,6 +56,14 @@ namespace {
             return true;
         }
 
+        public function getProjectsWithModuleEnabled(): array { return $this->enabled; }
+        public function getUser(): object {
+            return new class($this) {
+                public function __construct(private object $framework) {}
+                public function getUsername(): ?string { return $this->framework->username; }
+                public function hasDesignRights(int $pid): bool { return $this->framework->superuser || $this->framework->design; }
+            };
+        }
         public function getModuleInstance(): object { return (object) ['PREFIX' => 'pdf_sealer']; }
         public function prefixSettingKey(string $key): string { return $key; }
         public function isSuperUser(): bool { return $this->superuser; }
@@ -211,6 +222,26 @@ namespace {
             check($e->getMessage() === 'pki_access_denied', 'Unexpected unauthorized download outcome');
         }
     }
+
+    $before = [$framework->settings, $framework->queries];
+    foreach (['generate_project_csr', 'download_project_csr', 'cancel_project_csr'] as $action) {
+        check(in_array($action, $config['auth-ajax-actions'], true) && !in_array($action, $config['no-auth-ajax-actions'], true), 'CSR action exposed without authentication');
+        foreach ([[null, true, true, 461, 461, [461]], ['user', false, false, 461, 461, [461]],
+            ['admin', true, true, null, null, [461]], ['admin', true, true, 461, 462, [461,462]],
+            ['admin', true, true, 461, 461, []]] as [$username,$superuser,$design,$ambient,$context,$enabled]) {
+            $framework->username = $username; $framework->superuser = $superuser; $framework->design = $design;
+            $framework->projectId = $ambient; $framework->enabled = $enabled;
+            try { $module->redcap_module_ajax($action, null, $context); throw new \RuntimeException('CSR authorization bypass'); }
+            catch (\RuntimeException $e) { check($e->getMessage() === 'project_status_access_denied', 'Wrong CSR denial'); }
+        }
+        $framework->username = 'designer'; $framework->superuser = false; $framework->design = true;
+        $framework->projectId = 461; $framework->enabled = [461];
+        $badPayloads = $action === 'generate_project_csr' ? [[], ['pid'=>462]] : [null, [], ['id'=>'bad'], ['id'=>str_repeat('a',32),'pid'=>462]];
+        foreach ($badPayloads as $payload) {
+            check($module->redcap_module_ajax($action,$payload,461) === ['ok'=>false,'message'=>'pki_invalid_request'], 'Invalid CSR payload accepted');
+        }
+    }
+    check([$framework->settings, $framework->queries] === $before, 'Rejected CSR request changed data');
 
     $framework->superuser = true;
     $framework->projectId = null;

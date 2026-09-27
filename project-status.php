@@ -31,6 +31,7 @@ $identity = (new ProjectIdentityService(
     CertificateIssuer::forFramework($framework), $health, new ProjectIssueLock(),
 ))->inspect((int) $pid);
 $certificate = $identity['certificate'];
+$provider = null;
 $providerName = $framework->tt('pki_not_configured');
 try {
     $binding = (new ProjectBindingRepository($framework))->find((int) $pid);
@@ -42,6 +43,17 @@ try {
     }
 } catch (Throwable) { /* Keep the explicit unavailable label. */ }
 
+$enrollment = null;
+$enrollmentAvailable = ($provider['kind'] ?? null) === 'external';
+$enrollmentFailed = false;
+if ($enrollmentAvailable) {
+    try {
+        $enrollment = (new \DE\RUB\PDFSealerExternalModule\Pki\ProjectEnrollmentService(
+            $framework, new ProjectBindingRepository($framework), $identities->providers(), $protector, new ProjectIssueLock(),
+        ))->inspect((int) $pid);
+    } catch (Throwable) { $enrollmentFailed = true; }
+}
+
 $pipelineTone = $pipeline['state'] === 'assigned' ? 'ready' : 'degraded';
 $identityTone = match ($identity['state']) {
     'ready' => 'ready',
@@ -50,6 +62,7 @@ $identityTone = match ($identity['state']) {
     default => 'uninitialized',
 };
 require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';
+if ($enrollmentAvailable) { $framework->initializeJavascriptModuleObject(); }
 ?>
 <link rel="stylesheet" href="<?= $escape($framework->getUrl('assets/admin.css')) ?>">
 <div class="pdf-sealer-admin pdf-sealer-status">
@@ -104,6 +117,78 @@ require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';
         </dl>
         <p class="small text-muted mb-0"><?= $escape($framework->tt('project_status_read_only')) ?></p>
     </section>
+    <?php if ($enrollmentAvailable): ?>
+    <section class="pdf-sealer-panel pdf-sealer-section" aria-labelledby="enrollment-title">
+        <h5 id="enrollment-title"><i class="fas fa-file-signature" aria-hidden="true"></i> <?= $escape($framework->tt('enrollment_title')) ?></h5>
+        <p><?= $escape($framework->tt('enrollment_help')) ?></p>
+        <?php if ($enrollmentFailed): ?>
+            <p class="alert alert-warning"><?= $escape($framework->tt('enrollment_failed')) ?></p>
+        <?php else: ?>
+            <dl id="enrollment-details" class="pdf-sealer-certificate" <?= $enrollment === null ? 'hidden' : '' ?>>
+                <dt><?= $escape($framework->tt('pki_subject')) ?></dt><dd id="enrollment-subject"><?= $module::certificateSubjectHtml($enrollment['subject'] ?? '') ?></dd>
+                <dt><?= $escape($framework->tt('enrollment_created')) ?></dt><dd id="enrollment-created"><?= $enrollment === null ? '' : $escape(gmdate('Y-m-d H:i:s \U\T\C', $enrollment['created_at'])) ?></dd>
+                <dt><?= $escape($framework->tt('enrollment_digest')) ?></dt><dd><code id="enrollment-digest" class="pdf-sealer-fingerprint"><?= $escape($enrollment['csr_sha256'] ?? '') ?></code></dd>
+            </dl>
+            <div class="pdf-sealer-actions">
+                <button type="button" class="btn btn-primaryrc btn-sm" id="enrollment-generate" <?= $enrollment === null ? '' : 'hidden' ?>><?= $escape($framework->tt('enrollment_generate')) ?></button>
+                <button type="button" class="btn btn-primaryrc btn-sm" id="enrollment-download" <?= $enrollment === null ? 'hidden' : '' ?>><?= $escape($framework->tt('enrollment_download')) ?></button>
+                <button type="button" class="btn btn-outline-danger btn-sm" id="enrollment-cancel" <?= $enrollment === null ? 'hidden' : '' ?>><?= $escape($framework->tt('enrollment_cancel')) ?></button>
+            </div>
+            <p id="enrollment-message" class="alert mt-3" role="status" hidden></p>
+        <?php endif; ?>
+        <p class="small text-muted mt-3"><?= $escape($framework->tt('enrollment_activation_pending')) ?></p>
+    </section>
+    <?php endif; ?>
     <p class="small text-muted"><?= $escape($framework->tt('project_status_logging')) ?></p>
 </div>
+<?php if ($enrollmentAvailable && !$enrollmentFailed): ?>
+<script>
+(() => {
+    const module = <?= $framework->getJavascriptModuleObjectName() ?>;
+    let pending = <?= json_encode($enrollment, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    const enrollmentDateTimeFormat = <?= json_encode(\DateTimeRC::get_user_format_full(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    const formatEnrollmentTime = date => {
+        const [dateFormat, clockFormat] = enrollmentDateTimeFormat.split('_');
+        const pad = value => String(value).padStart(2, '0');
+        const parts = {Y: String(date.getFullYear()).padStart(4, '0'), M: pad(date.getMonth() + 1), D: pad(date.getDate())};
+        const hours = date.getHours();
+        const clock = (clockFormat === '12' ? hours % 12 || 12 : pad(hours))
+            + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds())
+            + (clockFormat === '12' ? (hours >= 12 ? 'pm' : 'am') : '');
+        const zone = new Intl.DateTimeFormat(undefined, {timeZoneName: 'short'})
+            .formatToParts(date).find(part => part.type === 'timeZoneName').value;
+        return dateFormat.replace(/[YMD]/g, part => parts[part]) + ' ' + clock + ' ' + zone;
+    };
+    if (pending) document.getElementById('enrollment-created').textContent = formatEnrollmentTime(new Date(pending.created_at * 1000));
+    const message = document.getElementById('enrollment-message');
+    const buttons = ['generate', 'download', 'cancel'].map(action => document.getElementById('enrollment-' + action));
+    buttons.forEach((button, index) => button.addEventListener('click', async () => {
+        const action = ['generate', 'download', 'cancel'][index];
+        if (action === 'cancel' && !window.confirm(<?= json_encode($framework->tt('enrollment_cancel_confirm'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>)) return;
+        buttons.forEach(b => b.disabled = true);
+        message.hidden = true;
+        try {
+            const response = await module.ajax(action + '_project_csr', action === 'generate' ? null : {id: pending.id});
+            if (!response?.ok) throw new Error('Enrollment failed');
+            if (action === 'cancel') { location.reload(); return; }
+            pending = response.pending;
+            document.getElementById('enrollment-subject').textContent = pending.subject;
+            document.getElementById('enrollment-created').textContent = formatEnrollmentTime(new Date(pending.created_at * 1000));
+            document.getElementById('enrollment-digest').textContent = pending.csr_sha256;
+            document.getElementById('enrollment-details').hidden = false;
+            buttons[0].hidden = true; buttons[1].hidden = buttons[2].hidden = false;
+            const bytes = Uint8Array.from(atob(response.base64), char => char.charCodeAt(0));
+            const url = URL.createObjectURL(new Blob([bytes], {type: response.content_type}));
+            const link = document.createElement('a');
+            link.href = url; link.download = response.filename;
+            document.body.appendChild(link); link.click(); link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+        } catch (error) {
+            message.textContent = <?= json_encode($framework->tt('enrollment_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+            message.className = 'alert alert-danger mt-3'; message.hidden = false;
+        } finally { buttons.forEach(b => b.disabled = false); }
+    }));
+})();
+</script>
+<?php endif; ?>
 <?php require_once APP_PATH_DOCROOT . 'ProjectGeneral/footer.php'; ?>
