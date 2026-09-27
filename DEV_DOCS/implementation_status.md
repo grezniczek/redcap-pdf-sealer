@@ -291,7 +291,7 @@ The destination still has exactly the original two binding entries (UUID allocat
 
 The tested settings-only project-copy workflow passes: no inherited source identity, fresh destination issuance on first use, distinct public keys under the shared root, and subsequent identity reuse. Non-default EM option transfer, copied records/files, and XML export/import are outside this completed scope. Next: inspect a metadata-only REDCap XML export from PID 524, then test a new project created from it before and after its first seal.
 
-## Project XML export/import acceptance — export inspected, import pending
+## Project XML export/import acceptance — imported initial state passed, sealing pending
 
 The user supplied PID 524's metadata-only export, `C:\Users\grezn\Downloads\PDFSealerTest_2026-09-27_1415.REDCap.xml`, and clarified that EM settings do not travel with project XML. The file was inspected read-only through its WSL path; it was not copied into the repository or modified.
 
@@ -301,10 +301,23 @@ The user supplied PID 524's metadata-only export, `C:\Users\grezn\Downloads\PDFS
 - Neither PDF Sealer EM settings nor `external_modules.pdf_finalize_execution_plan` / `pdf_sealer:seal` are present. Module enablement and pipeline assignment therefore need separate setup after import; the direct project-copy behavior must not be assumed for XML import.
 - Inspection found none of the known source UUID, identity ID, or certificate fingerprint, nor module PKI binding/identity fields, private-key storage fields, certificate DER storage fields, or PEM certificate/private-key markers. The export does not carry the module's signing identity.
 
-Next: the user creates a new project from this exact XML and reports its PID before enabling PDF Sealer, assigning the pipeline operation, or submitting a survey. Inspect the imported project's initial state, then explicitly enable/assign the module and test fresh issuance followed by signer reuse. Export inspection alone does not establish successful import or eConsent configuration remapping.
+The user subsequently created PID 526 from this XML. Its initial-state inspection is recorded below; fresh issuance and signer reuse remain pending.
 
 ### Separate EM settings export
 
 The user also supplied `C:\Users\grezn\Downloads\PDFSealerTest_ModuleSettingsExport_2026-09-27.zip`. Read-only ZIP inspection found exactly one entry: `modules/pdf_sealer/settings.json`, containing the empty JSON array `[]` (2 bytes). The archive is **164 bytes**, SHA-256 `e0e7b0074ba07d93740e374ed6b3de3e918a70b567f8ecbfd684788f0f3da246`.
 
 This separate export contains no setting values, module enablement flag, PDF pipeline assignment, signing identity, or key material. It is consistent with the earlier database finding that PID 524 has no PDF Sealer project setting besides enablement. It confirms the contents of this particular archive; it does not test round-tripping a non-default module setting. The XML import test can proceed with explicit module enablement and pipeline assignment after initial-state inspection. Testing actual settings-value transfer would require a separate case with a non-default project setting.
+
+
+### Imported PID 526 — initial state passed
+
+The user created **PID 526**, **PDF Sealer from XML**, from the inspected export. Read-only `redcap_devctl` inspection before sealing confirmed:
+
+- No PDF Sealer project settings or enablement flag, and no PDF execution-plan entry. The module is not enabled system-wide either. This matches the XML's absence of EM settings and pipeline configuration.
+- No destination `project_identity_binding` rows and no PDF seal success/failure entries. No source UUID or active certificate binding was inherited.
+- One active eConsent configuration, **172**, points to the imported project's survey **1018**, form `survey`. The source uses consent **170** and survey **1016**.
+- One active PDF snapshot configuration, **270**, points to destination consent **172** and triggers on destination survey **1018**, with File Repository saving enabled and selected forms `:survey`. The source snapshot is **268**. The trigger event is unset in both projects. The checked consent/survey references resolve to PID 526, not PID 524.
+- PID 524's original UUID/active identity binding and the instance's active root/TSA identity pointers remain unchanged.
+
+No live data or settings were modified by the agent. Next: enable PDF Sealer in PID 526 and explicitly assign `pdf_sealer:seal` once, verify status still shows an unissued certificate, then submit the first new eConsent and inspect the saved PDF in Acrobat. Compare the resulting UUID/certificate/public key with both 524 and 525; a subsequent second submission should reuse 526's identity.
