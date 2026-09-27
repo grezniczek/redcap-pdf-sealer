@@ -12,8 +12,6 @@ use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Output\Widg
 use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Signer;
 use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Timestamp\Client as TimestampClient;
 use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Timestamp\Config as TimestampConfig;
-use DateTimeImmutable;
-use DateTimeZone;
 use DE\RUB\PDFSealerExternalModule\Timestamp\PolicyOidAsn1;
 use DE\RUB\PDFSealerExternalModule\Timestamp\TimestampProvider;
 use OpenSSLAsymmetricKey;
@@ -196,18 +194,19 @@ final class PdfSealBuilder
         while ($offset < strlen($info['value'])) {
             $fields[] = $asn1->readTlv($info['value'], $offset);
         }
-        if (($fields[1]['raw'] ?? null) !== $asn1->encodeObjectIdentifier($policyOid)) {
+        if (($fields[1]['tag'] ?? null) !== 0x06) {
+            throw new \RuntimeException('Timestamp token lacks a policy OID');
+        }
+        $asn1->decodeObjectIdentifier($fields[1]['value']);
+        if ($policyOid !== '' && $fields[1]['raw'] !== $asn1->encodeObjectIdentifier($policyOid)) {
             throw new \RuntimeException('Timestamp token policy does not match the configured policy');
         }
         if (($fields[3]['tag'] ?? null) !== 0x02 || ($fields[4]['tag'] ?? null) !== 0x18) {
             throw new \RuntimeException('Timestamp token lacks serial or generation time');
         }
-        $timeText = $fields[4]['value'];
-        $time = DateTimeImmutable::createFromFormat('!YmdHis\Z', $timeText, new DateTimeZone('UTC'));
-        if ($time === false || $time->format('YmdHis\Z') !== $timeText) {
-            throw new \RuntimeException('Timestamp generation time is invalid');
-        }
-        return [strtoupper(bin2hex($fields[3]['value'])), $time->getTimestamp()];
+        // Preserve the original token; log metadata has whole-second precision.
+        $time = $asn1->decodeGeneralizedTime($fields[4]['value'], true);
+        return [strtoupper(bin2hex($fields[3]['value'])), $time];
     }
 
     /** @param array<string, array|string> $objects */

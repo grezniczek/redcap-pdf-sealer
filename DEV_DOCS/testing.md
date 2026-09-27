@@ -11,6 +11,8 @@ The standalone RFC 3161 timestamp responder, PKI components, and PDF seal builde
 ```sh
 php tests/dependency_isolation.php
 php tests/timestamp_spike.php
+php tests/external_timestamp.php
+php tests/timestamp_transport.php
 php tests/certificate_serials.php
 php tests/pki_primitives.php
 php tests/providers.php
@@ -45,6 +47,14 @@ Sealing externalizes inline links on every page and preserves the latest input r
 It requires PHP GD, qpdf, OpenSSL, and Poppler's `pdfsig`, `pdfimages`, `pdftoppm`, and `pdftotext`. Five fixtures cover transparent signature images, multiple pages, footer links enabled/disabled, a landscape attachment merged with qpdf, and rotated pages in compressed object streams. Both B-B and B-T undergo independent signature/timestamp checks; all pages must render identically at 72 dpi and retain their text and footer links. Temporary PDFs and synthetic keys are discarded. This is backend/structural coverage, not a complete eConsent workflow or a REDCap merge-path test. See [fixture coverage](pdf_fixture_coverage.md) for limits and remaining acceptance checks.
 
 To check a REDCap-generated PDF without adding its bytes to the repository, export it to a local file and run `PDF_SEALER_REDCAP_PDF_PATH=/absolute/path/to/exported.pdf php tests/pdf_structure.php`, `PDF_SEALER_REDCAP_PDF_PATH=/absolute/path/to/exported.pdf php tests/pdf_seal_bb.php`, or the same command with `tests/pdf_seal_bt.php`. The seal tests sign in memory with disposable test certificates, then check the detached CMS and root chain with OpenSSL. The B-T test also validates the RFC 3161 response with OpenSSL. All PDF tests use `qpdf`; the seal tests also use Poppler `pdfsig` to confirm PDF signature recognition, signed ranges, and full-document coverage. Its `-nocert` option skips trust validation for the disposable test root; OpenSSL verifies that chain separately.
+
+## External TSA foundation
+
+`tests/external_timestamp.php` uses disposable synthetic PKI and injected responders, including OpenSSL's independent `ts -reply` with fractional `genTime`. It checks separate document/TSA roots, an issuing intermediate (including a response that omits the intermediate), default/explicit policies including large UUID arcs, wrong policy/imprint/nonce/purpose/trust, root injection, stale and tampered tokens, malformed/oversized bodies and transport failure. Complete PDFs pass qpdf/pdfsig/CMS checks and their embedded timestamps are independently verified with OpenSSL against the actual CMS signature bytes. Temporary keys/certificates/PDFs are removed; no REDCap data or live service is used.
+
+`tests/timestamp_transport.php` checks HTTPS URL/auth validation, 3-second connection/10-second request bounds, 64 KiB response cap passed to the Core helper, redirect/compression refusal, content type/status handling and secret-safe errors. It uses an HTTP test double and the real Core `ResponseByteLimit` class. Set `PDF_SEALER_REDCAP_ROOT` if Core is elsewhere. This test does not exercise real network streaming, TLS certificates, proxy authentication or timeouts; those require endpoint acceptance after CC integration. The production transport depends on `HttpClient::requestWithResponseLimit` and fails closed if that helper is unavailable.
+
+Both suites and the existing nine-fixture `tests/pdf_seal_bt.php` (including B-B checks) passed on PHP 8.2 and 8.5. The internal timestamp spike also passed on PHP 8.5. External sources are not selectable yet; no browser intervention is needed for this foundation slice. Future source registration must encrypt credentials, audit changes without secrets, and expose explicit per-source diagnostic results. Alternative-source and B-B orchestration remain outside these tests.
 
 ## Live development-instance checks
 
