@@ -126,6 +126,8 @@ final class PdfFinalizeService
                 'timestamp_serial' => $result->timestampSerialHex,
                 'timestamp_time' => $result->timestampTime,
             ]);
+        } catch (\DE\RUB\PDFSealerExternalModule\Pki\ProjectCertificateRequired) {
+            return $this->failed($events, $event, $context, (int) $pid, 'PROJECT_CERTIFICATE_REQUIRED', 'External CA project certificate is required');
         } catch (Throwable $e) {
             if (isset($health)) { $this->alarm($health->inspect(time())); }
             error_log('PDF Sealer finalization failed: ' . get_class($e));

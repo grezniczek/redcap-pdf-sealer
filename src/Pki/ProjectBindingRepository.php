@@ -19,10 +19,11 @@ final class ProjectBindingRepository
         $this->reader = $reader ?? new PrimaryLogReader($framework);
     }
 
-    public function hasAny(): bool
+    public function hasAny(bool $includeExternal = true): bool
     {
         $result = $this->reader->query(
-            'SELECT log_id WHERE message = ? AND ISNULL(project_id) LIMIT 1',
+            'SELECT log_id WHERE message = ? AND ISNULL(project_id)'
+                . ($includeExternal ? '' : " AND (ISNULL(provider_id) OR provider_id NOT LIKE 'external-%')") . ' LIMIT 1',
             [self::MESSAGE],
         );
         if ($result === false) {

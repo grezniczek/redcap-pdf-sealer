@@ -25,7 +25,7 @@ Choose the organization carefully: the page does not provide a rename or certifi
 
 ## TSA: timestamp settings
 
-Settings on the **TSA** tab apply to future sealing operations across all enabled projects. Save both choices together using the page's save action.
+Settings on the **TSA** tab apply to future sealing operations for projects assigned to the built-in CA. Save both choices together using the page's save action.
 
 | Setting | Behavior |
 | --- | --- |
@@ -47,6 +47,18 @@ These controls configure the built-in CA provider and remain available only in t
 5. Check the saved PDF and the project's **Logging** outcome. A passing diagnostic or an assigned operation alone does not demonstrate that the project's workflow reached sealing.
 
 Only eligible completed eConsent PDFs are sealed. Existing archives and ordinary record/form PDFs are unaffected. The [project guide](PROJECT.md) covers project permissions and the optional menu link to public certificates.
+
+## External CA registration and project assignment
+
+On **CA providers**, register a named external provider by uploading its public PEM chain: issuing CA first, any parent intermediates next, and the self-signed root last. A directly issuing root can be uploaded alone. The limit is eight certificates / 128 KiB. Certificates must be currently valid CAs with certificate-signing usage; ordering, signatures, path constraints, and duplicate chains are checked. Private keys are rejected. Registration publishes these certificates on the public trust page and includes them in daily expiry checks, even before a project uses them.
+
+Choose **No timestamp** or explicitly choose the **internal TSA** if initialized. B-B fallback is unchecked initially. These choices belong to this provider; changing the built-in provider's TSA-tab settings does not change external providers. External TSA endpoints and editing an external provider's saved policy are not available yet.
+
+To assign a provider, enter the project ID and select the provider. PDF Sealer must be enabled there. Assignment reserves a project UUID; it does not issue a certificate or assign a PDF pipeline operation. A project with a different existing provider binding cannot be reassigned in this version. Registration does not change the installation default: unassigned projects still use the built-in provider when initialized. An external-only setup requires explicit project assignments.
+
+**External certificate enrollment is not available yet.** An externally assigned project shows **Awaiting signing certificate**. Sealing reports `PROJECT_CERTIFICATE_REQUIRED` and does not issue a built-in certificate. REDCap's existing finalization failure behavior can still store/deliver the preceding unsealed PDF; this is not a delivery-blocking policy. Use an unbound test project to explore registration and assignment until enrollment is implemented. The built-in health summary and diagnostic continue to describe the built-in CA/TSA.
+
+Registration and assignment use authenticated CC-only AJAX and system-scoped audit records. No CA private key is requested or stored. Local project key/CSR creation and returned-certificate validation are the next enrollment steps.
 
 ## Diagnostic: capability check and saved result
 
@@ -70,7 +82,7 @@ During sealing, actionable PKI health problems create system-scoped alarm entrie
 
 ### Scheduled certificate expiry checks
 
-The **Alarms** tab also shows the latest daily certificate expiry scan. It checks the configured root/TSA, each project's latest active signer, and their referenced issuing certificates. Issued identities in disabled projects remain monitored. Historical signers that are no longer active are excluded, while an old CA still referenced by an active signer remains included. Shared issuing certificates are counted once.
+The **Alarms** tab also shows the latest daily certificate expiry scan. It checks all registered external CA chains, the configured root/TSA, each project's latest active signer, and their referenced issuing certificates. Issued identities in disabled projects remain monitored. Historical signers that are no longer active are excluded, while an old CA still referenced by an active signer remains included. Shared issuing certificates are counted once.
 
 Warning bands are **90 days**, **30 days**, **7 days**, and **expired**. Missing, unreadable, or not-yet-valid certificates are flagged separately. The table lists up to 50 affected identities in urgency order, with project IDs where applicable; summary counts include the whole inventory. Certificate dates stay in UTC. The scan time uses the browser time zone and REDCap profile format.
 
@@ -82,7 +94,7 @@ These are public-certificate date checks, not key, chain, revocation, or remote-
 
 ## Public certificates and trust
 
-The link above the tabs opens the public certificate page at the configured survey URL, typically `/surveys/?pdf_sealer_certs`. It lists public roots, including historical roots present in storage, with fingerprints, validity dates, and PEM/DER downloads. It does not disclose private keys or project-to-UUID mappings.
+The link above the tabs opens the public certificate page at the configured survey URL, typically `/surveys/?pdf_sealer_certs`. It lists built-in public roots, including historical roots present in storage, and registered external issuing/intermediate/root certificates, with fingerprints, validity dates, and PEM/DER downloads. It does not disclose private keys or project-to-UUID mappings.
 
 The page and its downloads use the survey endpoint; they do not require public API access or a `NOAUTH` URL parameter. The module's every-page hook settings permit this specific anonymous endpoint. No login-page link is injected; use standard REDCap configuration if you want to advertise it there.
 

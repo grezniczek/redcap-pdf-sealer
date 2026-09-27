@@ -93,6 +93,9 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             || $this->framework->getProjectId() !== null) {
             throw new \RuntimeException($this->framework->tt('pki_access_denied'));
         }
+        if (in_array($action, ['register_ca_provider', 'assign_ca_provider'], true)) {
+            return $this->manageCaProvider($action, $payload);
+        }
         if ($action === 'run_diagnostic') {
             return $this->runDiagnostic($payload);
         }
@@ -109,6 +112,36 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             return $this->downloadRootCertificate($payload);
         }
         throw new \RuntimeException($this->framework->tt('pki_invalid_request'));
+    }
+
+    private function manageCaProvider(string $action, mixed $payload): array
+    {
+        if (!is_array($payload)) { return ['ok' => false, 'message' => $this->framework->tt('pki_invalid_request')]; }
+        if ($action === 'register_ca_provider') {
+            if (count($payload) !== 4 || !is_string($payload['name'] ?? null) || !is_string($payload['pem'] ?? null)
+                || !in_array($payload['source'] ?? '', ['none', 'builtin-tsa'], true) || !is_bool($payload['fallback'] ?? null)
+                || strlen($payload['pem']) > 131072 || strlen($payload['name']) > 128) {
+                return ['ok' => false, 'message' => $this->framework->tt('pki_invalid_request')];
+            }
+        } elseif (count($payload) !== 2 || !is_int($payload['pid'] ?? null) || $payload['pid'] < 1
+            || !is_string($payload['provider'] ?? null)) {
+            return ['ok' => false, 'message' => $this->framework->tt('pki_invalid_request')];
+        }
+        try {
+            $service = new \DE\RUB\PDFSealerExternalModule\Pki\ProviderAdminService(
+                $this->framework, new \DE\RUB\PDFSealerExternalModule\Pki\ProviderRepository($this->framework),
+                new \DE\RUB\PDFSealerExternalModule\Pki\ProjectBindingRepository($this->framework),
+                new \DE\RUB\PDFSealerExternalModule\Pki\CaChainValidator($this->framework),
+                new \DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationLock(),
+                new \DE\RUB\PDFSealerExternalModule\Pki\ProjectIssueLock(),
+            );
+            if ($action === 'register_ca_provider') {
+                $service->register($payload['name'], $payload['pem'], $payload['source'] === 'none' ? null : $payload['source'], $payload['fallback']);
+            } else { $service->assign($payload['pid'], $payload['provider']); }
+            return ['ok' => true];
+        } catch (\Throwable) {
+            return ['ok' => false, 'message' => $this->framework->tt($action === 'register_ca_provider' ? 'provider_register_failed' : 'provider_assign_failed')];
+        }
     }
 
     private function runDiagnostic(mixed $payload): array
@@ -233,7 +266,7 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
     {
         if (!is_array($payload)
             || !is_string($payload['id'] ?? null)
-            || preg_match('/^[0-9a-f]{32}$/D', $payload['id']) !== 1
+            || preg_match('/^(?:[0-9a-f]{32}|[0-9a-f]{64})$/D', $payload['id']) !== 1
             || !in_array($payload['format'] ?? null, ['pem', 'der'], true)) {
             return ['ok' => false, 'message' => $this->framework->tt('pki_invalid_request')];
         }
@@ -242,9 +275,9 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
                 new PrimaryLogReader($this->framework),
                 new PrimarySystemSettingReader($this->framework),
             );
-            foreach ($repository->roots() as $root) {
+            foreach (array_merge($repository->roots(), (new \DE\RUB\PDFSealerExternalModule\Pki\ProviderRepository($this->framework))->publicCertificates()) as $root) {
                 if ($root['id'] === $payload['id']) {
-                    return self::certificateDownloadPayload($root['der'], $payload['format']);
+                    return self::certificateDownloadPayload($root['der'], $payload['format'], isset($root['provider_id']) ? 'ca' : 'root');
                 }
             }
         } catch (\Throwable) {
@@ -254,12 +287,12 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
     }
 
     /** @return array{ok: true, filename: string, content_type: string, base64: string} */
-    private static function certificateDownloadPayload(string $der, string $format): array
+    private static function certificateDownloadPayload(string $der, string $format, string $kind = 'root'): array
     {
         $contents = $format === 'pem' ? Certificate::derToPem($der) : $der;
         return [
             'ok' => true,
-            'filename' => 'redcap-pdf-sealer-root-' . substr(hash('sha256', $der), 0, 16) . '.' . $format,
+            'filename' => 'redcap-pdf-sealer-' . $kind . '-' . substr(hash('sha256', $der), 0, 16) . '.' . $format,
             'content_type' => $format === 'pem' ? 'application/x-pem-file' : 'application/pkix-cert',
             'base64' => base64_encode($contents),
         ];

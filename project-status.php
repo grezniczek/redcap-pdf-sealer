@@ -31,11 +31,18 @@ $identity = (new ProjectIdentityService(
     CertificateIssuer::forFramework($framework), $health, new ProjectIssueLock(),
 ))->inspect((int) $pid);
 $certificate = $identity['certificate'];
+$providerName = $framework->tt('pki_not_configured');
+try {
+    $binding = (new ProjectBindingRepository($framework))->find((int) $pid);
+    $provider = $identities->providers()->provider($binding?->providerId ?? $identities->providers()->defaultId());
+    $providerName = $provider['name'] ?? $framework->tt('provider_builtin');
+} catch (Throwable) { /* Keep the explicit unavailable label. */ }
+
 $pipelineTone = $pipeline['state'] === 'assigned' ? 'ready' : 'degraded';
 $identityTone = match ($identity['state']) {
     'ready' => 'ready',
     'unusable', 'expired', 'not_yet_valid' => 'broken',
-    'pending', 'unavailable' => 'degraded',
+    'pending', 'awaiting_certificate', 'unavailable' => 'degraded',
     default => 'uninitialized',
 };
 require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';
@@ -77,6 +84,7 @@ require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';
         <h5 id="pdf-sealer-project-certificate"><i class="fas fa-certificate" aria-hidden="true"></i> <?= $escape($framework->tt('project_status_certificate')) ?></h5>
         <p><?= $escape($framework->tt('project_identity_' . $identity['state'])) ?></p>
         <dl class="pdf-sealer-certificate">
+            <dt><?= $escape($framework->tt('provider_label')) ?></dt><dd><?= $escape($providerName) ?></dd>
             <dt><?= $escape($framework->tt('project_status_uuid')) ?></dt>
             <dd><?php if ($identity['uuid'] !== null): ?><code class="pdf-sealer-fingerprint"><?= $escape($identity['uuid']) ?></code><?php else: ?><?= $escape($framework->tt('project_status_uuid_pending')) ?><?php endif; ?></dd>
             <?php if ($certificate !== null): ?>

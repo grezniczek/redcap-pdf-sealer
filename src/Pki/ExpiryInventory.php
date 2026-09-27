@@ -32,7 +32,10 @@ final class ExpiryInventory
             $wanted[$id] ??= ['role' => $role, 'pid' => $pid, 'der' => null];
         };
         $providers = new ProviderRepository($this->framework, $this->settings);
-        $providerIds = [];
+        $providerIds = array_fill_keys($providers->externalIds(), true);
+        foreach ($providers->publicCertificates() as $certificate) {
+            $wanted[$certificate['id']] = ['role' => 'ca', 'pid' => null, 'der' => $certificate['der']];
+        }
         if ($providers->hasConfiguration()) { $providerIds[$providers->defaultId()] = true; }
         foreach (['root', 'tsa'] as $role) {
             $id = $this->settings->get('active_' . $role . '_identity_id');
@@ -58,7 +61,7 @@ final class ExpiryInventory
         }
         foreach (array_keys($providerIds) as $providerId) {
             $provider = $providers->provider($providerId);
-            $add($provider['issuer_identity_id'], 'root');
+            if ($provider['kind'] === 'internal') { $add($provider['issuer_identity_id'], 'root'); }
             if ($provider['timestamp_source'] !== null) {
                 $source = $providers->source($provider['timestamp_source']);
                 $add($source['identity_id'], 'tsa');

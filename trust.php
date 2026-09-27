@@ -22,7 +22,7 @@ try {
         new PrimaryLogReader($framework),
         new PrimarySystemSettingReader($framework),
     );
-    $roots = $repository->roots();
+    $roots = array_merge($repository->roots(), (new \DE\RUB\PDFSealerExternalModule\Pki\ProviderRepository($framework))->publicCertificates());
     $activeId = $repository->activeRootId();
 } catch (Throwable $e) {
     $unavailable = true;
@@ -75,7 +75,7 @@ header('Cache-Control: no-store');
             <?php endif; ?>
             <?php foreach ($displayRoots as $root): ?>
                 <section class="certificate">
-                    <h2><?= $escape($framework->tt($root['id'] === $activeId ? 'trust_current_root' : 'trust_other_roots')) ?></h2>
+                    <h2><?= $escape(isset($root['provider_name']) ? $root['provider_name'] . ' — ' . $framework->tt($root['trust_anchor'] ? 'provider_anchor' : 'provider_intermediate') : $framework->tt($root['id'] === $activeId ? 'trust_current_root' : 'trust_other_roots')) ?></h2>
                     <dl>
                         <dt><?= $escape($framework->tt('pki_subject')) ?></dt><dd><?= $module::certificateSubjectHtml($root['subject']) ?></dd>
                         <dt><?= $escape($framework->tt('pki_fingerprint')) ?></dt><dd><code><?= $escape($root['fingerprint']) ?></code></dd>

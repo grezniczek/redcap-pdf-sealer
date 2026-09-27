@@ -60,6 +60,17 @@ try {
 } catch (Throwable) {
     // Show an explicit unknown state; do not silently replace invalid stored settings with defaults.
 }
+$providerCatalog = []; $providerCertificates = []; $providersUnavailable = false; $builtinSourceAvailable = false;
+try {
+    $providers = $identities->providers();
+    if ($providers->hasConfiguration()) {
+        $providerCatalog[] = $providers->provider($providers::BUILTIN_CA);
+        $providers->source($providers::BUILTIN_TSA);
+        $builtinSourceAvailable = true;
+    }
+    foreach ($providers->externalIds() as $providerId) { $providerCatalog[] = $providers->provider($providerId); }
+    $providerCertificates = $providers->publicCertificates();
+} catch (Throwable) { $providersUnavailable = true; }
 $recipients = $framework->getSystemSetting('admin-alert-recipients');
 $recipients = is_array($recipients) ? implode(', ', array_filter($recipients, 'is_string')) : (is_string($recipients) ? $recipients : '');
 $snapshot = null;
@@ -117,7 +128,7 @@ $framework->initializeJavascriptModuleObject();
     </div>
     <p class="pdf-sealer-trust-link"><a href="<?= $escape($module::publicTrustUrl()) ?>" target="_blank" rel="noopener"><i class="fas fa-external-link-alt" aria-hidden="true"></i> <?= $escape($framework->tt('pki_public_trust_page')) ?></a></p>
     <div class="nav nav-tabs" role="tablist" aria-label="<?= $escape($framework->tt('pki_page_title')) ?>">
-        <?php foreach (['root' => 'fa-certificate', 'tsa' => 'fa-clock', 'diagnostic' => 'fa-stethoscope', 'alarms' => 'fa-bell'] as $tab => $icon): ?>
+        <?php foreach (['root' => 'fa-certificate', 'providers' => 'fa-building', 'tsa' => 'fa-clock', 'diagnostic' => 'fa-stethoscope', 'alarms' => 'fa-bell'] as $tab => $icon): ?>
             <button type="button" class="nav-link<?= $tab === 'root' ? ' active' : '' ?>" role="tab" id="pki-tab-<?= $tab ?>" aria-controls="pki-panel-<?= $tab ?>" aria-selected="<?= $tab === 'root' ? 'true' : 'false' ?>" tabindex="<?= $tab === 'root' ? '0' : '-1' ?>" data-pki-tab="<?= $tab ?>"><i class="fas <?= $icon ?>" aria-hidden="true"></i> <?= $escape($framework->tt('pki_tab_' . $tab)) ?></button>
         <?php endforeach; ?>
     </div>
@@ -146,6 +157,64 @@ $framework->initializeJavascriptModuleObject();
             <div id="pki-root-download-message" role="status" hidden></div>
         <?php endif; ?>
     <?php endif; ?>
+    </section>
+    <section class="pdf-sealer-panel" id="pki-panel-providers" role="tabpanel" aria-labelledby="pki-tab-providers" tabindex="0" hidden>
+        <h5><?= $escape($framework->tt('pki_tab_providers')) ?></h5>
+        <p><?= $escape($framework->tt('provider_intro')) ?></p>
+        <?php if ($providersUnavailable): ?>
+            <p class="alert alert-warning"><?= $escape($framework->tt('provider_unavailable')) ?></p>
+        <?php else: ?>
+            <?php foreach ($providerCatalog as $provider): ?>
+                <div class="pdf-sealer-card mb-3">
+                    <h6><?= $escape($provider['name'] ?? $framework->tt('provider_builtin')) ?></h6>
+                    <p class="small"><code><?= $escape($provider['id']) ?></code><br>
+                        <?= $escape($framework->tt('timestamp_mode_label')) ?>: <?= $escape($framework->tt($provider['timestamp_source'] === null ? 'timestamp_mode_none' : 'timestamp_mode_internal')) ?><br>
+                        <?= $escape($framework->tt($provider['bb_fallback'] ? 'timestamp_fallback_allow' : 'timestamp_fallback_fail')) ?></p>
+                    <?php foreach ($providerCertificates as $cert): if ($cert['provider_id'] !== $provider['id']) { continue; } ?>
+                        <dl class="pdf-sealer-certificate">
+                            <dt><?= $escape($framework->tt($cert['trust_anchor'] ? 'provider_anchor' : 'provider_intermediate')) ?></dt><dd><?= $module::certificateSubjectHtml($cert['subject']) ?></dd>
+                            <dt><?= $escape($framework->tt('pki_fingerprint')) ?></dt><dd><code class="pdf-sealer-fingerprint"><?= $escape($cert['fingerprint']) ?></code></dd>
+                            <dt><?= $escape($framework->tt('pki_valid_until')) ?></dt><dd><?= $escape(gmdate('Y-m-d H:i:s \U\T\C', $cert['valid_until'])) ?></dd>
+                        </dl>
+                    <?php endforeach; ?>
+                </div>
+            <?php endforeach; ?>
+            <h5><?= $escape($framework->tt('provider_register')) ?></h5>
+            <p class="small text-muted"><?= $escape($framework->tt('provider_upload_help')) ?></p>
+            <form id="pdf-sealer-provider-register">
+                <fieldset>
+                    <label for="provider-name"><?= $escape($framework->tt('provider_name')) ?></label>
+                    <input class="form-control mb-3" id="provider-name" maxlength="128" required>
+                    <label for="provider-chain"><?= $escape($framework->tt('provider_chain')) ?></label>
+                    <input class="form-control mb-3" id="provider-chain" type="file" accept=".pem,.crt,.cer" required>
+                    <label for="provider-source"><?= $escape($framework->tt('timestamp_mode_label')) ?></label>
+                    <select class="form-select mb-3" id="provider-source" required>
+                        <option value="" selected disabled><?= $escape($framework->tt('timestamp_settings_choose')) ?></option>
+                        <option value="none"><?= $escape($framework->tt('timestamp_mode_none')) ?></option>
+                        <?php if ($builtinSourceAvailable): ?><option value="builtin-tsa"><?= $escape($framework->tt('timestamp_mode_internal')) ?></option><?php endif; ?>
+                    </select>
+                    <label class="mb-3"><input type="checkbox" id="provider-fallback"> <?= $escape($framework->tt('timestamp_fallback_allow')) ?></label><br>
+                    <button class="btn btn-primaryrc btn-sm" type="submit"><?= $escape($framework->tt('provider_register')) ?></button>
+                </fieldset>
+                <p class="alert mt-3" role="status" hidden></p>
+            </form>
+            <hr>
+            <h5><?= $escape($framework->tt('provider_assign')) ?></h5>
+            <p class="small text-muted"><?= $escape($framework->tt('provider_assign_help')) ?></p>
+            <form id="pdf-sealer-provider-assign">
+                <fieldset <?= $providerCatalog === [] ? 'disabled' : '' ?>>
+                    <label for="provider-pid"><?= $escape($framework->tt('provider_pid')) ?></label>
+                    <input class="form-control mb-3" type="number" min="1" step="1" id="provider-pid" required>
+                    <label for="provider-selection"><?= $escape($framework->tt('provider_label')) ?></label>
+                    <select class="form-select mb-3" id="provider-selection" required>
+                        <option value="" selected disabled><?= $escape($framework->tt('timestamp_settings_choose')) ?></option>
+                        <?php foreach ($providerCatalog as $provider): ?><option value="<?= $escape($provider['id']) ?>"><?= $escape($provider['name'] ?? $framework->tt('provider_builtin')) ?></option><?php endforeach; ?>
+                    </select>
+                    <button class="btn btn-primaryrc btn-sm" type="submit"><?= $escape($framework->tt('provider_assign')) ?></button>
+                </fieldset>
+                <p class="alert mt-3" role="status" hidden></p>
+            </form>
+        <?php endif; ?>
     </section>
     <section class="pdf-sealer-panel" id="pki-panel-tsa" role="tabpanel" aria-labelledby="pki-tab-tsa" tabindex="0" hidden>
         <h5><?= $escape($framework->tt('pki_tsa')) ?></h5>
@@ -296,6 +365,37 @@ $framework->initializeJavascriptModuleObject();
     });
     selectTab(location.hash.slice(1));
     window.addEventListener('hashchange', () => selectTab(location.hash.slice(1)));
+    ['register', 'assign'].forEach(action => {
+        const form = document.getElementById('pdf-sealer-provider-' + action);
+        if (!form) return;
+        form.addEventListener('submit', async event => {
+            event.preventDefault();
+            const fields = form.querySelector('fieldset');
+            const message = form.querySelector('[role="status"]');
+            fields.disabled = true;
+            message.hidden = true;
+            try {
+                let payload;
+                if (action === 'register') {
+                    const file = document.getElementById('provider-chain').files[0];
+                    if (!file || file.size > 131072) throw new Error('Invalid upload');
+                    payload = {name: document.getElementById('provider-name').value, pem: await file.text(),
+                        source: document.getElementById('provider-source').value, fallback: document.getElementById('provider-fallback').checked};
+                } else {
+                    payload = {pid: Number(document.getElementById('provider-pid').value), provider: document.getElementById('provider-selection').value};
+                }
+                const response = await module.ajax(action + '_ca_provider', payload);
+                message.className = 'alert mt-3 ' + (response?.ok ? 'alert-success' : 'alert-danger');
+                message.textContent = response?.ok ? <?= json_encode($framework->tt('provider_saved'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?> : response?.message;
+                message.hidden = false;
+                if (response?.ok && action === 'register') { location.hash = 'providers'; location.reload(); }
+            } catch (error) {
+                message.className = 'alert alert-danger mt-3';
+                message.textContent = <?= json_encode($framework->tt('provider_request_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+                message.hidden = false;
+            } finally { fields.disabled = false; }
+        });
+    });
     const input = document.getElementById('pdf-sealer-recipients');
     const button = document.getElementById('pdf-sealer-save-recipients');
     const message = document.getElementById('pdf-sealer-recipient-message');

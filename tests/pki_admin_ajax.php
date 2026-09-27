@@ -188,6 +188,12 @@ namespace {
         } catch (\RuntimeException $e) {
             check($e->getMessage() === 'pki_access_denied', 'Unexpected timestamp settings authorization result');
         }
+        foreach (['register_ca_provider', 'assign_ca_provider'] as $action) {
+            try {
+                $module->redcap_module_ajax($action, [], $case['context']);
+                throw new \RuntimeException('Unauthorized provider request accepted');
+            } catch (\RuntimeException $e) { check($e->getMessage() === 'pki_access_denied', 'Wrong provider authorization outcome'); }
+        }
         check([$framework->settings, $framework->queries] === $before, 'Unauthorized settings request wrote data');
         try {
             $module->redcap_module_ajax('download_root_certificate', 'pem', $case['context']);

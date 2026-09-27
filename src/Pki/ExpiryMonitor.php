@@ -112,8 +112,8 @@ final class ExpiryMonitor
             if (!is_int($value['counts'][$band] ?? null) || $value['counts'][$band] < 0) { throw new RuntimeException('Invalid expiry count'); }
         }
         foreach ($value['items'] as $item) {
-            if (!is_array($item) || !is_string($item['id'] ?? null) || preg_match('/^[a-f0-9]{32}$/D', $item['id']) !== 1
-                || !in_array($item['role'] ?? null, ['root', 'tsa', 'project'], true)
+            if (!is_array($item) || !is_string($item['id'] ?? null) || preg_match('/^(?:[a-f0-9]{32}|[a-f0-9]{64})$/D', $item['id']) !== 1
+                || !in_array($item['role'] ?? null, ['root', 'tsa', 'project', 'ca'], true)
                 || !array_key_exists('pid', $item) || ($item['pid'] !== null && (!is_int($item['pid']) || $item['pid'] < 1))
                 || !array_key_exists('expires', $item) || ($item['expires'] !== null && !is_int($item['expires']))
                 || !in_array($item['band'] ?? null, self::BANDS, true)) { throw new RuntimeException('Invalid expiry item'); }

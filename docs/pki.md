@@ -67,3 +67,11 @@ No CRL or OCSP publication service is provided. A root certificate's `cRLSign` k
 The root is self-signed and belongs to this REDCap installation. Being embedded in a PDF or available for download does not make it a trusted anchor in a viewer. Institutions and recipients decide whether to trust it and how to verify its fingerprint.
 
 The TSA runs in the same installation and uses the server's time. It is not an independent external time authority. Maintain the host's clock synchronization and protect its PKI/encryption material. Read [sealing and validation](sealing-and-validation.md) for what an embedded timestamp establishes and what it does not provide.
+
+## Registered external CA chains
+
+External provider configuration stores only public CA certificates (ordered issuing CA to self-signed root), SHA-256 hashes, a display name, and an explicit timestamp source/fallback policy. Registration validates current CA validity, certificate-signing usage, issuer signatures, chain order, and path constraints without fetching remote certificates or revocation data. These checks do not establish institutional trust or revocation status.
+
+External chains are published on the trust page and included in expiry monitoring; shared external certificates are deduplicated by SHA-256 in that inventory. Provider registration is serialized with built-in initialization. Project assignment uses the same project lock as local issuance and atomically stores the UUID/provider binding and administrative audit. External-only pending bindings do not prevent later built-in initialization.
+
+Assigned external projects cannot seal yet: enrollment, certificate activation, and chain inclusion in signatures are a subsequent slice. Current assignments are immutable; renewal, provider transitions, and provider retirement remain future work.

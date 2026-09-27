@@ -7,7 +7,7 @@ namespace DE\RUB\PDFSealerExternalModule\Pki;
 use Closure;
 use RuntimeException;
 
-/** Serializes explicit instance PKI initialization on the primary DB. */
+/** Serializes instance PKI initialization and provider registration on the primary DB. */
 final class PkiInitializationLock
 {
     private const NAME = 'pdf_sealer_initialize';

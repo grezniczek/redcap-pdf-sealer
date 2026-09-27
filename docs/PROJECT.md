@@ -51,3 +51,7 @@ Downloading a certificate does not make it trusted. Follow your institution's gu
 ## Help
 
 Contact your REDCap administrator with the project, relevant record/event if available, approximate generation time, and any failure reference or viewer message. They can review [administration and troubleshooting](ADMIN.md). For background, see [certificates and PKI](pki.md) or the [PDF Sealer overview](../README.md).
+
+## External CA assignments
+
+An administrator may assign a project to an external CA. The project status page shows the provider and **Awaiting signing certificate** until enrollment is completed. Certificate enrollment is not available in this version; local key/CSR generation and certificate upload will follow. An external assignment never silently switches to built-in issuance. A failed sealing operation can still leave an unsealed PDF available to REDCap, so review project Logging as well as the status page.

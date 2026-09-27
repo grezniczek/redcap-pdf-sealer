@@ -30,6 +30,9 @@ final class ProjectIdentityService
             $binding = $this->bindings->find($pid);
             $providerId = $binding?->providerId ?? $providers->defaultId();
             $provider = $providers->provider($providerId);
+            if ($provider['kind'] === 'external') {
+                throw new ProjectCertificateRequired('The assigned external CA requires a project signing certificate');
+            }
             if ($binding?->identityId !== null) {
                 $identity = $this->identities->find($binding->identityId);
                 if ($identity === null) {
@@ -90,7 +93,8 @@ final class ProjectIdentityService
             }
             $status['uuid'] = $binding->uuid;
             if ($binding->identityId === null) {
-                $status['state'] = 'pending';
+                $status['state'] = $this->identities->providers()->provider($binding->providerId)['kind'] === 'external'
+                    ? 'awaiting_certificate' : 'pending';
                 return $status;
             }
             $identity = $this->identities->find($binding->identityId);

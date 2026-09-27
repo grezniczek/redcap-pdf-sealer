@@ -35,7 +35,7 @@ final class PkiInitializationService
                 || $this->identities->hasRole('tsa')
                 || $this->identities->hasRole('project')
                 || $this->identities->activeId('tsa') !== null
-                || $this->bindings->hasAny()
+                || $this->bindings->hasAny(false)
                 || $this->identities->providers()->hasConfiguration()) {
                 throw new RuntimeException('Existing PKI material prevents initialization');
             }

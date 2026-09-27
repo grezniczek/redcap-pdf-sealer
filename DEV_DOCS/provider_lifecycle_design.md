@@ -129,3 +129,9 @@ The public trust page should identify built-in and external providers and publis
 5. **Renewal workflows:** reuse pending enrollment and atomic activation for external and local replacements. Exercise historical chains and provider changes without losing project UUIDs.
 
 Keep implementation slices small. Resolve supported certificate profiles, upload formats, timestamp authentication, and key-retention rules when their slice becomes concrete; discuss any substantial added complexity before broadening scope. No live configuration, certificates, credentials, or Core/Framework code are changed by this design document.
+
+## Registration slice implemented — 2026-09-27
+
+CC administrators can register an ordered external public CA chain, choose no timestamp or the built-in TSA explicitly, and assign a module-enabled project before it obtains a provider binding. Registered chain certificates are public and monitored for expiry. These actions are transactional and audited; external assignment fails sealing explicitly until enrollment is implemented. Built-in default issuance remains unchanged. External policy editing, default-selection controls, provider transitions/retirement, and remote TSA sources remain planned.
+
+The next slice begins local encrypted project-key and CSR storage, separate from the active signer. Registration accepts a complete chain to a self-signed anchor; alternate/cross-signed path selection is outside this initial implementation.
