@@ -10,7 +10,7 @@ Selected Acrobat/DSS interoperability acceptance is complete for six multipage/m
 
 Third-party attribution, reproducible namespace prefixing, and release-content checks are implemented. The module loads committed PHP libraries with its own autoloader; release archives exclude Composer manifests, lockfile, vendor directory, and runtime. See [release licensing](release_licensing.md). Automatic renewal/rotation, revocation publication, external TSA configuration, and B-LT/B-LTA remain unimplemented. The proposed Core footer-link change is deferred. Optional real alarm-mail receipt was not separately recorded as verified.
 
-Project-copy and metadata-only XML export/import acceptance passed on this instance (524 → 525 and 524 → 526): no inherited signing identities, distinct destination certificates/public keys, and identity reuse on second sealing. Direct copy retained the pipeline but left the EM disabled; XML import required explicit enablement and pipeline assignment. Evidence and scope limits are recorded below.
+Project-copy and metadata-only XML export/import acceptance passed on this instance (524 → 525 and 524 → 526): no inherited signing identities, distinct destination certificates/public keys, and identity reuse on second sealing. Direct copy retained the pipeline but left the EM disabled; XML import required explicit enablement and pipeline assignment. Evidence and scope limits are recorded below. PMT setup and first sealing also passed for PID 527, with a distinct destination signer and user-reported Acrobat acceptance; PMT signer reuse was not separately tested. Missing pipeline transfer through XML and PMT is a deferred Core/Framework integration gap, not the intended final behavior; see [the deferred slice](#deferred-pdf-finalization-pipeline-transfer).
 
 ## Implementation history
 
@@ -349,7 +349,7 @@ The destination retains exactly its original two binding records (36011 and 3601
 
 This completes the planned same-instance, metadata-only XML export/import acceptance, alongside the earlier settings-only project-copy acceptance. Both destinations started without a signing identity, created distinct signers on first sealing, and reused those signers subsequently. Source identities remained unchanged during the recorded comparisons. Acrobat acceptance was reported for each destination's first saved PDF. No further step is pending for these two cases. Non-default EM settings round-trips, copies containing records/files, and cross-instance migration are outside this evidence; the separate EM settings ZIP inspected here was empty.
 
-## Project Migration Tool — PID 527, queue bug resolved; initial state passed
+## Project Migration Tool — PID 527, queue bug resolved; first seal passed
 
 The user started a further migration from PID 524 using the Project Migration Tool, creating **PID 527**, **PDF Sealer from Project Migration** (migration **2**, started **2026-09-27 15:04:05**, instance local time). Initial read-only inspection found no PDF Sealer project settings, pipeline assignment, identity binding, or sealing events yet. Active eConsent **173** references destination survey **1019**; active snapshot **271** references that consent/survey and saves to the File Repository. These are intermediate observations, not acceptance of a completed migration.
 
@@ -373,4 +373,36 @@ The user confirmed migration completion and reported no subsequent changes in PI
 - No destination UUID/certificate binding and no PDF seal success/failure entries exist. The source project's UUID and active identity binding remain unchanged, as do the instance's active root/TSA pointers.
 - Active eConsent **173** points to destination survey **1019**, form `survey`. Active snapshot **271** points to consent **173** and survey **1019**, saves to the File Repository, and selects `:survey`. These references resolve to PID 527.
 
-No live data or settings were changed during this inspection. Next: enable PDF Sealer in PID 527, assign its operation exactly once, confirm status still shows no certificate, and submit a fresh eConsent. Verify distinct destination issuance and the saved PDF, then test identity reuse on a second submission. This remains a same-instance, no-records migration case with no non-default PDF Sealer project settings to transfer.
+No live data or settings were changed during this inspection. The user subsequently confirmed enabling PDF Sealer, assigning its operation exactly once, and checking that status still showed no certificate. Although initially choosing to omit further sealing tests, they subsequently completed the first seal recorded below. This remains a same-instance, no-records migration case with no non-default PDF Sealer project settings to transfer.
+
+### First seal after PMT migration — passed
+
+The user submitted new record **1** in PID 527 and reports that Acrobat accepted the resulting PDF. Read-only `redcap_devctl` inspection and OpenSSL checks on stored public certificates established:
+
+| Evidence | PID 527 result |
+| --- | --- |
+| New UUID | `d44152e4-12ce-43b0-a9a5-021104cde92c` (binding log 36078) |
+| New identity | `fb5bd5e39955cc64bbb6e0c63a3a44e3` (certificate log 36079; active binding 36080) |
+| Certificate serial | `F534AC28968EA2B7FD611B773169556B` (128 bits) |
+| Certificate SHA-256 | `50177b5cf95c6408264caace944f29f56957769acb999653e171ac98cdf34e73` |
+| Public-key SPKI DER SHA-256 | `ce9d257ccbf16d8aa0b0ca0f99fec12ddd76038ea7f2183731e6bb6c0f186550` |
+| Project Logging | Entry **1081**, **PDF seal succeeded**, **PAdES B-B**, record **1**, event **1592** |
+| Logged workflow/issuance time | **2026-09-27 15:51:44**, instance local time |
+
+The new UUID, certificate, and public key differ from PIDs 524, 525, and 526. The new certificate signature verifies under the unchanged installation root. Existing project identity bindings and the active root/TSA pointers remain unchanged. No private-key material or downloaded PDF bytes were inspected; Acrobat acceptance is user-reported. The agent made no live changes.
+
+This completes the agreed PMT acceptance scope: the destination started without an inherited signer and issued its own identity on first sealing. PMT signer reuse was not separately tested; the earlier copy/XML reuse checks remain the available evidence for that behavior. No additional manual sealing check is pending for PID 527. Pipeline transfer remains deferred as described below.
+
+## Deferred: PDF finalization pipeline transfer
+
+**Later slice, explicitly deferred by the user.** Project XML export/import and the Project Migration Tool do not yet carry the PDF finalization execution plan. This is a missing integration in the Core/EM Framework PDF-finalization branches. The direct project-copy path already preserves the plan. Requiring manual reassignment in the XML/PMT tests was a workaround for this gap.
+
+Scope for the later slice:
+
+- Add supported export/import and PMT transport for the ordered operation identifiers stored under `external_modules.pdf_finalize_execution_plan` in Core project settings.
+- Coordinate the Core serialization/migration paths with the Framework's execution-plan validation and storage APIs. Preserve operation order and distinguish an absent plan from an explicitly empty plan where those states have different meanings.
+- Preserve existing module-enablement behavior; transferring a plan must not implicitly enable a module. Define and test handling of operations whose modules are absent or disabled on the destination.
+- Transfer pipeline configuration only. Signing identities, project UUID bindings, private keys, and instance PKI stay outside project transfer.
+- Verify XML and PMT round-trips, including multiple ordered operations and empty/absent plans, and retain direct-copy behavior. Confirm the expected project status before module enablement and execution after explicit enablement.
+
+No Core or Framework implementation work for pipeline transfer was performed in this documentation slice. The separately submitted PMT optional-records queue fix is independent of this integration work.

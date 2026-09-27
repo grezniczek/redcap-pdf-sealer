@@ -33,6 +33,7 @@ These preserve design rationale and earlier evidence. Their proposed behavior an
 | [Core/Framework finalization plan](redcap_module_pdf_finalize_implementation_plan.md) | Integration design history, including examples unrelated to current module functionality |
 | [Finalization PR description](redcap_module_pdf_finalize_pr_description.md) | Historical Core/Framework change description |
 | [2026-09-23 live acceptance](live_acceptance_2026-09-23.md) | Earlier finalizer/demo evidence, predating current cryptographic sealing acceptance |
+| [PDF finalization pipeline transfer](implementation_status.md#deferred-pdf-finalization-pipeline-transfer) | Deferred Core/Framework slice: preserve pipeline configuration through project XML and PMT; direct copy already transfers it |
 | [Core footer-link change request](redcap_core_pdf_link_change.md) | Deferred; the EM currently handles inline links and no Core change is scheduled |
 | [Licensing brief](license.md) | Completed implementation brief; results and ongoing procedure are in release licensing |
 
