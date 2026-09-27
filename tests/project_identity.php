@@ -85,11 +85,12 @@ $protector = new SecretProtector();
 $reader = new PrimaryLogReader($framework, [$framework, 'queryLogs']);
 $identities = new IdentityRepository($framework, $protector, $reader, new PrimarySystemSettingReader($framework, [$framework, 'getSystemSetting']));
 $bindings = new ProjectBindingRepository($framework, $reader);
+require_once __DIR__ . '/support/CertificateSerials.php';
 $issuer = new CertificateIssuer(static function (): string {
     $path = tempnam(sys_get_temp_dir(), 'pdf_sealer_project_test_');
     check(is_string($path), 'Could not create test OpenSSL config');
     return $path;
-});
+}, [\PDFSealerTests\CertificateSerials::class, 'reserve']);
 $held = false;
 $lockCalls = 0;
 $lock = new ProjectIssueLock(static function (string $sql, array $params) use (&$held, &$lockCalls): FakeResult {

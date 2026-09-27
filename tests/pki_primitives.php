@@ -27,17 +27,21 @@ function readCertificate(GeneratedIdentity $identity): array
     check(openssl_x509_check_private_key($pem, $identity->privateKey()), 'Certificate/key mismatch');
     $key = openssl_pkey_get_details($identity->privateKey());
     check(is_array($key) && $key['type'] === OPENSSL_KEYTYPE_RSA && $key['bits'] === 3072, 'Wrong key algorithm or size');
-    check(strlen($details['serialNumberHex']) >= 30, 'Certificate serial is too short');
+    if (PHP_VERSION_ID >= 80400) {
+        check(strlen($details['serialNumberHex']) === 32 && hexdec($details['serialNumberHex'][0]) >= 8,
+            'Certificate serial is not a positive 128-bit value');
+    }
     return $details;
 }
 
 $tempPaths = [];
+require_once __DIR__ . '/support/CertificateSerials.php';
 $issuer = new CertificateIssuer(static function () use (&$tempPaths): string {
     $path = tempnam(sys_get_temp_dir(), 'pdf_sealer_test_ca_');
     check(is_string($path), 'Cannot create test OpenSSL config');
     $tempPaths[] = $path;
     return $path;
-});
+}, [\PDFSealerTests\CertificateSerials::class, 'reserve']);
 $root = $issuer->createRoot('Test Institution');
 $tsa = $issuer->createTsa('Test Institution', $root);
 $uuid = $issuer->newProjectUuid();
@@ -48,6 +52,10 @@ $rootInfo = readCertificate($root);
 $tsaInfo = readCertificate($tsa);
 $projectInfo = readCertificate($project);
 $secondInfo = readCertificate($secondProject);
+if (PHP_VERSION_ID < 80400) {
+    check(array_column([$rootInfo, $tsaInfo, $projectInfo, $secondInfo], 'serialNumber') === ['1001', '1002', '1003', '1004'],
+        'Certificates did not use their reserved integer serials');
+}
 check($rootInfo['subject']['O'] === 'Test Institution' && $rootInfo['subject']['CN'] === 'REDCap PDF Sealer Root CA', 'Wrong root subject');
 check($tsaInfo['subject']['OU'] === 'REDCap PDF Sealer' && $tsaInfo['subject']['CN'] === 'REDCap PDF Sealer Timestamp Authority', 'Wrong TSA subject');
 check($projectInfo['subject']['OU'] === 'REDCap PDF Sealer', 'Wrong project subject unit');

@@ -48,11 +48,18 @@ authorityKeyIdentifier = keyid,issuer
 CONFIG;
 
     private Closure $createTempFile;
+    private Closure $reserveSerial;
 
-    /** Pass the EM Framework's createTempFile() method in REDCap. */
-    public function __construct(callable $createTempFile)
+    /** @param callable(string,?string):int $reserveSerial Used only on PHP 8.2/8.3. */
+    public function __construct(callable $createTempFile, callable $reserveSerial)
     {
         $this->createTempFile = Closure::fromCallable($createTempFile);
+        $this->reserveSerial = Closure::fromCallable($reserveSerial);
+    }
+
+    public static function forFramework(object $framework, string $purpose = 'issuance'): self
+    {
+        return new self([$framework, 'createTempFile'], [new CertificateSerialAllocator($framework, $purpose), 'reserve']);
     }
 
     public function createRoot(string $organization): GeneratedIdentity
@@ -135,6 +142,21 @@ CONFIG;
     /** @param array<string,string> $subject */
     private function issue(array $subject, string $extension, int $days, ?GeneratedIdentity $issuer = null): GeneratedIdentity
     {
+        $serial = 0;
+        $serialHex = null;
+        if (PHP_VERSION_ID >= 80400) {
+            $bytes = random_bytes(16);
+            // A positive 128-bit value, disjoint from all integer serials. OpenSSL adds
+            // the DER sign octet. The remaining 127 bits are cryptographically random.
+            $bytes[0] = chr(ord($bytes[0]) | 0x80);
+            $serialHex = bin2hex($bytes);
+        } else {
+            $serial = ($this->reserveSerial)(substr($extension, 0, -4),
+                $issuer === null ? null : hash('sha256', $issuer->certificateDer));
+            if (!is_int($serial) || $serial <= 0 || (PHP_OS_FAMILY === 'Windows' && $serial > 2147483647)) {
+                throw new RuntimeException('Invalid reserved certificate serial');
+            }
+        }
         $key = openssl_pkey_new(['private_key_type' => OPENSSL_KEYTYPE_RSA, 'private_key_bits' => self::KEY_BITS]);
         if (!$key instanceof OpenSSLAsymmetricKey) {
             throw new RuntimeException('Unable to generate RSA identity key');
@@ -156,18 +178,27 @@ CONFIG;
             if ($issuer !== null && !$issuerCertificate instanceof OpenSSLCertificate) {
                 throw new RuntimeException('Unable to load root certificate');
             }
-            $certificate = openssl_csr_sign(
+            $arguments = [
                 $csr,
                 $issuerCertificate,
                 $issuer?->privateKey() ?? $key,
                 $days,
                 $options + ['x509_extensions' => $extension],
-                0,
-                bin2hex(random_bytes(16)),
-            );
+                $serial,
+            ];
+            if ($serialHex !== null) {
+                $arguments[] = $serialHex;
+            }
+            $certificate = openssl_csr_sign(...$arguments);
             if (!$certificate instanceof OpenSSLCertificate || !openssl_x509_export($certificate, $certificatePem)
                 || !openssl_pkey_export($key, $privateKeyPem)) {
                 throw new RuntimeException('Unable to issue or export identity certificate');
+            }
+            $details = openssl_x509_parse($certificate);
+            $expectedHex = $serialHex ?? dechex($serial);
+            if (!is_array($details)
+                || strcasecmp(ltrim($details['serialNumberHex'] ?? '', '0'), ltrim($expectedHex, '0')) !== 0) {
+                throw new RuntimeException('Issued certificate serial does not match its allocation');
             }
             return new GeneratedIdentity(Certificate::pemToDer($certificatePem), $privateKeyPem);
         } finally {

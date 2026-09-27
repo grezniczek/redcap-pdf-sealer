@@ -107,7 +107,7 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             $service = new PkiDiagnosticService(
                 new IdentityRepository($this->framework, $protector),
                 $protector,
-                new CertificateIssuer([$this->framework, 'createTempFile']),
+                CertificateIssuer::forFramework($this->framework, 'diagnostic'),
                 new PrimarySystemSettingReader($this->framework),
             );
             $result = $service->run();

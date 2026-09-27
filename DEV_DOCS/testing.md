@@ -11,6 +11,7 @@ The standalone RFC 3161 timestamp responder, PKI components, and PDF seal builde
 ```sh
 php tests/dependency_isolation.php
 php tests/timestamp_spike.php
+php tests/certificate_serials.php
 php tests/pki_primitives.php
 php tests/pki_storage.php
 php tests/pki_initialization.php
@@ -26,6 +27,8 @@ php tests/pdf_structure.php
 php tests/pdf_seal_bb.php
 php tests/pdf_seal_bt.php
 ```
+
+Run the issuer, initialization, and diagnostic suites on both PHP 8.2/8.3 and PHP 8.4+ when changing serial allocation. Standalone tests use disposable synthetic identities and fake Framework storage; `tests/certificate_serials.php` checks the real OpenSSL serial output and integer bounds, while initialization checks unused reservations across rollback/retry. The production allocator uses Framework log inserts; it never commits a caller transaction. The rollback-only live harness therefore also rolls back any reservation rows and must never export its temporary certificates or signed PDFs.
 
 A repeatable synthetic consent/attachment suite uses the installed REDCap PDF backend and footer method without bootstrapping REDCap or accessing project data:
 

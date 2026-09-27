@@ -44,7 +44,8 @@ try {
     }
     $manifest = ['generated_at_utc' => gmdate('c'), 'fixtures' => []];
     $cases = createRedcapFixtures($core, $directory);
-    $issuer = new CertificateIssuer(static fn(): string => tempnam($directory, 'cert_'));
+    require_once __DIR__ . '/support/CertificateSerials.php';
+    $issuer = new CertificateIssuer(static fn(): string => tempnam($directory, 'cert_'), [\PDFSealerTests\CertificateSerials::class, 'reserve']);
     $root = $issuer->createRoot('Synthetic Fixture Test');
     $project = $issuer->createProject('Synthetic Fixture Test', $issuer->newProjectUuid(), $root);
     $tsa = $issuer->createTsa('Synthetic Fixture Test', $root);

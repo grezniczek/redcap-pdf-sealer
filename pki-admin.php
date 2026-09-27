@@ -34,7 +34,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 $framework,
                 $identities,
                 new ProjectBindingRepository($framework),
-                new CertificateIssuer([$framework, 'createTempFile']),
+                CertificateIssuer::forFramework($framework),
                 $health,
                 new PkiInitializationLock(),
             ))->initialize($_POST['organization']);

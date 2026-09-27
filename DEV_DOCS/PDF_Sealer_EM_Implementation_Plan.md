@@ -323,7 +323,7 @@ Reason:
 - random serials remain safe across restores and even accidental concurrent clones;
 - this avoids locking/counter complexity entirely.
 
-Use the same general strategy for certificate serials.
+Use the same general strategy for certificate serials. **Implementation update (2026-09-27):** certificate issuance on PHP 8.2/8.3 uses EM-log-reserved integer serials; PHP 8.4+ retains random 128-bit certificate serials. Timestamp-token serials remain random on all supported runtimes. See [certificate serials and recovery](../docs/pki.md#certificate-serials).
 
 ## 6.7 TSA CMS token
 

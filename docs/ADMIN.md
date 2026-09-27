@@ -6,7 +6,7 @@ PDF Sealer maintains an installation-specific certificate authority and timestam
 
 This is a reference implementation progressing toward v1. It requires:
 
-- **PHP 8.4 or later in the PHP 8 series is recommended**, with OpenSSL, hash, JSON, PCRE, and zlib support. Although the declared minimum and bundled dependencies allow PHP 8.2, the current certificate issuer uses a PHP 8.4-only API argument. Issuance on PHP 8.2/8.3 is blocked until its serial-number compatibility path is implemented; use PHP 8.4+ for issuance in the meantime.
+- **PHP 8.4 or later in the PHP 8 series is recommended**, with OpenSSL, hash, JSON, PCRE, and zlib support. The minimum is PHP 8.2. PHP 8.4+ uses random 128-bit certificate serials; PHP 8.2/8.3 uses reserved EM log IDs as integer serials. The runtime running each issuance determines its serial format, so check both web and cron PHP versions. See [serial allocation and recovery](pki.md#certificate-serials).
 - REDCap Core and an External Module Framework that implement the PDF finalization pipeline and `redcap_module_pdf_finalize`. The module declares Framework version 16, but that number alone does not establish availability of these features in a particular checkout or release.
 - A complete module distribution, including `libraries/`, the module-owned `autoload.php`, and third-party licenses. Dependencies are already bundled with isolated namespaces; installation does not require Composer.
 - Working REDCap encryption, database storage, and temporary-file support. REDCap email delivery is needed if alarm emails are configured.
@@ -52,7 +52,7 @@ Only eligible completed eConsent PDFs are sealed. Existing archives and ordinary
 
 **Run diagnostic self-test** checks encryption, the active root and TSA, temporary signer issuance, B-B sealing, an RFC 3161 timestamp response, and B-T sealing. Both sealing profiles are checked regardless of the saved production mode; a failed B-T check is not hidden by fallback.
 
-The test uses temporary identities and sample PDFs. It does not create a project certificate, write project sealing logs, change sealing settings, or send alarm emails. It saves only a small summary of its completion time and fixed check outcomes.
+The test uses temporary identities and sample PDFs. It does not create a project certificate, write project sealing logs, change sealing settings, or send alarm emails. It saves a small summary of its completion time and fixed check outcomes. On PHP 8.2/8.3, temporary signer issuance also adds a system-scoped serial reservation containing its role, issuing-root fingerprint, and diagnostic purpose; no test certificate or private key is stored.
 
 The last completed result remains visible after refresh, with its UTC timestamp and age. Passing results are green for the first 24 hours, neutral until day 7, then increasingly red at 7, 14, and 30 days. Failed results stay red. These colors describe a historical result's age and outcome; they are not continuous monitoring. Rerun after relevant configuration or certificate changes.
 

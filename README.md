@@ -27,7 +27,7 @@ A seal identifies the issuing project and organization; it does not establish th
 
 ## Before using it
 
-**PHP 8.4 or later in the PHP 8 series is recommended.** The declared minimum is PHP 8.2, but certificate issuance on PHP 8.2/8.3 is currently blocked pending a compatible serial-number allocation path. Use PHP 8.4+ for certificate issuance with the current implementation.
+**PHP 8.4 or later in the PHP 8 series is recommended.** The minimum is PHP 8.2. PHP 8.4+ supports random 128-bit certificate serials; PHP 8.2/8.3 uses integer serials reserved through the EM Framework. See [certificate serials and recovery](docs/pki.md#certificate-serials).
 
 The installation also needs the required PHP extensions and bundled PHP libraries, and REDCap Core/Framework support for the PDF finalization pipeline. See the [administrator guide](docs/ADMIN.md) for the full prerequisites. The module must be enabled and its sealing operation assigned to the project's pipeline.
 

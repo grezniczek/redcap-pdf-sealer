@@ -28,7 +28,7 @@ $health = new PkiHealthService($identities, $protector);
 $healthReport = $health->inspect(time());
 $identity = (new ProjectIdentityService(
     new ProjectBindingRepository($framework), $identities, $protector,
-    new CertificateIssuer([$framework, 'createTempFile']), $health, new ProjectIssueLock(),
+    CertificateIssuer::forFramework($framework), $health, new ProjectIssueLock(),
 ))->inspect((int) $pid);
 $certificate = $identity['certificate'];
 $pipelineTone = $pipeline['state'] === 'assigned' ? 'ready' : 'degraded';

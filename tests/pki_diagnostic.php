@@ -6,6 +6,7 @@ use DE\RUB\PDFSealerExternalModule\Diagnostics\PkiDiagnosticService;
 use DE\RUB\PDFSealerExternalModule\Diagnostics\SampleSealVerifier;
 use DE\RUB\PDFSealerExternalModule\Pdf\PdfSealBuilder;
 use DE\RUB\PDFSealerExternalModule\Pki\CertificateIssuer;
+use DE\RUB\PDFSealerExternalModule\Pki\CertificateSerialAllocator;
 use DE\RUB\PDFSealerExternalModule\Pki\IdentityRepository;
 use DE\RUB\PDFSealerExternalModule\Pki\PrimaryLogReader;
 use DE\RUB\PDFSealerExternalModule\Pki\PrimarySystemSettingReader;
@@ -61,7 +62,8 @@ final class FakeFramework
 
     public function log(string $message, array $parameters): int
     {
-        check(!$this->readOnly, 'Diagnostic attempted a log write');
+        check(!$this->readOnly || ($message === CertificateSerialAllocator::MESSAGE
+            && ($parameters['purpose'] ?? null) === 'diagnostic'), 'Diagnostic attempted a non-reservation log write');
         check(array_key_exists('project_id', $parameters) && $parameters['project_id'] === null,
             'PKI record was not explicitly system-scoped');
         check(($parameters['record'] ?? null) === '', 'PKI record retained a clinical record ID');
@@ -99,13 +101,21 @@ $issuer = new CertificateIssuer(static function () use (&$tempPaths): string {
     check(is_string($path), 'Cannot create test OpenSSL config');
     $tempPaths[] = $path;
     return $path;
-});
+}, [new CertificateSerialAllocator($framework, 'diagnostic'), 'reserve']);
 $service = new PkiDiagnosticService($repository, $protector, $issuer, $settings);
 $run = static function () use ($framework, $service, &$tempPaths): array {
     $before = [$framework->settings, $framework->logs];
     $framework->readOnly = true;
     try { $result = $service->run(); } finally { $framework->readOnly = false; }
-    check([$framework->settings, $framework->logs] === $before, 'Diagnostic changed storage');
+    check($framework->settings === $before[0]
+        && array_slice($framework->logs, 0, count($before[1])) === $before[1], 'Diagnostic changed existing storage');
+    $added = array_slice($framework->logs, count($before[1]));
+    check(count($added) === (PHP_VERSION_ID < 80400 && $result['checks']['signer'] === 'passed' ? 1 : 0),
+        'Diagnostic did not reserve exactly its temporary signer serial');
+    foreach ($added as $row) {
+        check(array_keys($row) === ['log_id', 'message', 'project_id', 'record', 'identity_role', 'issuer_sha256', 'purpose']
+            && $row['purpose'] === 'diagnostic', 'Diagnostic persisted more than reservation metadata');
+    }
     check(array_keys($result) === ['passed', 'checks'], 'Unexpected diagnostic response fields');
     check(array_keys($result['checks']) === ['encryption', 'root', 'tsa', 'signer', 'bb', 'timestamp', 'bt'], 'Unexpected check identifiers');
     foreach ($result['checks'] as $status) {
@@ -141,14 +151,18 @@ check(!$result['passed'] && $result['checks']['timestamp'] === 'failed'
     && $result['checks']['bt'] === 'skipped' && $result['checks']['bb'] === 'passed', 'Bad policy was hidden by fallback');
 unset($framework->settings['tsa_policy_oid']);
 
-$framework->logs[1]['private_key_ciphertext'] = 'redcap-v1:corrupt';
+$identityIndexes = [];
+foreach ($framework->logs as $index => $row) {
+    if ($row['message'] === 'pki_identity') { $identityIndexes[$row['identity_role']] = $index; }
+}
+$framework->logs[$identityIndexes['tsa']]['private_key_ciphertext'] = 'redcap-v1:corrupt';
 $result = $run();
 check(!$result['passed'] && $result['checks']['tsa'] === 'failed' && $result['checks']['bb'] === 'passed', 'Corrupt TSA passed');
-$framework->logs[0]['private_key_ciphertext'] = 'redcap-v1:corrupt';
+$framework->logs[$identityIndexes['root']]['private_key_ciphertext'] = 'redcap-v1:corrupt';
 $result = $run();
 check(!$result['passed'] && $result['checks']['root'] === 'failed' && $result['checks']['signer'] === 'skipped', 'Corrupt root passed');
-$framework->logs[0]['private_key_ciphertext'] = $protector->encrypt($root->privateKeyPem());
-$framework->logs[1]['private_key_ciphertext'] = $protector->encrypt($tsa->privateKeyPem());
+$framework->logs[$identityIndexes['root']]['private_key_ciphertext'] = $protector->encrypt($root->privateKeyPem());
+$framework->logs[$identityIndexes['tsa']]['private_key_ciphertext'] = $protector->encrypt($tsa->privateKeyPem());
 $framework->settings['organization'] = 'Wrong Institution';
 $result = $run();
 check(!$result['passed'] && $result['checks']['signer'] === 'failed'
@@ -180,4 +194,4 @@ $rejected = false;
 try { $verifier->verify($sample, $tampered, $signer->certificateDer); } catch (Throwable) { $rejected = true; }
 check($rejected, 'CMS digest verification accepted tampering');
 
-echo "PKI diagnostic: B-B/B-T, policies, failed/skipped checks, read-only storage, cleanup, and tamper rejection passed.\n";
+echo "PKI diagnostic: B-B/B-T, policies, failed/skipped checks, reservation-only persistence, cleanup, and tamper rejection passed.\n";

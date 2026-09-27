@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use DE\RUB\PDFSealerExternalModule\Pki\CertificateIssuer;
+use DE\RUB\PDFSealerExternalModule\Pki\CertificateSerialAllocator;
 use DE\RUB\PDFSealerExternalModule\Pki\IdentityRepository;
 use DE\RUB\PDFSealerExternalModule\Pki\PkiHealth;
 use DE\RUB\PDFSealerExternalModule\Pki\PkiHealthService;
@@ -37,6 +38,7 @@ final class FakeFramework
     public array $logs = [];
     public array $settings = [];
     public bool $failTsaWrite = false;
+    private int $nextId = 0;
 
     public function getSystemSetting(string $key): mixed { return $this->settings[$key] ?? null; }
     public function setSystemSetting(string $key, mixed $value): void { $this->settings[$key] = $value; }
@@ -45,10 +47,10 @@ final class FakeFramework
         check(array_key_exists('project_id', $parameters) && $parameters['project_id'] === null,
             'PKI record was not system scoped');
         check(($parameters['record'] ?? null) === '', 'PKI record retained a clinical record');
-        if ($this->failTsaWrite && ($parameters['identity_role'] ?? null) === 'tsa') {
+        if ($this->failTsaWrite && $message === 'pki_identity' && ($parameters['identity_role'] ?? null) === 'tsa') {
             throw new RuntimeException('Simulated TSA write failure');
         }
-        $id = count($this->logs) + 1;
+        $id = ++$this->nextId;
         $this->logs[] = ['log_id' => $id, 'message' => $message] + array_filter(
             $parameters, static fn (mixed $value): bool => $value !== null,
         );
@@ -82,7 +84,7 @@ function fixture(FakeFramework $framework): array
         $path = tempnam(sys_get_temp_dir(), 'pdf_sealer_init_test_');
         check(is_string($path), 'Cannot create test OpenSSL config');
         return $path;
-    });
+    }, [new CertificateSerialAllocator($framework), 'reserve']);
     $health = new PkiHealthService($identities, $protector);
     $held = false;
     $lock = new PkiInitializationLock(static function (string $sql, array $params) use (&$held): FakeResult {
@@ -137,9 +139,21 @@ try {
 } catch (RuntimeException $e) {
     check($e->getMessage() === 'Simulated TSA write failure', 'Unexpected transaction failure');
 }
-check($failedFramework->logs === [] && $failedFramework->settings === []
+check(count($failedFramework->logs) === (PHP_VERSION_ID < 80400 ? 2 : 0)
+    && array_filter($failedFramework->logs, static fn(array $row): bool => $row['message'] !== CertificateSerialAllocator::MESSAGE) === []
+    && $failedFramework->settings === []
     && $failedHealth->inspect(time())->status === PkiHealth::Uninitialized,
     'Failed initialization left a partial PKI');
+$reservedIds = array_column($failedFramework->logs, 'log_id');
+$failedFramework->failTsaWrite = false;
+$failedService->initialize('Test Institution');
+check($failedHealth->inspect(time())->status === PkiHealth::Ready, 'Unused reservations blocked retry');
+if (PHP_VERSION_ID < 80400) {
+    $allReservations = array_values(array_filter($failedFramework->logs,
+        static fn(array $row): bool => $row['message'] === CertificateSerialAllocator::MESSAGE));
+    check(count($allReservations) === 4 && $allReservations[2]['log_id'] > max($reservedIds),
+        'Retry recycled certificate serials after rollback');
+}
 
 $orphanFramework = new FakeFramework();
 [$orphanService, $orphanHealth, $orphanIdentities, , $orphanIssuer] = fixture($orphanFramework);

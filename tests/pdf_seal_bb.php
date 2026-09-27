@@ -10,11 +10,12 @@ use DE\RUB\PDFSealerExternalModule\Pki\CertificateIssuer;
 
 require_once __DIR__ . '/support/pdf_seal_checks.php';
 
+require_once __DIR__ . '/support/CertificateSerials.php';
 $issuer = new CertificateIssuer(static function (): string {
     $path = tempnam(sys_get_temp_dir(), 'pdf_sealer_cert_');
     checkSeal(is_string($path), 'Could not create temporary certificate config');
     return $path;
-});
+}, [\PDFSealerTests\CertificateSerials::class, 'reserve']);
 $root = $issuer->createRoot('PDF Seal Test');
 $project = $issuer->createProject('PDF Seal Test', $issuer->newProjectUuid(), $root);
 $builder = new PdfSealBuilder();

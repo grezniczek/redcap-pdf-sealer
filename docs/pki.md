@@ -24,13 +24,26 @@ Explicit administrator initialization creates the root and TSA together. It refu
 
 A project's UUID and certificate binding are established on first sealing use. Subsequent operations reuse the identity. Locks serialize initialization and project issuance to prevent competing requests from creating conflicting active identities. Opening either status page is read-only with respect to certificate issuance.
 
+## Certificate serials
+
+The PHP runtime performing issuance selects the certificate serial format:
+
+- **PHP 8.4+ (recommended):** a positive 128-bit random serial using OpenSSL's hexadecimal serial argument. The highest bit is set and the other 127 bits are random, keeping these serials outside the integer range.
+- **PHP 8.2/8.3:** the integer ID returned by a new system-scoped `pki_serial_reservation` EM log entry. The database allocates the ID atomically, so simultaneous requests do not calculate or compete for a next serial. The entry also records the identity role, issuing-root SHA-256 fingerprint (empty for a self-signed root), and issuance/diagnostic purpose. It is an allocation record, not proof that issuance completed. A failed issuance can leave a harmless gap.
+
+Serial allocation must succeed before signing. Nonpositive, malformed, or out-of-range IDs cause issuance to fail. The integer limit is PHP's signed integer maximum on Unix-like platforms; Windows is limited to 2,147,483,647 by OpenSSL's C `long` argument. PHP 8.4+ avoids this limit. An issued certificate is checked against its allocated serial before being returned.
+
+Existing certificates are reused across PHP versions; changing PHP does not reissue them. New random and integer serials can coexist under one root. RFC 3161 **timestamp-token serials remain random** on all supported PHP versions; this version split applies only to certificates.
+
 ## Storage and recovery
 
-Certificates, encrypted private keys, and project bindings are stored in system-scoped External Module log records. Active root/TSA references and configuration are held in system settings. These records are PKI storage, not disposable diagnostic logs.
+Certificates, encrypted private keys, project bindings, and integer serial reservations are stored in system-scoped External Module log records. Active root/TSA references and configuration are held in system settings. These records are PKI storage, not disposable diagnostic logs.
 
 Private keys are encrypted with REDCap's installation encryption helpers and decrypted for use in server memory. This is software key storage within the REDCap installation; the root signing key is online, and no hardware security module or offline root ceremony is provided. Public certificate downloads contain no private keys.
 
-Backups and recovery must preserve the module's identity/binding records and settings together with the REDCap encryption material needed to decrypt the keys. A database copy alone is insufficient if the required encryption material is lost or changed. Do not purge identity records as routine log cleanup or reset active pointers to force initialization. This version does not provide a PKI backup/export, migration, or repair wizard.
+Backups and recovery must preserve the module's identity/binding records and settings together with the REDCap encryption material needed to decrypt the keys. A database copy alone is insufficient if the required encryption material is lost or changed. Do not purge identity or reservation records as routine log cleanup, truncate/reset the EM log ID sequence, or reset active pointers to force initialization. This version does not provide a PKI backup/export, migration, or repair wizard.
+
+When integer serials have been used, restoring an older backup or cloning the installation can reuse previously allocated IDs under the same CA. Before issuing again on PHP 8.2/8.3, an administrator must ensure the EM log auto-increment sequence is above **every** ID previously allocated under that CA, including allocations after the backup. If that cannot be established, use PHP 8.4+ for further issuance or a new issuing key; do not resume integer allocation with that CA. Separate clones must not independently issue integer serials using the same CA. The module does not automatically reconcile these recovery cases.
 
 ## Health and lifecycle
 

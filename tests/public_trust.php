@@ -23,12 +23,13 @@ final class FakeResult
 }
 
 $tempPaths = [];
+require_once __DIR__ . '/support/CertificateSerials.php';
 $issuer = new CertificateIssuer(static function () use (&$tempPaths): string {
     $path = tempnam(sys_get_temp_dir(), 'pdf_sealer_trust_test_');
     check(is_string($path), 'Cannot create test OpenSSL config');
     $tempPaths[] = $path;
     return $path;
-});
+}, [\PDFSealerTests\CertificateSerials::class, 'reserve']);
 try {
     $first = $issuer->createRoot('Earlier Institution');
     $second = $issuer->createRoot('Current Institution');

@@ -48,7 +48,7 @@ $framework = \ExternalModules\ExternalModules::getFrameworkInstance('pdf_sealer'
 $framework->disableUserBasedSettingPermissions();
 $protector = new SecretProtector();
 $repository = new IdentityRepository($framework, $protector);
-$issuer = new CertificateIssuer([$framework, 'createTempFile']);
+$issuer = CertificateIssuer::forFramework($framework);
 $bindings = new ProjectBindingRepository($framework);
 $previousRootId = $repository->activeId('root');
 $previousTsaId = $repository->activeId('tsa');

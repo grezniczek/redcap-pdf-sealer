@@ -93,11 +93,12 @@ $health = new PkiHealthService($repository, $protector);
 $now = time();
 check($health->inspect($now)->status === PkiHealth::Uninitialized, 'Fresh PKI is not uninitialized');
 
+require_once __DIR__ . '/support/CertificateSerials.php';
 $issuer = new CertificateIssuer(static function (): string {
     $path = tempnam(sys_get_temp_dir(), 'pdf_sealer_storage_test_');
     check(is_string($path), 'Cannot create test OpenSSL config');
     return $path;
-});
+}, [\PDFSealerTests\CertificateSerials::class, 'reserve']);
 $root = $issuer->createRoot('Test Institution');
 $rootId = $repository->append('root', $root);
 check($health->inspect($now)->status === PkiHealth::Broken, 'Orphan root was treated as uninitialized');

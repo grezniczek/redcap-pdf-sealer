@@ -41,7 +41,7 @@ $bindings = new ProjectBindingRepository($framework);
 $health = new PkiHealthService($identities, $protector);
 checkSeal($health->inspect(time())->status === PkiHealth::Ready, 'Preflight requires a healthy existing root and TSA');
 $projects = new ProjectIdentityService($bindings, $identities, $protector,
-    new CertificateIssuer([$framework, 'createTempFile']), $health, new ProjectIssueLock());
+    CertificateIssuer::forFramework($framework), $health, new ProjectIssueLock());
 checkSeal($projects->inspect($pid)['state'] === 'ready', 'Preflight requires an existing usable project signer; no issuance is performed');
 checkSeal(PdfFinalize::getProjectExecutionPlan($pid) === ['pdf_sealer:seal'], 'Preflight requires a pipeline containing only pdf_sealer:seal');
 checkSeal(PdfFinalize::resolveOperation('pdf_sealer:seal', $pid) !== null, 'Sealer operation is not available');

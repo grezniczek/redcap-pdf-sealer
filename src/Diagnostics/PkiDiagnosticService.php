@@ -22,7 +22,7 @@ use DE\RUB\PDFSealerExternalModule\Timestamp\TsaPolicy;
 use RuntimeException;
 use Throwable;
 
-/** Exercises stored PKI and sealing in memory, without persistence or project context. */
+/** Exercises stored PKI in memory; PHP 8.2/8.3 reserves a serial for the temporary signer. */
 final readonly class PkiDiagnosticService
 {
     public function __construct(
