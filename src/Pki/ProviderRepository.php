@@ -45,6 +45,22 @@ final class ProviderRepository
             || $this->settings->get('tsa_source_' . self::BUILTIN_TSA) !== null;
     }
 
+    /** Missing policy means the explicit-assignment gate is off; malformed storage fails closed. */
+    public function requiresAssignment(): bool
+    {
+        return match ($this->settings->get('require_ca_assignment')) {
+            null, 'false' => false,
+            'true' => true,
+            default => throw new RuntimeException('Invalid CA assignment policy'),
+        };
+    }
+
+    /** Caller holds the configuration lock and transaction. */
+    public function saveAssignmentPolicy(bool $required): void
+    {
+        $this->framework->setSystemSetting('require_ca_assignment', $required ? 'true' : 'false');
+    }
+
     public function defaultId(): string
     {
         $id = $this->settings->get('default_ca_provider');

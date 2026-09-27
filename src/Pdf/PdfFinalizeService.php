@@ -126,6 +126,8 @@ final class PdfFinalizeService
                 'timestamp_serial' => $result->timestampSerialHex,
                 'timestamp_time' => $result->timestampTime,
             ]);
+        } catch (\DE\RUB\PDFSealerExternalModule\Pki\CaAssignmentRequired) {
+            return $this->failed($events, $event, $context, (int) $pid, 'CA_ASSIGNMENT_REQUIRED', 'CA assignment required');
         } catch (\DE\RUB\PDFSealerExternalModule\Pki\ProjectCertificateRequired) {
             return $this->failed($events, $event, $context, (int) $pid, 'PROJECT_CERTIFICATE_REQUIRED', 'External CA project certificate is required');
         } catch (Throwable $e) {
@@ -154,7 +156,7 @@ final class PdfFinalizeService
         if ($projectLogPid !== null) {
             try {
                 self::logProjectOutcome(
-                    $projectLogPid, $context, 'PDF seal failed',
+                    $projectLogPid, $context, $code === 'CA_ASSIGNMENT_REQUIRED' ? 'PDF seal failed: CA assignment required' : 'PDF seal failed',
                     $event['generation_id'] === null ? '' : 'Reference: ' . $event['generation_id'],
                 );
             } catch (Throwable $e) {

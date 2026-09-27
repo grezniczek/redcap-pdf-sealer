@@ -151,6 +151,15 @@ namespace {
     check(in_array('save_timestamp_settings', $config['auth-ajax-actions'], true)
         && !in_array('save_timestamp_settings', $config['no-auth-ajax-actions'], true), 'Timestamp settings action is not authenticated');
 
+    check(in_array('save_assignment_policy', $config['auth-ajax-actions'], true)
+        && !in_array('save_assignment_policy', $config['no-auth-ajax-actions'], true), 'Assignment policy is not authenticated');
+    $before = [$framework->settings, $framework->queries];
+    foreach ([null, [], ['required' => 'true'], ['required' => 1], ['required' => true, 'extra' => false]] as $payload) {
+        $result = $module->redcap_module_ajax('save_assignment_policy', $payload, null);
+        check($result === ['ok' => false, 'message' => 'pki_invalid_request'], 'Malformed assignment policy accepted');
+    }
+    check([$framework->settings, $framework->queries] === $before, 'Invalid policy request wrote storage');
+
     $framework->superuser = false;
     $result = $module->redcap_module_ajax('download_public_root_certificate', ['id' => 'bad', 'format' => 'pem'], null);
     check($result === ['ok' => false, 'message' => 'pki_invalid_request'],
@@ -188,7 +197,7 @@ namespace {
         } catch (\RuntimeException $e) {
             check($e->getMessage() === 'pki_access_denied', 'Unexpected timestamp settings authorization result');
         }
-        foreach (['register_ca_provider', 'assign_ca_provider'] as $action) {
+        foreach (['register_ca_provider', 'assign_ca_provider', 'save_assignment_policy'] as $action) {
             try {
                 $module->redcap_module_ajax($action, [], $case['context']);
                 throw new \RuntimeException('Unauthorized provider request accepted');

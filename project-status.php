@@ -34,15 +34,19 @@ $certificate = $identity['certificate'];
 $providerName = $framework->tt('pki_not_configured');
 try {
     $binding = (new ProjectBindingRepository($framework))->find((int) $pid);
-    $provider = $identities->providers()->provider($binding?->providerId ?? $identities->providers()->defaultId());
-    $providerName = $provider['name'] ?? $framework->tt('provider_builtin');
+    if ($binding === null && $identities->providers()->requiresAssignment()) {
+        $providerName = $framework->tt('project_identity_summary_assignment_required');
+    } else {
+        $provider = $identities->providers()->provider($binding?->providerId ?? $identities->providers()->defaultId());
+        $providerName = $provider['name'] ?? $framework->tt('provider_builtin');
+    }
 } catch (Throwable) { /* Keep the explicit unavailable label. */ }
 
 $pipelineTone = $pipeline['state'] === 'assigned' ? 'ready' : 'degraded';
 $identityTone = match ($identity['state']) {
     'ready' => 'ready',
     'unusable', 'expired', 'not_yet_valid' => 'broken',
-    'pending', 'awaiting_certificate', 'unavailable' => 'degraded',
+    'pending', 'awaiting_certificate', 'assignment_required', 'unavailable' => 'degraded',
     default => 'uninitialized',
 };
 require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';

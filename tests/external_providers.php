@@ -93,7 +93,17 @@ try {
         check($f->settings === [] && $f->logs === [] && $f->snapshot === null, 'Registration did not roll back');
         $f->$failure = false;
     }
+    check(!$providers->requiresAssignment(), 'Absent gate is not off');
+    $f->failAudit = true;
+    rejects(fn() => $admin->saveAssignmentPolicy(true));
+    check($f->settings === [] && $f->logs === [], 'Failed gate audit did not roll back setting');
+    $f->failAudit = false;
+    $admin->saveAssignmentPolicy(true);
+    check($providers->requiresAssignment(), 'Gate cannot be enabled without any CA');
     $id = $admin->register('Test provider',$fullPem,null,false);
+    check($providers->requiresAssignment(), 'Registering a provider changed the gate');
+    $admin->saveAssignmentPolicy(false);
+    check(!$providers->requiresAssignment(), 'Gate cannot be disabled with an external CA');
     check($providers->externalIds() === [$id], 'Provider missing');
     check(!$providers->hasConfiguration(), 'Registration changed default/built-in settings');
     rejects(fn() => $admin->register('Duplicate',$fullPem,null,false));
@@ -117,7 +127,7 @@ try {
     rejects(fn() => $admin->assign(101,'builtin-ca'));
     $protector = new SecretProtector();
     $identities = new IdentityRepository($f,$protector,$logs,$settings);
-    $service = new ProjectIdentityService($bindings,$identities,$protector,$issuer,new PkiHealthService($identities,$protector),$projectLock);
+    $service = new ProjectIdentityService($bindings,$identities,$protector,$issuer,new PkiHealthService($identities,$protector),$projectLock,new PkiInitializationLock($lock));
     check($service->inspect(101)['state'] === 'awaiting_certificate', 'Awaiting state wrong');
     $before = [$f->settings,$f->logs];
     try { $service->getOrIssue(101); throw new RuntimeException('Unexpected local issuance'); }

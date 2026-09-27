@@ -42,9 +42,11 @@ final class FakeFramework
 {
     public array $logs = [];
     public array $settings = [];
+    public ?Closure $onLog = null;
 
     public function log(string $message, array $parameters): int
     {
+        if ($this->onLog !== null) { ($this->onLog)($message, $parameters); }
         check(array_key_exists('project_id', $parameters) && $parameters['project_id'] === null,
             'Project PKI log was not system scoped');
         check(($parameters['record'] ?? null) === '', 'Project PKI log retained a record ID');
@@ -105,7 +107,24 @@ $lock = new ProjectIssueLock(static function (string $sql, array $params) use (&
     return new FakeResult([[1]]);
 });
 $health = new PkiHealthService($identities, $protector);
-$service = new ProjectIdentityService($bindings, $identities, $protector, $issuer, $health, $lock);
+$configurationHeld = false;
+$beforeConfigurationAcquire = null;
+$configurationLock = new \DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationLock(
+    static function (string $sql, array $params) use (&$configurationHeld, &$beforeConfigurationAcquire): FakeResult {
+        if (str_contains($sql, 'GET_LOCK')) {
+            if ($configurationHeld) return new FakeResult([[0]]);
+            if ($beforeConfigurationAcquire !== null) {
+                $callback = $beforeConfigurationAcquire; $beforeConfigurationAcquire = null; $callback();
+            }
+            $configurationHeld = true;
+        } else {
+            check($configurationHeld, 'Configuration lock released without acquisition');
+            $configurationHeld = false;
+        }
+        return new FakeResult([[1]]);
+    },
+);
+$service = new ProjectIdentityService($bindings, $identities, $protector, $issuer, $health, $lock, $configurationLock);
 $snapshot = [$framework->logs, $framework->settings, $lockCalls];
 check($service->inspect(461) === ['state' => 'not_issued', 'uuid' => null, 'certificate' => null],
     'Unissued project status is unclear');
@@ -118,7 +137,53 @@ $tsaId = $identities->append('tsa', $tsa);
 $identities->activate('tsa', $tsaId);
 $identities->providers()->initialize($rootId, $tsaId);
 
+// Gate is checked before binding, serial reservation, or certificate creation.
+$providers = $identities->providers();
+$providers->saveAssignmentPolicy(true);
+$beforeGate = [$framework->logs, $framework->settings];
+check($service->inspect(470)['state'] === 'assignment_required', 'Unassigned status did not show gate');
+try { $service->getOrIssue(470); throw new RuntimeException('Gate bypassed'); }
+catch (\DE\RUB\PDFSealerExternalModule\Pki\CaAssignmentRequired) {}
+check([$framework->logs, $framework->settings] === $beforeGate && !$configurationHeld, 'Gate wrote PKI or retained lock');
+// A concrete administrator binding permits issuance with the gate on.
+$bindings->bindUuid(470, $issuer->newProjectUuid(), 'builtin-ca');
+$explicit = $service->getOrIssue(470);
+check($service->getOrIssue(470)->id === $explicit->id, 'Gate blocked existing identity');
+$providers->saveAssignmentPolicy(false);
+// Emulate a policy save winning the race while issuance waits to acquire the lock.
+$beforeConfigurationAcquire = fn() => $providers->saveAssignmentPolicy(true);
+$beforeGate = count($framework->logs);
+try { $service->getOrIssue(471); throw new RuntimeException('Stale gate read'); }
+catch (\DE\RUB\PDFSealerExternalModule\Pki\CaAssignmentRequired) {}
+check(count($framework->logs) === $beforeGate && $bindings->find(471) === null, 'Waiter created automatic binding after save');
+$providers->saveAssignmentPolicy(false);
+// Emulate an administrative save during automatic first issuance: it cannot enter
+// the configuration section until binding AND identity activation have finished.
+$blockedSaves = 0;
+$framework->onLog = static function ($message, $params) use ($configurationLock, $providers, &$blockedSaves): void {
+    if (($params['redcap_pid'] ?? null) !== '461' && ($params['identity_role'] ?? null) !== 'project') return;
+    try {
+        $configurationLock->withLock(fn() => $providers->saveAssignmentPolicy(true));
+        throw new RuntimeException('Policy save passed in-flight issuance');
+    } catch (RuntimeException $e) {
+        check($e->getMessage() === 'PKI initialization lock unavailable', 'Unexpected competing-save result');
+        $blockedSaves++;
+    }
+};
 $first = $service->getOrIssue(461);
+$framework->onLog = null;
+check($blockedSaves === 3 && !$configurationHeld, 'Configuration lock did not cover full automatic issuance');
+$configurationLock->withLock(fn() => $providers->saveAssignmentPolicy(true));
+check($service->getOrIssue(461)->id === $first->id, 'Saved gate affected an existing signer');
+$providers->saveAssignmentPolicy(false);
+// Invalid policy fails closed for an unbound project, but does not disturb bound projects.
+$framework->settings['require_ca_assignment'] = 'invalid';
+check($service->inspect(471)['state'] === 'unavailable', 'Invalid policy masqueraded as off');
+try { $service->getOrIssue(471); throw new RuntimeException('Invalid policy allowed issuance'); }
+catch (RuntimeException $e) { check($e->getMessage() === 'Invalid CA assignment policy', 'Unexpected policy error'); }
+check($bindings->find(471) === null && $service->getOrIssue(461)->id === $first->id, 'Invalid policy changed bindings');
+$providers->saveAssignmentPolicy(false);
+
 $snapshot = [$framework->logs, $framework->settings, $lockCalls];
 $status = $service->inspect(461);
 check($status['state'] === 'ready' && $status['uuid'] === $first->projectUuid

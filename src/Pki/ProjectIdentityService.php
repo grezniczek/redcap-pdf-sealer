@@ -20,59 +20,74 @@ final class ProjectIdentityService
         private readonly CertificateIssuer $issuer,
         private readonly PkiHealthService $health,
         private readonly ProjectIssueLock $lock,
+        private readonly PkiInitializationLock $configurationLock = new PkiInitializationLock(),
     ) {}
 
     public function getOrIssue(int $pid): StoredIdentity
     {
         ProjectBindingRepository::assertPid($pid);
         return $this->lock->withLock($pid, function () use ($pid): StoredIdentity {
-            $providers = $this->identities->providers();
             $binding = $this->bindings->find($pid);
-            $providerId = $binding?->providerId ?? $providers->defaultId();
-            $provider = $providers->provider($providerId);
-            if ($provider['kind'] === 'external') {
-                throw new ProjectCertificateRequired('The assigned external CA requires a project signing certificate');
-            }
-            if ($binding?->identityId !== null) {
-                $identity = $this->identities->find($binding->identityId);
-                if ($identity === null) {
-                    throw new RuntimeException('Active project identity is missing');
+            if ($binding !== null) { return $this->issueOrReuse($pid, $binding); }
+            // Lock order: project, then configuration. Policy saves only take the
+            // configuration lock. Hold it through issuance so a successful save
+            // cannot leave an automatic first issuance running in the background.
+            return $this->configurationLock->withLock(function () use ($pid): StoredIdentity {
+                if ($this->identities->providers()->requiresAssignment()) {
+                    throw new CaAssignmentRequired('CA assignment required');
                 }
-                $this->assertProjectIdentity($identity, $binding->uuid, $providerId);
-                return $identity;
-            }
+                return $this->issueOrReuse($pid, null);
+            });
+        });
+    }
 
-            if ($this->health->inspectIssuance($provider['issuer_identity_id'], time())->status !== PkiHealth::Ready) {
-                throw new RuntimeException('Root PKI is not usable for project issuance');
-            }
-            $root = $this->identities->find($provider['issuer_identity_id']);
-            $rootCertificate = openssl_x509_parse(Certificate::derToPem($root->certificateDer));
-            $organization = $rootCertificate['subject']['O'] ?? null;
-            if (!is_string($organization) || $organization === '') { throw new RuntimeException('Issuer organization missing'); }
-            if ($binding === null) {
-                $uuid = $this->issuer->newProjectUuid();
-                $this->bindings->bindUuid($pid, $uuid, $providerId);
-                $binding = new ProjectBinding($uuid, null, $providerId);
-            }
-
-            // An interrupted issuance may have written the identity before its active binding.
-            $identity = $this->identities->findUnboundProject($binding->uuid);
+    private function issueOrReuse(int $pid, ?ProjectBinding $binding): StoredIdentity
+    {
+        $providers = $this->identities->providers();
+        $providerId = $binding?->providerId ?? $providers->defaultId();
+        $provider = $providers->provider($providerId);
+        if ($provider['kind'] === 'external') {
+            throw new ProjectCertificateRequired('The assigned external CA requires a project signing certificate');
+        }
+        if ($binding?->identityId !== null) {
+            $identity = $this->identities->find($binding->identityId);
             if ($identity === null) {
-                $generated = $this->issuer->createProject(
-                    $organization,
-                    $binding->uuid,
-                    $root->asGeneratedIdentity($this->protector),
-                );
-                $identityId = $this->identities->append('project', $generated, $binding->uuid, $providerId, $root->id);
-                $identity = $this->identities->find($identityId);
-                if ($identity === null) {
-                    throw new RuntimeException('Issued project identity is missing');
-                }
+                throw new RuntimeException('Active project identity is missing');
             }
             $this->assertProjectIdentity($identity, $binding->uuid, $providerId);
-            $this->bindings->activate($pid, $binding->uuid, $identity->id);
             return $identity;
-        });
+        }
+
+        if ($this->health->inspectIssuance($provider['issuer_identity_id'], time())->status !== PkiHealth::Ready) {
+            throw new RuntimeException('Root PKI is not usable for project issuance');
+        }
+        $root = $this->identities->find($provider['issuer_identity_id']);
+        $rootCertificate = openssl_x509_parse(Certificate::derToPem($root->certificateDer));
+        $organization = $rootCertificate['subject']['O'] ?? null;
+        if (!is_string($organization) || $organization === '') { throw new RuntimeException('Issuer organization missing'); }
+        if ($binding === null) {
+            $uuid = $this->issuer->newProjectUuid();
+            $this->bindings->bindUuid($pid, $uuid, $providerId);
+            $binding = new ProjectBinding($uuid, null, $providerId);
+        }
+
+        // An interrupted issuance may have written the identity before its active binding.
+        $identity = $this->identities->findUnboundProject($binding->uuid);
+        if ($identity === null) {
+            $generated = $this->issuer->createProject(
+                $organization,
+                $binding->uuid,
+                $root->asGeneratedIdentity($this->protector),
+            );
+            $identityId = $this->identities->append('project', $generated, $binding->uuid, $providerId, $root->id);
+            $identity = $this->identities->find($identityId);
+            if ($identity === null) {
+                throw new RuntimeException('Issued project identity is missing');
+            }
+        }
+        $this->assertProjectIdentity($identity, $binding->uuid, $providerId);
+        $this->bindings->activate($pid, $binding->uuid, $identity->id);
+        return $identity;
     }
 
     /**
@@ -88,7 +103,7 @@ final class ProjectIdentityService
         try {
             $binding = $this->bindings->find($pid);
             if ($binding === null) {
-                $status['state'] = 'not_issued';
+                $status['state'] = $this->identities->providers()->requiresAssignment() ? 'assignment_required' : 'not_issued';
                 return $status;
             }
             $status['uuid'] = $binding->uuid;

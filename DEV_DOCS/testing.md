@@ -89,3 +89,11 @@ Documentation routing and relative Markdown navigation should also be checked in
 Run `RANDFILE=/tmp/pdf-sealer-test-random php -d xdebug.mode=off tests/external_providers.php` (also with `php8.2`). This uses fake Framework persistence with real OpenSSL chain validation; no live settings, mail, or keys are changed. It covers registration/assignment transactions, public certificate integrity, explicit timestamp policy, and rejection of local issuance for pending external assignments.
 
 Add `--fixture` to write a disposable public chain to ignored `DEV_DOCS/interop-artifacts/external-ca-registration-test.pem` for the CC upload check. Its private key is discarded, so do not use that provider for an enrollment acceptance test. The CC AJAX authorization cases are in `tests/pki_admin_ajax.php`.
+
+### Explicit-assignment policy
+
+`tests/project_identity.php` covers gate-on refusal without writes, explicit built-in assignment, reuse of existing signers, malformed policy, policy-save-before-issuance, and attempted saves during binding/certificate/activation writes. These are deterministic lock interleavings with fake database callbacks, not a live multi-connection load test. `tests/external_providers.php` checks policy audit rollback and independence from CA count. `tests/pki_admin_ajax.php` checks authenticated dispatch and invalid payloads.
+
+`php -d xdebug.mode=off tests/assignment_gate_finalize.php` uses the real finalizer and Framework result class with fake database/Logging boundaries. It verifies `CA_ASSIGNMENT_REQUIRED`, unchanged PDF bytes, record/event context, no certificate or alarm writes, and released locks. Set `PDF_SEALER_FRAMEWORK_ROOT` if the Framework is not at the local development default.
+
+Browser acceptance: save the gate on, refresh to confirm persistence, and use an unbound test project. Its page should say **CA assignment required**. A completed eConsent should still produce the preceding unsealed PDF and the explicit project failure log. Then explicitly assign the built-in CA and test a subsequent eConsent; it should seal. Existing bound projects must continue sealing with the gate on. Restore the desired policy afterward. No live toggles were performed by the standalone suites.

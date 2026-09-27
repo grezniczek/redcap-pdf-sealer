@@ -29,6 +29,14 @@ final class ProviderAdminService
         }));
     }
 
+    public function saveAssignmentPolicy(bool $required): void
+    {
+        $this->configurationLock->withLock(fn() => $this->transaction(function () use ($required): void {
+            $this->providers->saveAssignmentPolicy($required);
+            $this->audit('assignment_policy', null, null, ['assignment_required' => $required ? '1' : '0']);
+        }));
+    }
+
     public function assign(int $pid, string $providerId): void
     {
         $this->providers->provider($providerId);
@@ -49,13 +57,13 @@ final class ProviderAdminService
         });
     }
 
-    private function audit(string $action, string $providerId, ?int $pid): void
+    private function audit(string $action, ?string $providerId, ?int $pid, array $details = []): void
     {
         $id = $this->framework->log('ca_provider_admin', [
             'project_id' => null, 'record' => '', 'action' => $action, 'provider_id' => $providerId,
             'redcap_pid' => $pid === null ? null : (string) $pid,
             'actor' => $this->framework->getUser()->getUsername(),
-        ]);
+        ] + $details);
         if ((!is_int($id) && !ctype_digit((string) $id)) || (int) $id < 1) { throw new RuntimeException('Provider audit failed'); }
     }
 

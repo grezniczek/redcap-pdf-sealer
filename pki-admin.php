@@ -60,9 +60,11 @@ try {
 } catch (Throwable) {
     // Show an explicit unknown state; do not silently replace invalid stored settings with defaults.
 }
+$assignmentRequired = null;
 $providerCatalog = []; $providerCertificates = []; $providersUnavailable = false; $builtinSourceAvailable = false;
 try {
     $providers = $identities->providers();
+    $assignmentRequired = $providers->requiresAssignment();
     if ($providers->hasConfiguration()) {
         $providerCatalog[] = $providers->provider($providers::BUILTIN_CA);
         $providers->source($providers::BUILTIN_TSA);
@@ -164,6 +166,17 @@ $framework->initializeJavascriptModuleObject();
         <?php if ($providersUnavailable): ?>
             <p class="alert alert-warning"><?= $escape($framework->tt('provider_unavailable')) ?></p>
         <?php else: ?>
+            <form id="pdf-sealer-assignment-policy" class="mb-3">
+                <fieldset>
+                    <label><input type="checkbox" id="assignment-required" <?= $assignmentRequired ? 'checked' : '' ?> aria-describedby="assignment-policy-help">
+                        <?= $escape($framework->tt('assignment_policy_label')) ?></label>
+                    <p id="assignment-policy-help" class="small text-muted"><?= $escape($framework->tt('assignment_policy_help')) ?></p>
+                    <p class="alert alert-warning"><?= $escape($framework->tt('assignment_policy_delivery')) ?></p>
+                    <button class="btn btn-primaryrc btn-sm" type="submit"><?= $escape($framework->tt('assignment_policy_save')) ?></button>
+                </fieldset>
+                <p class="alert mt-3" role="status" hidden></p>
+            </form>
+            <hr>
             <?php foreach ($providerCatalog as $provider): ?>
                 <div class="pdf-sealer-card mb-3">
                     <h6><?= $escape($provider['name'] ?? $framework->tt('provider_builtin')) ?></h6>
@@ -365,6 +378,26 @@ $framework->initializeJavascriptModuleObject();
     });
     selectTab(location.hash.slice(1));
     window.addEventListener('hashchange', () => selectTab(location.hash.slice(1)));
+    const assignmentPolicyForm = document.getElementById('pdf-sealer-assignment-policy');
+    assignmentPolicyForm?.addEventListener('submit', async event => {
+        event.preventDefault();
+        const fields = assignmentPolicyForm.querySelector('fieldset');
+        const checkbox = document.getElementById('assignment-required');
+        const message = assignmentPolicyForm.querySelector('[role="status"]');
+        const failed = <?= json_encode($framework->tt('assignment_policy_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        fields.disabled = true;
+        message.hidden = true;
+        try {
+            const response = await module.ajax('save_assignment_policy', {required: checkbox.checked});
+            if (!response?.ok) throw new Error('Save failed');
+            checkbox.checked = response.required;
+            message.className = 'alert alert-success mt-3';
+            message.textContent = <?= json_encode($framework->tt('assignment_policy_saved'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        } catch (error) {
+            message.className = 'alert alert-danger mt-3';
+            message.textContent = failed;
+        } finally { fields.disabled = false; message.hidden = false; }
+    });
     ['register', 'assign'].forEach(action => {
         const form = document.getElementById('pdf-sealer-provider-' + action);
         if (!form) return;

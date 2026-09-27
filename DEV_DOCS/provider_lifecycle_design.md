@@ -135,3 +135,7 @@ Keep implementation slices small. Resolve supported certificate profiles, upload
 CC administrators can register an ordered external public CA chain, choose no timestamp or the built-in TSA explicitly, and assign a module-enabled project before it obtains a provider binding. Registered chain certificates are public and monitored for expiry. These actions are transactional and audited; external assignment fails sealing explicitly until enrollment is implemented. Built-in default issuance remains unchanged. External policy editing, default-selection controls, provider transitions/retirement, and remote TSA sources remain planned.
 
 The next slice begins local encrypted project-key and CSR storage, separate from the active signer. Registration accepts a complete chain to a self-signed anchor; alternate/cross-signed path selection is outside this initial implementation.
+
+## Assignment gate implemented — 2026-09-27
+
+CC now offers a default-off requirement for explicit CA assignment, independent of CA count. It applies to projects without a binding. The policy save and automatic first issuance share a configuration lock; existing bindings continue working. The intended failure behavior is documented in both packaged guides: missing assignment blocks sealing while eConsent completion can store/deliver an unsealed PDF. Choosing a different installation default and transitioning an existing project binding remain separate future work.

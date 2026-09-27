@@ -93,7 +93,7 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             || $this->framework->getProjectId() !== null) {
             throw new \RuntimeException($this->framework->tt('pki_access_denied'));
         }
-        if (in_array($action, ['register_ca_provider', 'assign_ca_provider'], true)) {
+        if (in_array($action, ['register_ca_provider', 'assign_ca_provider', 'save_assignment_policy'], true)) {
             return $this->manageCaProvider($action, $payload);
         }
         if ($action === 'run_diagnostic') {
@@ -123,6 +123,10 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
                 || strlen($payload['pem']) > 131072 || strlen($payload['name']) > 128) {
                 return ['ok' => false, 'message' => $this->framework->tt('pki_invalid_request')];
             }
+        } elseif ($action === 'save_assignment_policy') {
+            if (count($payload) !== 1 || !is_bool($payload['required'] ?? null)) {
+                return ['ok' => false, 'message' => $this->framework->tt('pki_invalid_request')];
+            }
         } elseif (count($payload) !== 2 || !is_int($payload['pid'] ?? null) || $payload['pid'] < 1
             || !is_string($payload['provider'] ?? null)) {
             return ['ok' => false, 'message' => $this->framework->tt('pki_invalid_request')];
@@ -137,10 +141,17 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             );
             if ($action === 'register_ca_provider') {
                 $service->register($payload['name'], $payload['pem'], $payload['source'] === 'none' ? null : $payload['source'], $payload['fallback']);
+            } elseif ($action === 'save_assignment_policy') {
+                $service->saveAssignmentPolicy($payload['required']);
+                return ['ok' => true, 'required' => $payload['required']];
             } else { $service->assign($payload['pid'], $payload['provider']); }
             return ['ok' => true];
         } catch (\Throwable) {
-            return ['ok' => false, 'message' => $this->framework->tt($action === 'register_ca_provider' ? 'provider_register_failed' : 'provider_assign_failed')];
+            return ['ok' => false, 'message' => $this->framework->tt(match ($action) {
+                'register_ca_provider' => 'provider_register_failed',
+                'save_assignment_policy' => 'assignment_policy_failed',
+                default => 'provider_assign_failed',
+            })];
         }
     }
 

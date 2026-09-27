@@ -55,3 +55,9 @@ Contact your REDCap administrator with the project, relevant record/event if ava
 ## External CA assignments
 
 An administrator may assign a project to an external CA. The project status page shows the provider and **Awaiting signing certificate** until enrollment is completed. Certificate enrollment is not available in this version; local key/CSR generation and certificate upload will follow. An external assignment never silently switches to built-in issuance. A failed sealing operation can still leave an unsealed PDF available to REDCap, so review project Logging as well as the status page.
+
+## CA assignment required
+
+If the administrator has enabled the explicit-assignment policy, an unassigned project shows **CA assignment required**. Ask an administrator to assign a provider before expecting sealed PDFs. Project designers cannot change this policy or choose the provider.
+
+Until assignment, the sealing operation fails and project Logging records **PDF seal failed: CA assignment required**. This intentionally does **not** block eConsent completion: REDCap can still store or deliver the unsealed PDF. Assignment later permits subsequent sealing once the signing identity is ready; it does not seal previously generated PDFs retroactively. Existing project provider bindings continue working when this policy is enabled.

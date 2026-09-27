@@ -75,3 +75,11 @@ External provider configuration stores only public CA certificates (ordered issu
 External chains are published on the trust page and included in expiry monitoring; shared external certificates are deduplicated by SHA-256 in that inventory. Provider registration is serialized with built-in initialization. Project assignment uses the same project lock as local issuance and atomically stores the UUID/provider binding and administrative audit. External-only pending bindings do not prevent later built-in initialization.
 
 Assigned external projects cannot seal yet: enrollment, certificate activation, and chain inclusion in signatures are a subsequent slice. Current assignments are immutable; renewal, provider transitions, and provider retirement remain future work.
+
+## Explicit-assignment gate
+
+The system setting `require_ca_assignment` defaults to off when absent. Enabling it requires a concrete administrator assignment before a project without a binding may obtain its first identity. The setting is independent of CA count; malformed values prevent automatic issuance rather than being interpreted as off. Existing bindings remain usable.
+
+Automatic first issuance takes the project issuance lock, then the shared PKI configuration lock, and reads the policy from the primary database. It holds both through binding, issuance, and activation. Policy saves take the configuration lock and commit the setting with an administrative audit. This ordering prevents a save from reporting success while an earlier automatic first issuance is still running. Already bound projects use their project lock and do not wait for the policy lock. Earlier completed bindings are retained.
+
+A required assignment returns an explicit sealing failure without creating a UUID, serial reservation, or certificate. The original PDF remains available to REDCap; eConsent completion and delivery are not blocked by this policy. Project Logging records the reason, while the corresponding EM failure entry retains diagnostic context.

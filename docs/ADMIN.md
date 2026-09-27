@@ -48,13 +48,25 @@ These controls configure the built-in CA provider and remain available only in t
 
 Only eligible completed eConsent PDFs are sealed. Existing archives and ordinary record/form PDFs are unaffected. The [project guide](PROJECT.md) covers project permissions and the optional menu link to public certificates.
 
+## Require explicit CA assignment
+
+On **CA providers**, enable **Require explicit CA assignment for new project identities** and select **Save assignment policy**. The switch defaults to **off** and is independent of the number of registered CAs.
+
+- **Off:** an unassigned project uses the built-in default when its first eligible sealing operation runs.
+- **On:** a project without a provider binding cannot obtain a signing identity until an administrator assigns a concrete CA using **Assign project provider**. Choosing the built-in CA explicitly permits normal local issuance; choosing an external CA requires its enrollment workflow.
+- Existing provider bindings, including pending issuance, remain valid when this setting changes. The switch does not reassign projects or revoke certificates.
+
+**This deliberately blocks sealing, not eConsent completion.** When assignment is missing, the sealing operation fails with `CA_ASSIGNMENT_REQUIRED`; project Logging says **PDF seal failed: CA assignment required**, with record/event context where available. REDCap can still complete the workflow and store or deliver the preceding **unsealed PDF**. Later assignment does not retroactively seal that archive.
+
+For a busy project, enable the switch and **wait for the successful save confirmation before enabling or assigning the sealing pipeline**. Saving synchronizes with automatic first issuance. An automatic issuance that started earlier may finish before the save succeeds and retain its binding; after a successful save, an unbound project cannot automatically select the default CA. Inspect the project's status before assigning its provider. Existing bindings cannot currently be switched through this UI.
+
 ## External CA registration and project assignment
 
 On **CA providers**, register a named external provider by uploading its public PEM chain: issuing CA first, any parent intermediates next, and the self-signed root last. A directly issuing root can be uploaded alone. The limit is eight certificates / 128 KiB. Certificates must be currently valid CAs with certificate-signing usage; ordering, signatures, path constraints, and duplicate chains are checked. Private keys are rejected. Registration publishes these certificates on the public trust page and includes them in daily expiry checks, even before a project uses them.
 
 Choose **No timestamp** or explicitly choose the **internal TSA** if initialized. B-B fallback is unchecked initially. These choices belong to this provider; changing the built-in provider's TSA-tab settings does not change external providers. External TSA endpoints and editing an external provider's saved policy are not available yet.
 
-To assign a provider, enter the project ID and select the provider. PDF Sealer must be enabled there. Assignment reserves a project UUID; it does not issue a certificate or assign a PDF pipeline operation. A project with a different existing provider binding cannot be reassigned in this version. Registration does not change the installation default: unassigned projects still use the built-in provider when initialized. An external-only setup requires explicit project assignments.
+To assign a provider, enter the project ID and select the provider. PDF Sealer must be enabled there. Assignment reserves a project UUID; it does not issue a certificate or assign a PDF pipeline operation. A project with a different existing provider binding cannot be reassigned in this version. Registration does not change the installation default: unassigned projects use the built-in provider when initialized only if the explicit-assignment gate is off. An external-only setup requires explicit project assignments.
 
 **External certificate enrollment is not available yet.** An externally assigned project shows **Awaiting signing certificate**. Sealing reports `PROJECT_CERTIFICATE_REQUIRED` and does not issue a built-in certificate. REDCap's existing finalization failure behavior can still store/deliver the preceding unsealed PDF; this is not a delivery-blocking policy. Use an unbound test project to explore registration and assignment until enrollment is implemented. The built-in health summary and diagnostic continue to describe the built-in CA/TSA.
 
