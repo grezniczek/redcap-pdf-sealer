@@ -6,7 +6,9 @@ Design agreed in principle on **2026-09-27**, ahead of certificate lifecycle imp
 
 The design supports the built-in CA, one or more external CAs, and mixed operation. Locally generated project keys and certificate signing requests (CSRs) belong in the first external-provider workflow. Timestamp sources remain independently registered, with their selection and fallback policy attached to each CA provider and managed exclusively in the Control Center (CC).
 
-The fallback defaults and implementation sequence below are recommendations for the implementation slices. They do not change existing settings.
+**Greenfield development:** the user confirmed that this development instance is the only deployment of the module and its Core/Framework infrastructure. Existing module PKI and configuration may be discarded and recreated as needed. Do not build legacy storage adapters, data migrations, or preservation requirements for this development state. Historical retention during future operational renewal remains part of the product design.
+
+The fallback defaults and implementation sequence below are recommendations for the implementation slices. This document makes no live changes.
 
 ## Responsibilities and configuration
 
@@ -76,7 +78,7 @@ Recommended fallback semantics:
 
 **No implicit fallback to the internal TSA.** An administrator must explicitly allow it for that provider: a local timestamp and an external timestamp represent different trust choices. Switching timestamp sources never switches the project certificate provider.
 
-For newly configured external timestamp policies, recommend no alternative sources and no B-B fallback by default. Existing installations retain their current internal/none mode and B-B fallback setting when migrated to the built-in provider. A change in source or fallback policy is a CC-only, audited change affecting subsequent seals.
+For external timestamp policies, recommend no alternative sources and no B-B fallback by default. Fresh built-in provider configuration should explicitly set its timestamp mode and B-B fallback policy; no legacy settings need to be migrated. A change in source or fallback policy is a CC-only, audited change affecting subsequent seals.
 
 Bound the number of sources, individual request durations, response sizes, and total timestamp budget for one sealing operation. All attempts concern the same CMS signature being timestamped. Validate each candidate token against that signature and its own request, including imprint, nonce, policy, signer/chain, and time constraints. A successful HTTP response alone does not establish a usable timestamp.
 
@@ -104,10 +106,10 @@ Changing a project's provider prepares a deliberate transition; it must not sile
 
 The public trust page should identify built-in and external providers and publish their configured public CA chains, including retained historical material needed to explain earlier seals. Publication does not establish viewer trust. Explain separately which timestamp sources are permitted; never imply that the project certificate chain also authenticates its timestamp.
 
-## Compatibility and migration
+## Greenfield implementation and storage
 
-- Introduce a built-in provider referencing existing root/TSA records without regenerating certificates, keys, or project UUIDs.
-- Associate existing project identities with that provider and their existing chain. Preserve current timestamp settings explicitly.
+- Introduce the provider/source model directly and initialize fresh built-in root/TSA identities and project bindings as needed. Existing development certificates, keys, UUIDs, and settings need not survive the redesign.
+- Scope any development reset to this module's PKI/configuration. Use previewed `redcap_devctl` mutations for live database changes. This is a development operation, not a production reset feature or an automatic destructive upgrade path.
 - Keep identity/history storage system-scoped and private keys encrypted. CSR enrollment adds a pending state before a certificate exists; the current certificate-required identity record cannot represent that state by itself.
 - Extend recovery logic to distinguish a pending enrollment, an interrupted activation, and historical identities. The current single-unbound-certificate assumption must not select an arbitrary old identity after renewal.
 - Copy/export/migration must never transfer private keys, pending enrollment secrets, or active identity bindings. Any transfer of provider preferences needs destination validation; stable references within one instance are not portable trust decisions across installations.
@@ -116,7 +118,7 @@ The public trust page should identify built-in and external providers and publis
 
 ## Implementation sequence and acceptance
 
-1. **Provider and lifecycle foundation:** add the provider/source model and compatible migration; separate issuance, signing, and timestamp health. Prove unchanged current sealing and stable identities.
+1. **Provider and lifecycle foundation:** add the provider/source model directly; separate issuance, signing, and timestamp health. Reset/reinitialize development PKI as needed, then verify fresh initialization, B-B/B-T sealing, and identity reuse within the new model. No legacy migration or compatibility layer is required.
 2. **Expiry monitoring and alarms:** read the model without generating/replacing identities. Choose warning thresholds, scheduling, and deduplication in this slice.
 3. **External enrollment:** implement key/CSR generation from the start, certificate return/activation, and controlled identity import. Cover authorization, wrong key/chain, invalid profiles, stale requests, concurrent activation, and unchanged active identities after rejected uploads.
 4. **External timestamping:** add the first supported endpoint/authentication configuration and bounded primary/alternative/B-B handling. Test invalid tokens, timeouts, exhausted budgets, and explicit internal fallback. Independently verify the final embedded timestamp.
