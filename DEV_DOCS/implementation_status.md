@@ -10,6 +10,8 @@ Selected Acrobat/DSS interoperability acceptance is complete for six multipage/m
 
 Third-party attribution, reproducible namespace prefixing, and release-content checks are implemented. The module loads committed PHP libraries with its own autoloader; release archives exclude Composer manifests, lockfile, vendor directory, and runtime. See [release licensing](release_licensing.md). Automatic renewal/rotation, revocation publication, external TSA configuration, and B-LT/B-LTA remain unimplemented. The proposed Core footer-link change is deferred. Optional real alarm-mail receipt was not separately recorded as verified.
 
+Project-copy and metadata-only XML export/import acceptance passed on this instance (524 → 525 and 524 → 526): no inherited signing identities, distinct destination certificates/public keys, and identity reuse on second sealing. Direct copy retained the pipeline but left the EM disabled; XML import required explicit enablement and pipeline assignment. Evidence and scope limits are recorded below.
+
 ## Implementation history
 
 The sections below record bounded implementation slices, including tests and limitations at the time. Earlier counts and approaches may be superseded by later entries; they are not a second current specification. The [original plan](PDF_Sealer_EM_Implementation_Plan.md) is preserved as design history.
@@ -291,7 +293,7 @@ The destination still has exactly the original two binding entries (UUID allocat
 
 The tested settings-only project-copy workflow passes: no inherited source identity, fresh destination issuance on first use, distinct public keys under the shared root, and subsequent identity reuse. Non-default EM option transfer, copied records/files, and XML export/import are outside this completed scope. Next: inspect a metadata-only REDCap XML export from PID 524, then test a new project created from it before and after its first seal.
 
-## Project XML export/import acceptance — first seal passed, reuse pending
+## Project XML export/import acceptance — passed for tested scope
 
 The user supplied PID 524's metadata-only export, `C:\Users\grezn\Downloads\PDFSealerTest_2026-09-27_1415.REDCap.xml`, and clarified that EM settings do not travel with project XML. The file was inspected read-only through its WSL path; it was not copied into the repository or modified.
 
@@ -301,7 +303,7 @@ The user supplied PID 524's metadata-only export, `C:\Users\grezn\Downloads\PDFS
 - Neither PDF Sealer EM settings nor `external_modules.pdf_finalize_execution_plan` / `pdf_sealer:seal` are present. Module enablement and pipeline assignment therefore need separate setup after import; the direct project-copy behavior must not be assumed for XML import.
 - Inspection found none of the known source UUID, identity ID, or certificate fingerprint, nor module PKI binding/identity fields, private-key storage fields, certificate DER storage fields, or PEM certificate/private-key markers. The export does not carry the module's signing identity.
 
-The user subsequently created PID 526 from this XML. Initial-state inspection and fresh issuance passed as recorded below; signer reuse remains pending.
+The user subsequently created PID 526 from this XML. Initial-state inspection, fresh issuance, and signer reuse passed as recorded below.
 
 ### Separate EM settings export
 
@@ -339,4 +341,10 @@ The user submitted record **1** in PID 526 and reports that setup/status behaved
 
 The new UUID, certificate, and public key differ from both source PID 524 and copied PID 525. All three project certificate signatures verify under the unchanged installation root. The source/copy certificate hashes and bindings remain at their recorded baselines, and the active root/TSA pointers remain unchanged. No private-key material or downloaded PDF bytes were inspected; Acrobat acceptance is user-reported. The agent made no live changes.
 
-Next: submit a second new eConsent in PID 526 and verify reuse of identity `0c8f1beda273bf48c7293064aaeb7d8e` without additional issuance or binding records. This is the remaining step in the planned metadata-only XML import acceptance.
+### Second seal after XML import — identity reuse passed
+
+The user submitted record **2** in PID 526. Read-only `redcap_devctl` inspection found Project Logging entry **1065**, **PDF seal succeeded**, **PAdES B-B**, record **2**, event **1591**, at **2026-09-27 14:34:20** instance local time.
+
+The destination retains exactly its original two binding records (36011 and 36013), referencing UUID `fa7fa996-8c18-4740-9c4e-dcb7d13b5661` and identity `0c8f1beda273bf48c7293064aaeb7d8e`. Its UUID still has exactly one certificate identity record, **36012**, with unchanged certificate SHA-256 `65bcc5674fef68e16c5e9e83928a158e9e953eae5f019e1b6c2dc29e579149c4`. No additional issuance or binding records were created for the second seal. The success log and unchanged identity storage confirm reuse through the existing project-identity path; the record 2 PDF was not independently inspected.
+
+This completes the planned same-instance, metadata-only XML export/import acceptance, alongside the earlier settings-only project-copy acceptance. Both destinations started without a signing identity, created distinct signers on first sealing, and reused those signers subsequently. Source identities remained unchanged during the recorded comparisons. Acrobat acceptance was reported for each destination's first saved PDF. No further step is pending for these two cases. Non-default EM settings round-trips, copies containing records/files, and cross-instance migration are outside this evidence; the separate EM settings ZIP inspected here was empty.
