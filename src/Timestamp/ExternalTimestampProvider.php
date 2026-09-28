@@ -47,11 +47,12 @@ final class ExternalTimestampProvider implements TimestampProvider
         if (!is_string($response) || $response === '' || strlen($response) > HttpsTimestampTransport::MAX_RESPONSE_BYTES) {
             throw new RuntimeException('Invalid timestamp response size');
         }
-        $client = new Client(new Config('https://timestamp.invalid/'), $this->asn1);
+        $verifier = new SignedDataVerifier($this->asn1, requireSigningCertificate: true, allowLegacyEssSha1: true);
+        $client = new Client(new Config('https://timestamp.invalid/'), $this->asn1, verifier: $verifier);
         // Includes status, imprint, nonce, requested policy, freshness, CMS/ESS,
         // signer KU/critical exclusive timestamp EKU and validity at genTime.
         $token = $client->parseResponse($response, $request, $now);
-        $signer = (new SignedDataVerifier($this->asn1, requireSigningCertificate: true))->verify($token);
+        $signer = $verifier->verify($token);
         $this->assertTrustedSigner($signer, $chain);
         return $response;
     }

@@ -303,13 +303,18 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
     private function manageTimestampSource(string $action, mixed $payload): array
     {
         $failure = ['ok' => false, 'message' => $this->framework->tt('external_tsa_failed')];
-        if (!is_array($payload)) { return $failure; }
+        if (!is_array($payload)) {
+            return $action === 'register_timestamp_source'
+                ? ['ok' => false, 'message' => $this->framework->tt('external_tsa_register_request')]
+                : $failure;
+        }
         try {
             $service = new \DE\RUB\PDFSealerExternalModule\Timestamp\ExternalTimestampSources($this->framework);
             if ($action === 'register_timestamp_source') {
                 $limits = ['name' => 128, 'endpoint' => 2048, 'pem' => 131072, 'policy' => 256, 'username' => 256, 'password' => 4096];
-                if (count($payload) !== count($limits)) { return $failure; }
-                foreach ($limits as $key => $max) { if (!is_string($payload[$key] ?? null) || strlen($payload[$key]) > $max) { return $failure; } }
+                $invalid = ['ok' => false, 'message' => $this->framework->tt('external_tsa_register_request')];
+                foreach (['policy', 'username', 'password'] as $optional) { $payload[$optional] ??= ''; }
+                foreach ($limits as $key => $max) { if (!is_string($payload[$key] ?? null) || strlen($payload[$key]) > $max) { return $invalid; } }
                 $id = $service->register($payload['name'], $payload['endpoint'], $payload['pem'], $payload['policy'], $payload['username'], $payload['password']);
                 return ['ok' => true, 'id' => $id];
             }
@@ -321,7 +326,15 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
                 || !is_bool($payload['fallback'] ?? null)) { return $failure; }
             $service->savePolicy($payload['provider'], $payload['source'] === 'none' ? null : $payload['source'], $payload['fallback']);
             return ['ok' => true];
-        } catch (\Throwable) { return $failure; }
+        } catch (\DE\RUB\PDFSealerExternalModule\Timestamp\TimestampSourceRegistrationFailed $e) {
+            return ['ok' => false, 'message' => $this->framework->tt('external_tsa_register_' . $e->stage)];
+        } catch (\Throwable $e) {
+            if ($action === 'register_timestamp_source') {
+                error_log('PDF Sealer TSA registration failed before validation (' . get_class($e) . ')');
+                return ['ok' => false, 'message' => $this->framework->tt('external_tsa_register_internal')];
+            }
+            return $failure;
+        }
     }
 
     /** @return array{ok: bool, message?: string, timestamp_mode?: string, bb_fallback?: bool} */

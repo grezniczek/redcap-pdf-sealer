@@ -200,6 +200,17 @@ namespace {
         check(in_array($action, $config['auth-ajax-actions'], true) && !in_array($action, $config['no-auth-ajax-actions'], true), 'TSA action must require authentication');
         check($module->redcap_module_ajax($action, [], null)['ok'] === false, 'Malformed TSA payload accepted');
     }
+    $tsaPayload = ['name' => 'Test TSA', 'endpoint' => 'http://example.test/tsr', 'pem' => 'invalid PEM',
+        'policy' => '', 'username' => '', 'password' => ''];
+    check($module->redcap_module_ajax('register_timestamp_source', $tsaPayload, null)
+        === ['ok' => false, 'message' => 'external_tsa_register_endpoint'], 'TSA endpoint error was hidden');
+    $tsaPayload['endpoint'] = 'https://example.test/tsr';
+    check($module->redcap_module_ajax('register_timestamp_source', $tsaPayload, null)
+        === ['ok' => false, 'message' => 'external_tsa_register_chain'], 'TSA chain error was hidden');
+    $tsaPayload['redcap_csrf_token'] = 'injected-form-field';
+    unset($tsaPayload['policy'], $tsaPayload['username'], $tsaPayload['password']);
+    check($module->redcap_module_ajax('register_timestamp_source', $tsaPayload, null)
+        === ['ok' => false, 'message' => 'external_tsa_register_chain'], 'Additional form field or absent optional field blocked registration');
     $framework->superuser = false;
     $result = $module->redcap_module_ajax('download_public_root_certificate', ['id' => 'bad', 'format' => 'pem'], null);
     check($result === ['ok' => false, 'message' => 'pki_invalid_request'],

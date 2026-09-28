@@ -67,23 +67,38 @@ final class ExternalTimestampSources
     public function register(string $name, #[\SensitiveParameter] string $endpoint, string $pem, string $policy,
         #[\SensitiveParameter] string $username, #[\SensitiveParameter] string $password): string
     {
-        new HttpsTimestampTransport($endpoint, $username, $password);
-        $chain = (new CaChainValidator($this->framework))->validate($pem);
-        $protector = new SecretProtector();
-        $secret = $username === '' ? null : json_encode([$username, $password], JSON_THROW_ON_ERROR);
-        $credentials = $secret === null ? null : $protector->encrypt($secret);
-        if ($credentials !== null && !hash_equals($secret, $protector->decrypt($credentials))) { throw new RuntimeException('Credential encryption failed'); }
+        try { new HttpsTimestampTransport($endpoint, $username, $password); }
+        catch (Throwable) { throw new TimestampSourceRegistrationFailed('endpoint'); }
+        try { $chain = (new CaChainValidator($this->framework))->validate($pem); }
+        catch (Throwable) { throw new TimestampSourceRegistrationFailed('chain'); }
+        try {
+            $protector = new SecretProtector();
+            $secret = $username === '' ? null : json_encode([$username, $password], JSON_THROW_ON_ERROR);
+            $credentials = $secret === null ? null : $protector->encrypt($secret);
+            if ($credentials !== null && !hash_equals($secret, $protector->decrypt($credentials))) { throw new RuntimeException('Credential encryption failed'); }
+        } catch (Throwable) { throw new TimestampSourceRegistrationFailed('credentials'); }
         $id = 'remote-tsa-' . bin2hex(random_bytes(8));
-        $source = self::validate(['id' => $id, 'kind' => 'external', 'name' => trim($name), 'endpoint' => $endpoint,
-            'policy_oid' => $policy, 'chain' => $chain, 'credentials' => $credentials], $id);
-        $this->mutate(function () use ($id, $source): void {
-            $ids = $this->ids();
-            if (count($ids) >= 16) { throw new RuntimeException('External TSA catalog is full'); }
-            foreach ($ids as $existing) { if ($this->get($existing)['name'] === $source['name']) { throw new RuntimeException('Duplicate TSA name'); } }
-            $this->write('tsa_source_' . $id, $source);
-            $this->write('external_tsa_source_ids', [...$ids, $id]);
-            $this->audit('register', ['source_id' => $id]);
-        });
+        try {
+            $source = self::validate(['id' => $id, 'kind' => 'external', 'name' => trim($name), 'endpoint' => $endpoint,
+                'policy_oid' => $policy, 'chain' => $chain, 'credentials' => $credentials], $id);
+        } catch (Throwable) { throw new TimestampSourceRegistrationFailed('details'); }
+        try {
+            $this->mutate(function () use ($id, $source): void {
+                $ids = $this->ids();
+                if (count($ids) >= 16) { throw new TimestampSourceRegistrationFailed('limit'); }
+                foreach ($ids as $existing) {
+                    if ($this->get($existing)['name'] === $source['name']) { throw new TimestampSourceRegistrationFailed('duplicate'); }
+                }
+                $this->write('tsa_source_' . $id, $source);
+                $this->write('external_tsa_source_ids', [...$ids, $id]);
+                $this->audit('register', ['source_id' => $id]);
+            });
+        } catch (TimestampSourceRegistrationFailed $e) {
+            throw $e;
+        } catch (Throwable $e) {
+            error_log('PDF Sealer TSA registration storage failed (' . get_class($e) . ')');
+            throw new TimestampSourceRegistrationFailed('storage');
+        }
         return $id;
     }
 
@@ -133,10 +148,11 @@ final class ExternalTimestampSources
         try {
             $provider = $this->provider($id);
             $asn1 = new PolicyOidAsn1($provider->policyOid());
-            $client = new Client(new Config('https://timestamp.invalid/'), $asn1);
+            $verifier = new SignedDataVerifier($asn1, requireSigningCertificate: true, allowLegacyEssSha1: true);
+            $client = new Client(new Config('https://timestamp.invalid/'), $asn1, verifier: $verifier);
             $request = $client->buildRequest(random_bytes(32));
             $token = $client->parseResponse($provider->respond($request->der, time()), $request, time());
-            $der = (new SignedDataVerifier($asn1, requireSigningCertificate: true))->verify($token);
+            $der = $verifier->verify($token);
             $details = openssl_x509_parse(Certificate::derToPem($der));
             if (!is_int($details['validTo_time_t'] ?? null)) { throw new RuntimeException('Missing signer validity'); }
             $result['ok'] = true;

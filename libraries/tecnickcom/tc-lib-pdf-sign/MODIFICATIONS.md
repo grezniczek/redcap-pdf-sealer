@@ -9,7 +9,7 @@ Changes from upstream:
 - PHP namespaces and references (including PHPDoc types) are prefixed with `DE\RUB\PDFSealerExternalModule\Dependencies\` to prevent collisions with other REDCap modules.
 - Each changed PHP file carries a dated modification notice. Original copyright and license notices are retained.
 - Composer metadata and the upstream installation README are omitted from this distribution. Runtime PHP source, VERSION, LICENSE, and SECURITY.md are retained. Loading is provided by PDF Sealer's own autoloader.
-- No intentional changes to library functionality.
+- `Cms\SignedDataVerifier` has an opt-in `allowLegacyEssSha1` parameter. It accepts SHA-1 only for the RFC 3161 ESSCertID certificate identifier, without enabling SHA-1 content digests or signature algorithms. PDF Sealer uses it for external TSA tokens.
 
 The library remains licensed under LGPL-3.0-or-later. See [LICENSE](LICENSE) and the accompanying [GPLv3 text](../../../licenses/GPL-3.0.txt).
 

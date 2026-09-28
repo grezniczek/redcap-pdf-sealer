@@ -1,7 +1,7 @@
 <?php
 
 declare(strict_types=1);
-use DE\RUB\PDFSealerExternalModule\Timestamp\{ExternalTimestampSources, InternalTsaService, TsaIdentity, TsaPolicy};
+use DE\RUB\PDFSealerExternalModule\Timestamp\{ExternalTimestampSources, InternalTsaService, TimestampSourceRegistrationFailed, TsaIdentity, TsaPolicy};
 use DE\RUB\PDFSealerExternalModule\Pki\ExpiryInventory;
 use DE\RUB\PDFSealerExternalModule\Pdf\PdfFinalizeService;
 use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate;
@@ -27,7 +27,18 @@ final class HttpClient {
     }
 }
 $sources = new ExternalTimestampSources($f);
+$registrationFailsAt = static function (callable $action, string $stage): void {
+    try { $action(); }
+    catch (TimestampSourceRegistrationFailed $error) {
+        check($error->stage === $stage, 'Unexpected TSA registration failure stage');
+        return;
+    }
+    throw new RuntimeException('Expected TSA registration failure');
+};
 try {
+    $registrationFailsAt(fn() => $sources->register('Bad endpoint', 'http://tsa.example.test/stamp', Certificate::derToPem($tsaRoot->certificateDer), '', '', ''), 'endpoint');
+    $registrationFailsAt(fn() => $sources->register('Bad chain', 'https://tsa.example.test/stamp', 'not a PEM certificate', '', '', ''), 'chain');
+    $registrationFailsAt(fn() => $sources->register('Bad policy', 'https://tsa.example.test/stamp', Certificate::derToPem($tsaRoot->certificateDer), 'invalid', '', ''), 'details');
     $sourceId = $sources->register('External TSA test', 'https://tsa.example.test/stamp', Certificate::derToPem($tsaRoot->certificateDer), '', 'account', 'test-secret-password');
     check(HttpClient::$calls === 0, 'Registration contacted TSA');
     check(!str_contains(json_encode($f->settings), 'test-secret-password'), 'Plaintext password stored');
@@ -36,10 +47,10 @@ try {
     check($decryptCalls === $beforeReads && $summary[0]['diagnostic'] === null, 'Page read decrypted credentials or ran probe');
     check(!str_contains(json_encode($summary), 'endpoint') && !str_contains(json_encode($summary), 'credentials'), 'Public summary contains private config');
     $before = [$f->settings,$f->logs];
-    rejects(fn() => $sources->register('External TSA test', 'https://tsa.example.test/stamp', Certificate::derToPem($tsaRoot->certificateDer), '', '', ''));
+    $registrationFailsAt(fn() => $sources->register('External TSA test', 'https://tsa.example.test/stamp', Certificate::derToPem($tsaRoot->certificateDer), '', '', ''), 'duplicate');
     check([$f->settings,$f->logs] === $before, 'Duplicate registration changed storage');
     $f->onLog = static function ($message): void { if ($message === 'timestamp_source_admin') throw new RuntimeException('Audit failed'); };
-    rejects(fn() => $sources->register('Rollback TSA', 'https://tsa.example.test/stamp', Certificate::derToPem($tsaRoot->certificateDer), '', 'account', 'test-secret-password'));
+    $registrationFailsAt(fn() => $sources->register('Rollback TSA', 'https://tsa.example.test/stamp', Certificate::derToPem($tsaRoot->certificateDer), '', 'account', 'test-secret-password'), 'storage');
     check([$f->settings,$f->logs] === $before, 'Registration rollback lost atomicity');
     rejects(fn() => $sources->savePolicy($providerId, $sourceId, false));
     check([$f->settings,$f->logs] === $before, 'Policy rollback lost atomicity');

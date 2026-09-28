@@ -6,6 +6,7 @@ namespace DE\RUB\PDFSealerExternalModule\Pdf;
 
 use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate;
 use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Oid;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\SignedDataVerifier;
 use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Config;
 use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Output\Signature;
 use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Output\Widget;
@@ -13,6 +14,7 @@ use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Signer;
 use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Timestamp\Client as TimestampClient;
 use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Timestamp\Config as TimestampConfig;
 use DE\RUB\PDFSealerExternalModule\Timestamp\PolicyOidAsn1;
+use DE\RUB\PDFSealerExternalModule\Timestamp\ExternalTimestampProvider;
 use DE\RUB\PDFSealerExternalModule\Timestamp\TimestampProvider;
 use OpenSSLAsymmetricKey;
 
@@ -149,9 +151,14 @@ final class PdfSealBuilder
         $contentsStart = $hexStart - 1;
         $contentsEnd = $hexStart + $hexLength + 1;
         $coveredBytes = substr($coveredPdf, 0, $contentsStart) . substr($coveredPdf, $contentsEnd);
-        $timestampClient = $timestampProvider === null ? null : new TimestampClient(new TimestampConfig(
-            'http://localhost.invalid/tsa',
-        ), new PolicyOidAsn1($timestampProvider->policyOid()));
+        $timestampClient = null;
+        if ($timestampProvider !== null) {
+            $asn1 = new PolicyOidAsn1($timestampProvider->policyOid());
+            $verifier = new SignedDataVerifier($asn1, requireSigningCertificate: true,
+                allowLegacyEssSha1: $timestampProvider instanceof ExternalTimestampProvider);
+            $timestampClient = new TimestampClient(new TimestampConfig('http://localhost.invalid/tsa'),
+                $asn1, verifier: $verifier);
+        }
         // Tecnick uses this client only as an RFC 3161 codec; the provider owns transport.
         $timestampNow ??= time();
         $transport = $timestampProvider === null ? null

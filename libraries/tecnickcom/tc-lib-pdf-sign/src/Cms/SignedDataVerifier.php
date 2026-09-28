@@ -2,6 +2,8 @@
 /*
  * Modified by the PDF Sealer project on 2026-09-27:
  * PHP namespaces and references prefixed for dependency isolation.
+ * On 2026-09-28: optional legacy ESSCertID SHA-1 acceptance without enabling
+ * SHA-1 message digests or signature algorithms.
  * See the package MODIFICATIONS.md. Original license retained.
  */
 
@@ -77,6 +79,8 @@ final class SignedDataVerifier
      *                        attribute being optional in CMS at large; the codecs
      *                        reading a timestamp token turn it on, as RFC 3161
      *                        section 2.4.2 requires it there.
+     * @param bool $allowLegacyEssSha1 Accept SHA-1 only as the certificate hash
+     *                        in the RFC 3161 SigningCertificate v1 attribute.
      */
     public function __construct(
         ?Asn1 $asn1 = null,
@@ -84,6 +88,7 @@ final class SignedDataVerifier
         ?SignatureVerifier $verifier = null,
         private readonly bool $allowSha1 = false,
         private readonly bool $requireSigningCertificate = false,
+        private readonly bool $allowLegacyEssSha1 = false,
     ) {
         $this->asn1 = $asn1 ?? new Asn1();
         $this->certificate = $certificate ?? new Certificate($this->asn1);
@@ -334,7 +339,7 @@ final class SignedDataVerifier
             throw new Exception('Invalid signing-certificate attribute');
         }
 
-        if ($legacy && !$this->allowSha1) {
+        if ($legacy && !$this->allowSha1 && !$this->allowLegacyEssSha1) {
             throw new Exception('Refusing the SHA-1 signing-certificate attribute');
         }
 

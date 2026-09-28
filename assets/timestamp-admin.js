@@ -1,10 +1,10 @@
 /* Control Center only. All mutations use the Framework's authenticated AJAX endpoint. */
 window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime) => {
     const text = key => module.tt(key);
-    const fail = form => {
-        const message = form.querySelector('[data-tsa-message]');
-        message.textContent = text('external_tsa_failed');
-        message.hidden = false;
+    const fail = (form, failureMessage) => {
+        const element = form.querySelector('[data-tsa-message]');
+        element.textContent = failureMessage || text('external_tsa_failed');
+        element.hidden = false;
     };
     const reload = notice => {
         const url = new URL(location.href);
@@ -21,10 +21,10 @@ window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime) => {
         fields.disabled = true;
         try {
             const result = await module.ajax('register_timestamp_source', payload);
-            if (!result?.ok) throw new Error();
+            if (!result?.ok) { fail(register, result?.message); return; }
             register.reset();
             reload('registered');
-        } catch (_) { fail(register); }
+        } catch (_) { fail(register, text('external_tsa_register_ajax')); }
         finally { fields.disabled = false; }
     });
     sources.forEach(source => {

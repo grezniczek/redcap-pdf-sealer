@@ -1,6 +1,8 @@
 # PDF Sealer implementation status
 
-## Current summary — 2026-09-27
+## Current summary — 2026-09-28
+
+External TSA registration and the FreeTSA live diagnostic now pass. Registration originally rejected the browser payload because it required an exact field count; the action now validates only fields it uses and defaults optional ones. The page also displays safe, stage-specific registration failures. FreeTSA's token uses a legacy SHA-1 ESSCertID, while its CMS digest and signature use SHA-512. External TSA verification now permits that certificate identifier only; the captured response, synthetic legacy B-T PDFs, PHP 8.2/8.5 tests, and live CC probe pass. Provider selection and eConsent sealing with FreeTSA remain to be checked. See [testing](testing.md#external-tsa-configuration-and-finalizer-integration).
 
 **PHP compatibility:** PHP 8.4+ is recommended; PHP 8.2 remains the minimum. Issuance now selects random 128-bit serials on PHP 8.4+ and EM-log-reserved integer serials on PHP 8.2/8.3. Live CC diagnostics and fresh-project integer-serial issuance passed in PID 524, with user-confirmed Acrobat acceptance of its B-B PDF. See the compatibility fix and acceptance notes below and the [serial allocation/recovery rules](../docs/pki.md#certificate-serials).
 

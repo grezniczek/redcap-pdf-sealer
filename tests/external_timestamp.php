@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\SignedDataVerifier;
 use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Signer;
 use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Timestamp\{Client, Config};
 use DE\RUB\PDFSealerExternalModule\Timestamp\{ExternalTimestampProvider, HttpsTimestampTransport, InternalTsaService, PolicyOidAsn1, TsaIdentity, TsaPolicy};
@@ -134,6 +135,25 @@ try {
             '-data', $files['query'], '-CAfile', $files['root']]);
         checkSeal($status === 0, 'OpenSSL rejected embedded external timestamp: ' . $output);
     }
+    // Legacy ESSCertID hashes only the certificate with SHA-1. The timestamp
+    // digest and CMS signature must still use a modern algorithm.
+    $lastStrongRequest = $capturedRequest;
+    file_put_contents($files['config'], str_replace('ess_cert_id_alg=sha256', 'ess_cert_id_alg=sha1',
+        file_get_contents($files['config'])));
+    $legacy = (new PdfSealBuilder())->sealTimestamped(testPdf(), $project->certificateDer,
+        $project->privateKey(), [$otherRoot->certificateDer], time(), $make($openssl));
+    checkSeal($legacy->profile === 'pades-b-t', 'Legacy ESS certificate identifier blocked external B-T');
+    $legacyCms = verifySeal(testPdf(), $legacy->pdf, Certificate::derToPem($otherRoot->certificateDer));
+    $legacyToken = (new Signer())->signatureTimestampTokens($legacyCms)[0];
+    rejectTimestamp(fn() => (new SignedDataVerifier(requireSigningCertificate: true))->verify($legacyToken),
+        'legacy ESS with strict verification');
+    checkSeal((new SignedDataVerifier(requireSigningCertificate: true, allowLegacyEssSha1: true))->verify($legacyToken)
+        === $tsa->certificateDer, 'Legacy ESS exception did not bind the expected signer');
+    file_put_contents($files['config'], str_replace('signer_digest=sha256', 'signer_digest=sha1',
+        file_get_contents($files['config'])));
+    $weakSignature = rejectTimestamp(fn() => $make($openssl)->respond($request->der, time()), 'SHA-1 CMS signature');
+    checkSeal(str_contains($weakSignature->getMessage(), 'SHA-1'), 'Weak-signature test failed before digest policy');
+    $capturedRequest = $lastStrongRequest;
     // CMS signed with an otherwise trusted document-signing certificate must not pass as a TSA.
     $wrongUsage = $issuer->createProject('Timestamp Trust Test', $issuer->newProjectUuid(), $root);
     file_put_contents($files['cert'], Certificate::derToPem($wrongUsage->certificateDer));
