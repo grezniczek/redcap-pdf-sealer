@@ -1,5 +1,5 @@
 /* Control Center only. All mutations use the Framework's authenticated AJAX endpoint. */
-window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime) => {
+window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime, pageUrl) => {
     const text = key => module.tt(key);
     const fail = (form, failureMessage) => {
         const element = form.querySelector('[data-tsa-message]');
@@ -7,7 +7,7 @@ window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime) => {
         element.hidden = false;
     };
     const reload = notice => {
-        const url = new URL(location.href);
+        const url = new URL(pageUrl, location.href);
         url.searchParams.set('tsa_notice', notice);
         url.hash = 'tsa';
         location.assign(url.href);
@@ -53,10 +53,11 @@ window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime) => {
             finally { button.disabled = false; }
         });
     });
-    const form = document.getElementById('tsa-policy');
     const provider = document.getElementById('tsa-provider');
     const source = document.getElementById('tsa-source');
     const fallback = document.getElementById('tsa-fallback');
+    const save = document.getElementById('tsa-policy-save');
+    const policyMessage = document.getElementById('tsa-policy-message');
     const sync = () => { fallback.disabled = source.value === 'none'; if (fallback.disabled) fallback.checked = false; };
     provider.addEventListener('change', () => {
         const policy = policies.find(item => item.id === provider.value);
@@ -66,17 +67,18 @@ window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime) => {
     });
     source.addEventListener('change', () => { fallback.checked = false; sync(); });
     sync();
-    form.addEventListener('submit', async event => {
-        event.preventDefault();
-        const fields = form.querySelector('fieldset');
-        if (fields.disabled) return;
+    save.addEventListener('click', async () => {
+        if (save.disabled) return;
+        if (!provider.reportValidity() || !source.reportValidity()) return;
         const payload = {provider: provider.value, source: source.value, fallback: !fallback.disabled && fallback.checked};
-        fields.disabled = true;
+        save.disabled = true;
         try {
             const result = await module.ajax('save_provider_timestamp', payload);
             if (!result?.ok) throw new Error();
             reload('saved');
-        } catch (_) { fail(form); }
-        finally { fields.disabled = false; }
+        } catch (_) {
+            policyMessage.textContent = text('external_tsa_failed');
+            policyMessage.hidden = false;
+        } finally { save.disabled = false; }
     });
 };

@@ -4,8 +4,8 @@ if (!isset($framework) || !$framework->isSuperUser() || $framework->getProjectId
 ?>
 <h5><?= $escape($framework->tt('external_tsa_title')) ?></h5>
 <p><?= $escape($framework->tt('external_tsa_help')) ?></p>
-<?php if (in_array($_GET['tsa_notice'] ?? null, ['registered', 'saved'], true)): ?>
-<p class="alert alert-success"><?= $escape($framework->tt('external_tsa_' . $_GET['tsa_notice'])) ?></p>
+<?php if (($_GET['tsa_notice'] ?? null) === 'registered'): ?>
+<p class="alert alert-success"><?= $escape($framework->tt('external_tsa_registered')) ?></p>
 <?php endif; ?>
 <?php if ($sourcesUnavailable): ?><p class="alert alert-warning"><?= $escape($framework->tt('external_tsa_unavailable')) ?></p><?php endif; ?>
 <?php foreach ($sourceSummaries as $source): ?>
@@ -37,7 +37,10 @@ if (!isset($framework) || !$framework->isSuperUser() || $framework->getProjectId
 <hr>
 <h5><?= $escape($framework->tt('timestamp_settings_title')) ?></h5>
 <p><?= $escape($framework->tt('timestamp_settings_scope')) ?></p>
-<form id="tsa-policy">
+<?php if (($_GET['tsa_notice'] ?? null) === 'saved'): ?>
+<p class="alert alert-success" role="status"><?= $escape($framework->tt('external_tsa_saved')) ?></p>
+<?php endif; ?>
+<div id="tsa-policy">
 <fieldset <?= $providersUnavailable || $sourcesUnavailable ? 'disabled' : '' ?>>
     <label for="tsa-provider"><?= $escape($framework->tt('provider_label')) ?></label>
     <select id="tsa-provider" class="form-select form-select-sm mb-3" required>
@@ -51,7 +54,7 @@ if (!isset($framework) || !$framework->isSuperUser() || $framework->getProjectId
     <label class="mb-3"><input type="checkbox" id="tsa-fallback"> <?= $escape($framework->tt('timestamp_fallback_allow')) ?></label>
     <p class="small text-muted"><?= $escape($framework->tt('external_tsa_fallback_help')) ?></p>
     <p><?= $escape($framework->tt('timestamp_failure_help')) ?></p>
-    <button type="submit" class="btn btn-primaryrc btn-sm"><?= $escape($framework->tt('timestamp_settings_save')) ?></button>
+    <button type="button" id="tsa-policy-save" class="btn btn-primaryrc btn-sm" <?= $providersUnavailable || $sourcesUnavailable ? 'disabled' : '' ?>><?= $escape($framework->tt('timestamp_settings_save')) ?></button>
 </fieldset>
-<p data-tsa-message role="status" class="alert alert-danger mt-2" hidden></p>
-</form>
+<p id="tsa-policy-message" role="status" class="alert alert-danger mt-2" hidden></p>
+</div>
