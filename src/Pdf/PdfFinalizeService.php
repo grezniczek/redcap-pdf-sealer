@@ -81,6 +81,7 @@ final class PdfFinalizeService
             $issuerChain = $projects->issuerChain($project);
             $provider = $providers->provider($project->providerId);
             $timestampSettings = $providers->timestampSettings($project->providerId);
+            $event['attempted_timestamp_source'] = $provider['timestamp_source'] ?? 'none';
             $mode = $timestampSettings->mode;
             $fallback = $timestampSettings->fallback;
             if ($provider['kind'] === 'internal') {
@@ -111,7 +112,7 @@ final class PdfFinalizeService
             if ($written !== strlen($result->pdf)) {
                 return $this->failed($events, $event, $context, (int) $pid, 'OUTPUT_WRITE_FAILED', 'Could not write sealed PDF working copy');
             }
-            $fallbackUsed = $mode === 'internal' && $result->profile === 'pades-b-b';
+            $fallbackUsed = $mode !== 'none' && $result->profile === 'pades-b-b';
             try {
                 self::logProjectOutcome(
                     (int) $pid, $context, 'PDF seal succeeded',
@@ -217,6 +218,11 @@ final class PdfFinalizeService
         int $now,
     ): PdfSealResult {
         try {
+            $timestamp = $identities->providers()->source($sourceId);
+            if ($timestamp['kind'] === 'external') {
+                $provider = (new \DE\RUB\PDFSealerExternalModule\Timestamp\ExternalTimestampSources($this->framework))->provider($sourceId);
+                return $this->builder->sealTimestamped($source, $projectCert, $key, $issuerChain, $now, $provider, time());
+            }
             $report = $health->inspectTimestamp($sourceId, $now);
             if ($report->status !== PkiHealth::Ready) {
                 $this->alarm($report);

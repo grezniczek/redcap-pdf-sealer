@@ -124,10 +124,13 @@ final class ProviderRepository
         return $value;
     }
 
-    /** @return array{id:string, kind:string, identity_id:string, issuer_identity_id:string, policy_oid:string} */
+    /** Internal identity references or validated external source configuration. */
     public function source(string $id): array
     {
         $value = $this->read('tsa_source_', $id);
+        if (($value['kind'] ?? null) === 'external') {
+            return \DE\RUB\PDFSealerExternalModule\Timestamp\ExternalTimestampSources::validate($value, $id);
+        }
         if (count($value) !== 5 || array_diff(['id', 'kind', 'identity_id', 'issuer_identity_id', 'policy_oid'], array_keys($value)) !== []
             || $value['id'] !== $id || $value['kind'] !== 'internal'
             || !is_string($value['policy_oid']) || $value['policy_oid'] === '') {
@@ -141,8 +144,8 @@ final class ProviderRepository
     public function timestampSettings(string $id): TimestampSettings
     {
         $provider = $this->provider($id);
-        if ($provider['timestamp_source'] !== null) { $this->source($provider['timestamp_source']); }
-        return new TimestampSettings($provider['timestamp_source'] === null ? 'none' : 'internal', $provider['bb_fallback']);
+        $mode = $provider['timestamp_source'] === null ? 'none' : $this->source($provider['timestamp_source'])['kind'];
+        return new TimestampSettings($mode, $provider['bb_fallback']);
     }
 
     /** Caller enforces CC authorization and transaction boundaries. */
@@ -154,6 +157,16 @@ final class ProviderRepository
         $provider['timestamp_source'] = $mode === 'none' ? null : self::BUILTIN_TSA;
         $provider['bb_fallback'] = $fallback;
         $this->write('ca_provider_' . self::BUILTIN_CA, $provider);
+    }
+
+    /** Caller holds the configuration lock and transaction; applies to future seals. */
+    public function saveTimestampPolicy(string $id, ?string $source, bool $fallback): void
+    {
+        $provider = $this->provider($id);
+        if ($source !== null) { $this->source($source); }
+        $provider['timestamp_source'] = $source;
+        $provider['bb_fallback'] = $source !== null && $fallback;
+        $this->write('ca_provider_' . $id, $provider);
     }
 
     /** @return list<string> */

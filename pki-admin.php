@@ -75,6 +75,14 @@ try {
     unset($provider);
     $providerCertificates = $providers->publicCertificates();
 } catch (Throwable) { $providersUnavailable = true; }
+$sourceSummaries = []; $sourcesUnavailable = false;
+$sourceChoices = ['none' => $framework->tt('timestamp_mode_none')];
+if ($builtinSourceAvailable) { $sourceChoices['builtin-tsa'] = $framework->tt('timestamp_mode_internal'); }
+try {
+    $sourceSummaries = (new \DE\RUB\PDFSealerExternalModule\Timestamp\ExternalTimestampSources($framework))->summaries();
+    foreach ($sourceSummaries as $source) { $sourceChoices[$source['id']] = $source['name']; }
+} catch (Throwable) { $sourcesUnavailable = true; }
+$timestampPolicies = array_map(static fn(array $p): array => array_intersect_key($p, array_flip(['id', 'timestamp_source', 'bb_fallback'])), $providerCatalog);
 $assignableProviders = array_values(array_filter($providerCatalog, static fn(array $p): bool => !($p['retired'] ?? true)));
 $builtinRetired = false;
 foreach ($providerCatalog as $p) { if ($p['id'] === $providers::BUILTIN_CA) { $builtinRetired = $p['retired'] ?? false; } }
@@ -147,6 +155,7 @@ $renderCertificate = static function (string $role) use ($certificates, $framewo
 };
 require_once APP_PATH_DOCROOT . 'ControlCenter/header.php';
 $framework->initializeJavascriptModuleObject();
+foreach (['external_tsa_failed', 'external_tsa_passed', 'external_tsa_test_failed', 'external_tsa_testing', 'diagnostic_never', 'pki_fingerprint'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
 $framework->tt_transferToJavascriptModuleObject('provider_assigned');
 $framework->tt_transferToJavascriptModuleObject('provider_retirement_counts');
 foreach (['transition_current', 'transition_target', 'transition_saved_pending', 'transition_saved_activated', 'transition_saved_canceled'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
@@ -221,8 +230,8 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
                     <h6><?= $escape($provider['name'] ?? $framework->tt('provider_builtin')) ?>
                         <span class="badge <?= $provider['retired'] ? 'bg-secondary' : 'bg-success' ?>"><?= $escape($framework->tt($provider['retired'] ? 'provider_retired' : 'provider_active')) ?></span></h6>
                     <p class="small"><code><?= $escape($provider['id']) ?></code><br>
-                        <?= $escape($framework->tt('timestamp_mode_label')) ?>: <?= $escape($framework->tt($provider['timestamp_source'] === null ? 'timestamp_mode_none' : 'timestamp_mode_internal')) ?><br>
-                        <?= $escape($framework->tt($provider['bb_fallback'] ? 'timestamp_fallback_allow' : 'timestamp_fallback_fail')) ?></p>
+                        <?= $escape($framework->tt('timestamp_mode_label')) ?>: <?= $escape($sourceChoices[$provider['timestamp_source'] ?? 'none'] ?? $framework->tt('external_tsa_unavailable')) ?><br>
+                        <?php if ($provider['timestamp_source'] !== null): ?><?= $escape($framework->tt($provider['bb_fallback'] ? 'timestamp_fallback_allow' : 'timestamp_fallback_fail')) ?><?php endif; ?></p>
                     <?php foreach ($providerCertificates as $cert): if ($cert['provider_id'] !== $provider['id']) { continue; } ?>
                         <dl class="pdf-sealer-certificate">
                             <dt><?= $escape($framework->tt($cert['trust_anchor'] ? 'provider_anchor' : 'provider_intermediate')) ?></dt><dd><?= $module::certificateSubjectHtml($cert['subject']) ?></dd>
@@ -260,8 +269,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
                     <label for="provider-source"><?= $escape($framework->tt('timestamp_mode_label')) ?></label>
                     <select class="form-select form-select-sm mb-3" id="provider-source" required>
                         <option value="" selected disabled><?= $escape($framework->tt('timestamp_settings_choose')) ?></option>
-                        <option value="none"><?= $escape($framework->tt('timestamp_mode_none')) ?></option>
-                        <?php if ($builtinSourceAvailable): ?><option value="builtin-tsa"><?= $escape($framework->tt('timestamp_mode_internal')) ?></option><?php endif; ?>
+                        <?php foreach ($sourceChoices as $id => $name): ?><option value="<?= $escape($id) ?>"><?= $escape($name) ?></option><?php endforeach; ?>
                     </select>
                     <label class="mb-3"><input type="checkbox" id="provider-fallback" disabled> <?= $escape($framework->tt('timestamp_fallback_allow')) ?></label><br>
                     <button class="btn btn-primaryrc btn-sm" type="submit"><?= $escape($framework->tt('provider_register')) ?></button>
@@ -329,36 +337,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
         <p class="text-muted"><?= $escape($framework->tt('pki_tsa_help')) ?></p>
         <?php $renderCertificate('tsa'); ?>
         <hr>
-    <h5><?= $escape($framework->tt('timestamp_settings_title')) ?></h5>
-    <p><?= $escape($framework->tt('timestamp_settings_scope')) ?></p>
-    <?php if ($timestampSettings === null): ?>
-        <p id="pdf-sealer-timestamp-warning" class="alert alert-warning"><?= $escape($framework->tt('timestamp_settings_unavailable')) ?></p>
-    <?php endif; ?>
-    <form id="pdf-sealer-timestamp-form">
-        <fieldset id="pdf-sealer-timestamp-fields">
-            <div class="mb-3">
-                <label for="pdf-sealer-timestamp-mode"><?= $escape($framework->tt('timestamp_mode_label')) ?></label>
-                <select id="pdf-sealer-timestamp-mode" class="form-select form-select-sm" required aria-describedby="pdf-sealer-timestamp-help">
-                    <option value="" disabled <?= $timestampSettings === null ? 'selected' : '' ?>><?= $escape($framework->tt('timestamp_settings_choose')) ?></option>
-                    <option value="internal" <?= $timestampSettings?->mode === 'internal' ? 'selected' : '' ?>><?= $escape($framework->tt('timestamp_mode_internal')) ?></option>
-                    <option value="none" <?= $timestampSettings?->mode === 'none' ? 'selected' : '' ?>><?= $escape($framework->tt('timestamp_mode_none')) ?></option>
-                </select>
-                <p id="pdf-sealer-timestamp-help" class="text-muted"><?= $escape($framework->tt('timestamp_mode_help')) ?></p>
-            </div>
-            <div class="mb-3">
-                <label for="pdf-sealer-timestamp-fallback"><?= $escape($framework->tt('timestamp_fallback_label')) ?></label>
-                <select id="pdf-sealer-timestamp-fallback" class="form-select form-select-sm" required aria-describedby="pdf-sealer-fallback-help">
-                    <option value="" disabled <?= $timestampSettings === null ? 'selected' : '' ?>><?= $escape($framework->tt('timestamp_settings_choose')) ?></option>
-                    <option value="1" <?= $timestampSettings?->fallback === true ? 'selected' : '' ?>><?= $escape($framework->tt('timestamp_fallback_allow')) ?></option>
-                    <option value="0" <?= $timestampSettings?->fallback === false ? 'selected' : '' ?>><?= $escape($framework->tt('timestamp_fallback_fail')) ?></option>
-                </select>
-                <p id="pdf-sealer-fallback-help" class="text-muted"><?= $escape($framework->tt('timestamp_fallback_help')) ?></p>
-            </div>
-            <p><?= $escape($framework->tt('timestamp_failure_help')) ?></p>
-            <button type="submit" class="btn btn-primaryrc btn-sm"><?= $escape($framework->tt('timestamp_settings_save')) ?></button>
-        </fieldset>
-    </form>
-    <div id="pdf-sealer-timestamp-message" role="status" hidden></div>
+        <?php require __DIR__ . '/views/timestamp-admin.php'; ?>
     </section>
     <section class="pdf-sealer-panel" id="pki-panel-diagnostic" role="tabpanel" aria-labelledby="pki-tab-diagnostic" tabindex="0" hidden>
         <?php if ($builtinRetired): ?><p class="alert alert-warning"><?= $escape($framework->tt('provider_retired_diagnostic')) ?></p><?php endif; ?>
@@ -440,6 +419,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
     <div id="pdf-sealer-test-alarm-message" role="status" hidden></div>
     </section>
 </div>
+<script src="<?= $escape($framework->getUrl('assets/timestamp-admin.js')) ?>"></script>
 <script>
 (() => {
     const module = <?= $framework->getJavascriptModuleObjectName() ?>;
@@ -627,7 +607,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
         if (action === 'register') {
             const source = document.getElementById('provider-source');
             const fallback = document.getElementById('provider-fallback');
-            const updateFallback = () => { fallback.disabled = source.value !== 'builtin-tsa'; };
+            const updateFallback = () => { fallback.disabled = source.value === 'none' || source.value === ''; if (fallback.disabled) fallback.checked = false; };
             source.addEventListener('change', updateFallback);
             updateFallback();
         }
@@ -739,43 +719,6 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
             testAlarmButton.disabled = button.disabled = input.disabled = false;
         });
     });
-    const timestampForm = document.getElementById('pdf-sealer-timestamp-form');
-    const timestampFields = document.getElementById('pdf-sealer-timestamp-fields');
-    const timestampMode = document.getElementById('pdf-sealer-timestamp-mode');
-    const timestampFallback = document.getElementById('pdf-sealer-timestamp-fallback');
-    const timestampMessage = document.getElementById('pdf-sealer-timestamp-message');
-    const timestampSaved = <?= json_encode($framework->tt('timestamp_settings_saved'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-    const timestampFailed = <?= json_encode($framework->tt('timestamp_settings_save_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-    const modeSummary = <?= json_encode(['internal' => $framework->tt('timestamp_summary_internal'), 'none' => $framework->tt('timestamp_summary_none')], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-    const showTimestampMessage = (success, text) => {
-        timestampMessage.className = 'alert ' + (success ? 'alert-success' : 'alert-danger');
-        timestampMessage.textContent = text;
-        timestampMessage.hidden = false;
-    };
-    timestampForm.addEventListener('submit', event => {
-        event.preventDefault();
-        if (timestampFields.disabled) return;
-        const payload = {timestamp_mode: timestampMode.value, bb_fallback: timestampFallback.value === '1'};
-        timestampFields.disabled = true;
-        timestampMessage.hidden = true;
-        module.ajax('save_timestamp_settings', payload).then(response => {
-            if (response && response.ok) {
-                timestampMode.value = response.timestamp_mode;
-                timestampFallback.value = response.bb_fallback ? '1' : '0';
-                document.getElementById('pdf-sealer-mode-summary').textContent = modeSummary[response.timestamp_mode];
-                const warning = document.getElementById('pdf-sealer-timestamp-warning');
-                if (warning) warning.hidden = true;
-                showTimestampMessage(true, timestampSaved);
-            } else {
-                showTimestampMessage(false, response && response.message ? response.message : timestampFailed);
-            }
-        }).catch(() => showTimestampMessage(false, timestampFailed)).finally(() => {
-            timestampFields.disabled = false;
-        });
-    });
-    [timestampMode, timestampFallback].forEach(control => control.addEventListener('change', () => {
-        timestampMessage.hidden = true;
-    }));
     const diagnosticButton = document.getElementById('pdf-sealer-diagnostic');
     const diagnosticMessage = document.getElementById('pdf-sealer-diagnostic-message');
     const diagnosticResults = document.getElementById('pdf-sealer-diagnostic-results');
@@ -903,6 +846,8 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
             });
         });
     });
+    window.PDFSealerTimestampAdmin(module, <?= json_encode($timestampPolicies, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+        <?= json_encode($sourceSummaries, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>, formatDiagnosticTime);
 })();
 </script>
 <?php require_once APP_PATH_DOCROOT . 'ControlCenter/footer.php'; ?>

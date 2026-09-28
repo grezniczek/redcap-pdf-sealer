@@ -60,6 +60,7 @@ namespace {
             return true;
         }
 
+        public function log(string $message, array $details): int { check($message === 'timestamp_source_admin', 'Unexpected audit'); return 1; }
         public function getProjectsWithModuleEnabled(): array { return $this->enabled; }
         public function getUser(): object {
             return new class($this) {
@@ -149,11 +150,15 @@ namespace {
         foreach ([false, true] as $fallback) {
             $payload = ['timestamp_mode' => $mode, 'bb_fallback' => $fallback];
             $result = $module->redcap_module_ajax('save_timestamp_settings', $payload, null);
-            check($result === ['ok' => true] + $payload, 'Timestamp choices not returned');
+            check($result === ['ok' => true, 'timestamp_mode' => $mode, 'bb_fallback' => $mode !== 'none' && $fallback], 'Timestamp choices not returned');
             $parsed = $providers->timestampSettings('builtin-ca');
-            check($parsed->mode === $mode && $parsed->fallback === $fallback, 'Saved settings differ from sealing interpretation');
+            check($parsed->mode === $mode && $parsed->fallback === ($mode !== 'none' && $fallback), 'Saved settings differ from sealing interpretation');
             check($framework->transaction === null, 'Settings transaction left open');
         }
+    }
+    foreach (['none', 'builtin-tsa'] as $source) {
+        check($module->redcap_module_ajax('save_provider_timestamp', ['provider' => 'builtin-ca', 'source' => $source, 'fallback' => false], null)['ok'], 'Provider policy dispatch failed');
+        check($providers->provider('builtin-ca')['timestamp_source'] === ($source === 'none' ? null : $source), 'Provider policy dispatch did not save');
     }
     $before = [$framework->settings, $framework->queries];
     foreach ([null, '', [], ['timestamp_mode' => 'internal'],
@@ -191,6 +196,10 @@ namespace {
     }
     check([$framework->settings, $framework->queries] === $before, 'Invalid policy request wrote storage');
 
+    foreach (['register_timestamp_source', 'test_timestamp_source', 'save_provider_timestamp'] as $action) {
+        check(in_array($action, $config['auth-ajax-actions'], true) && !in_array($action, $config['no-auth-ajax-actions'], true), 'TSA action must require authentication');
+        check($module->redcap_module_ajax($action, [], null)['ok'] === false, 'Malformed TSA payload accepted');
+    }
     $framework->superuser = false;
     $result = $module->redcap_module_ajax('download_public_root_certificate', ['id' => 'bad', 'format' => 'pem'], null);
     check($result === ['ok' => false, 'message' => 'pki_invalid_request'],
@@ -228,7 +237,7 @@ namespace {
         } catch (\RuntimeException $e) {
             check($e->getMessage() === 'pki_access_denied', 'Unexpected timestamp settings authorization result');
         }
-        foreach (['register_ca_provider', 'assign_ca_provider', 'save_assignment_policy', 'preview_ca_retirement', 'set_ca_retirement', 'preview_provider_transition', 'start_provider_transition', 'cancel_provider_transition'] as $action) {
+        foreach (['register_timestamp_source', 'test_timestamp_source', 'save_provider_timestamp', 'register_ca_provider', 'assign_ca_provider', 'save_assignment_policy', 'preview_ca_retirement', 'set_ca_retirement', 'preview_provider_transition', 'start_provider_transition', 'cancel_provider_transition'] as $action) {
             try {
                 $module->redcap_module_ajax($action, [], $case['context']);
                 throw new \RuntimeException('Unauthorized provider request accepted');

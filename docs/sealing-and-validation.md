@@ -15,19 +15,19 @@ Encrypted PDFs, already-certified PDFs, PDFs with existing signed fields, and un
 | Profile | Produced by | Included evidence |
 | --- | --- | --- |
 | PAdES B-B | Timestamp mode disabled, or permitted fallback | Document signature and signer certificate material |
-| PAdES B-T | Successful internal timestamping | B-B evidence plus an embedded signature timestamp |
+| PAdES B-T | Successful internal or configured external timestamping | B-B evidence plus an embedded signature timestamp |
 
-The project signer and root certificate are embedded in the document signature. For B-T, the timestamp token includes the TSA certificate and root chain. A PDF viewer may expose only some of these details in its interface.
+The project signer and root certificate are embedded in the document signature. For B-T, the timestamp token includes the TSA signer certificate; an external service may omit intermediate or root certificates. External responses are validated against the separately configured TSA CA chain before embedding. A PDF viewer may expose only some of these details in its interface.
 
 PAdES B-LT and B-LTA are not implemented. No revocation evidence or archival timestamp renewal is added. Selected synthetic B-B/B-T outputs have passed Acrobat's no-modification check and DSS structure/profile/cryptographic checks. Those results establish tested interoperability for those files, not universal acceptance or automatically trusted validation of every output.
 
 ## How the timestamp works
 
-The internal TSA issues an RFC 3161 timestamp over a SHA-256 digest of the document signature value. The token binds that imprint to a generation time, policy, serial number, and TSA signature. The sealing path verifies the response before embedding it as an unsigned CMS signature-timestamp attribute. Requests and responses are exchanged in-process; the module does not expose a general public timestamp service.
+The internal TSA issues an RFC 3161 timestamp over a SHA-256 digest of the document signature value. The token binds that imprint to a generation time, policy, serial number, and TSA signature. The sealing path verifies the response before embedding it as an unsigned CMS signature-timestamp attribute. Internal requests and responses are exchanged in-process. An external source uses a bounded HTTPS request with independent token-signing CA trust. The module does not expose a general public timestamp service. External policy OIDs are optional constraints: if provided they are requested and enforced; otherwise the trusted service chooses its policy. Fractional timestamp seconds are preserved in the embedded token, while log metadata uses whole Unix seconds.
 
 A verifier that trusts and validates the TSA can use this evidence to establish that the signature existed at the timestamp time. A timestamp does not by itself supply all the certificate, revocation, trust, and archival evidence needed for indefinite future validation. It also depends on the TSA's time source and key protection.
 
-Consequently, an embedded timestamp can coexist with a viewer's **“not LTV enabled”** or certificate-expiration warning. B-T is not the same as long-term validation. This module's TSA is issued by the same installation root as the project signer, so recipients also need an appropriate trust decision for that chain.
+Consequently, an embedded timestamp can coexist with a viewer's **“not LTV enabled”** or certificate-expiration warning. B-T is not the same as long-term validation. The built-in TSA uses this installation's root; an external TSA may have an unrelated chain. Recipients need a separate appropriate trust decision for the timestamp chain.
 
 The PDF's displayed signing date is separate from the embedded cryptographic timestamp. Viewer wording and date displays vary. When investigating a disagreement, inspect the original signature and token rather than relying on a summary label alone.
 

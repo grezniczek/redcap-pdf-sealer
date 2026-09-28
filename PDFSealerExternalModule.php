@@ -103,6 +103,9 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
         if (in_array($action, ['register_ca_provider', 'assign_ca_provider', 'save_assignment_policy', 'preview_ca_retirement', 'set_ca_retirement'], true)) {
             return $this->manageCaProvider($action, $payload);
         }
+        if (in_array($action, ['register_timestamp_source', 'test_timestamp_source', 'save_provider_timestamp'], true)) {
+            return $this->manageTimestampSource($action, $payload);
+        }
         if ($action === 'run_diagnostic') {
             return $this->runDiagnostic($payload);
         }
@@ -212,7 +215,7 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             }
         } elseif ($action === 'register_ca_provider') {
             if (count($payload) !== 4 || !is_string($payload['name'] ?? null) || !is_string($payload['pem'] ?? null)
-                || !in_array($payload['source'] ?? '', ['none', 'builtin-tsa'], true) || !is_bool($payload['fallback'] ?? null)
+                || !is_string($payload['source'] ?? null) || !is_bool($payload['fallback'] ?? null)
                 || strlen($payload['pem']) > 131072 || strlen($payload['name']) > 128) {
                 return ['ok' => false, 'message' => $this->framework->tt('pki_invalid_request')];
             }
@@ -297,6 +300,30 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
         return ['ok' => $status === 'sent', 'message' => $this->framework->tt('alarm_test_' . $status)];
     }
 
+    private function manageTimestampSource(string $action, mixed $payload): array
+    {
+        $failure = ['ok' => false, 'message' => $this->framework->tt('external_tsa_failed')];
+        if (!is_array($payload)) { return $failure; }
+        try {
+            $service = new \DE\RUB\PDFSealerExternalModule\Timestamp\ExternalTimestampSources($this->framework);
+            if ($action === 'register_timestamp_source') {
+                $limits = ['name' => 128, 'endpoint' => 2048, 'pem' => 131072, 'policy' => 256, 'username' => 256, 'password' => 4096];
+                if (count($payload) !== count($limits)) { return $failure; }
+                foreach ($limits as $key => $max) { if (!is_string($payload[$key] ?? null) || strlen($payload[$key]) > $max) { return $failure; } }
+                $id = $service->register($payload['name'], $payload['endpoint'], $payload['pem'], $payload['policy'], $payload['username'], $payload['password']);
+                return ['ok' => true, 'id' => $id];
+            }
+            if ($action === 'test_timestamp_source') {
+                if (count($payload) !== 1 || !is_string($payload['source'] ?? null)) { return $failure; }
+                return ['ok' => true, 'diagnostic' => $service->diagnose($payload['source'])];
+            }
+            if (count($payload) !== 3 || !is_string($payload['provider'] ?? null) || !is_string($payload['source'] ?? null)
+                || !is_bool($payload['fallback'] ?? null)) { return $failure; }
+            $service->savePolicy($payload['provider'], $payload['source'] === 'none' ? null : $payload['source'], $payload['fallback']);
+            return ['ok' => true];
+        } catch (\Throwable) { return $failure; }
+    }
+
     /** @return array{ok: bool, message?: string, timestamp_mode?: string, bb_fallback?: bool} */
     private function saveTimestampSettings(mixed $payload): array
     {
@@ -305,25 +332,14 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             || !is_bool($payload['bb_fallback'] ?? null)) {
             return ['ok' => false, 'message' => $this->framework->tt('timestamp_settings_invalid')];
         }
-        $started = false;
+        $fallback = $payload['timestamp_mode'] !== 'none' && $payload['bb_fallback'];
         try {
-            if ($this->framework->query('START TRANSACTION', []) === false) {
-                throw new \RuntimeException('Could not start settings transaction');
-            }
-            $started = true;
-            (new \DE\RUB\PDFSealerExternalModule\Pki\ProviderRepository($this->framework))
-                ->saveBuiltinTimestamp($payload['timestamp_mode'], $payload['bb_fallback']);
-            if ($this->framework->query('COMMIT', []) === false) {
-                throw new \RuntimeException('Could not commit settings transaction');
-            }
-        } catch (\Throwable $e) {
-            if ($started) {
-                try { $this->framework->query('ROLLBACK', []); } catch (\Throwable) {}
-            }
-            error_log('PDF Sealer timestamp settings update failed (' . get_class($e) . ')');
+            (new \DE\RUB\PDFSealerExternalModule\Timestamp\ExternalTimestampSources($this->framework))->savePolicy(
+                'builtin-ca', $payload['timestamp_mode'] === 'none' ? null : 'builtin-tsa', $fallback);
+        } catch (\Throwable) {
             return ['ok' => false, 'message' => $this->framework->tt('timestamp_settings_save_failed')];
         }
-        return ['ok' => true, 'timestamp_mode' => $payload['timestamp_mode'], 'bb_fallback' => $payload['bb_fallback']];
+        return ['ok' => true, 'timestamp_mode' => $payload['timestamp_mode'], 'bb_fallback' => $fallback];
     }
 
     /** @return array{ok: bool, message?: string, recipients?: string} */

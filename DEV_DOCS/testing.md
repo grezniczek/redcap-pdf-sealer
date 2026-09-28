@@ -12,6 +12,7 @@ The standalone RFC 3161 timestamp responder, PKI components, and PDF seal builde
 php tests/dependency_isolation.php
 php tests/timestamp_spike.php
 php tests/external_timestamp.php
+php tests/external_timestamp_settings.php
 php tests/timestamp_transport.php
 php tests/certificate_serials.php
 php tests/pki_primitives.php
@@ -55,6 +56,20 @@ To check a REDCap-generated PDF without adding its bytes to the repository, expo
 `tests/timestamp_transport.php` checks HTTPS URL/auth validation, 3-second connection/10-second request bounds, 64 KiB response cap passed to the Core helper, redirect/compression refusal, content type/status handling and secret-safe errors. It uses an HTTP test double and the real Core `ResponseByteLimit` class. Set `PDF_SEALER_REDCAP_ROOT` if Core is elsewhere. This test does not exercise real network streaming, TLS certificates, proxy authentication or timeouts; those require endpoint acceptance after CC integration. The production transport depends on `HttpClient::requestWithResponseLimit` and fails closed if that helper is unavailable.
 
 Both suites and the existing nine-fixture `tests/pdf_seal_bt.php` (including B-B checks) passed on PHP 8.2 and 8.5. The internal timestamp spike also passed on PHP 8.5. External sources are not selectable yet; no browser intervention is needed for this foundation slice. Future source registration must encrypt credentials, audit changes without secrets, and expose explicit per-source diagnostic results. Alternative-source and B-B orchestration remain outside these tests.
+
+## External TSA configuration and finalizer integration
+
+Run `tests/external_timestamp_settings.php` on PHP 8.2 and the current PHP runtime. It reuses the external enrollment/activation fixtures, fake transactional Framework and encryption, then drives the real source repository, HTTPS transport adapter and finalizer against a simulated HTTP responder. It covers encrypted credentials, secret-free public summaries/audits, no network on registration/render reads, duplicate rejection, registration/policy/diagnostic rollback, persisted success/failure observations, CA expiry inventory, B-T sealing, strict failure without byte changes or alternatives, explicit B-B fallback and no-timestamp operation. The finished PDFs are cryptographically checked. `tests/pki_admin_ajax.php` covers authenticated action registration, CC authorization, invalid input, positive policy dispatch, and transaction failures. Both pass on PHP 8.2/8.5. Built-in diagnostic, expiry and public-trust checks also pass on PHP 8.5.
+
+Manual acceptance (pending; use a test provider/project):
+
+1. Obtain an approved HTTPS RFC 3161 endpoint and its complete public TSA issuing-CA-to-root chain. TLS trust must already work through REDCap's HTTP configuration. Enter optional Basic credentials directly in CC and register the source; refresh should preserve the source without displaying credentials or running a probe.
+2. Choose **Test source**. Confirm the pass/fail result and local/profile-formatted observation time, then refresh and confirm persistence. Failure should replace a previous result; it must not silently use another source.
+3. Select the test project's CA provider under **Timestamping**, select the source, leave B-B fallback off, and save. Verify provider/project labels and the cleared/disabled fallback control for **No timestamp**. Changing this policy affects all projects assigned to that provider; use a dedicated test provider if needed.
+4. Produce a fresh eConsent PDF and verify project Logging, Acrobat certification/no-modification and the embedded timestamp. Supply the downloaded PDF for independent verification if desired.
+5. On a disposable source/provider, test an unreachable/rejecting endpoint: strict mode must fail sealing, and explicitly enabled B-B fallback must yield B-B with a fallback log. REDCap may still store/deliver the preceding unsealed PDF after strict failure. Restore the intended policy afterward.
+
+No actual external endpoint was contacted during automated tests. Ordered alternatives, source editing/deletion and external TSA public-chain downloads remain outside this slice. The earlier foundation section records its historical acceptance scope; source selection is now implemented by this slice.
 
 ## Live development-instance checks
 

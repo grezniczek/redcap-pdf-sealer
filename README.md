@@ -1,6 +1,6 @@
 # PDF Sealer
 
-PDF Sealer is a REDCap External Module that adds cryptographic certification signatures to completed eConsent PDFs. It helps recipients check document integrity and identify the project's sealing certificate. Optional embedded timestamps are issued by the REDCap installation's own timestamp authority.
+PDF Sealer is a REDCap External Module that adds cryptographic certification signatures to completed eConsent PDFs. It helps recipients check document integrity and identify the project's sealing certificate. Optional embedded timestamps come from the installation's own timestamp authority or a configured external TSA.
 
 The module is a reference implementation progressing toward v1.
 

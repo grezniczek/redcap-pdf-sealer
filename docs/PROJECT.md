@@ -1,6 +1,6 @@
 # PDF Sealer — project guide
 
-PDF Sealer adds a cryptographic seal to completed eConsent PDFs when the module is configured for your project. The seal lets a PDF viewer check whether the document has changed since sealing and identify the project's sealing certificate. With timestamping enabled, it also includes a timestamp from your REDCap installation's timestamp authority.
+PDF Sealer adds a cryptographic seal to completed eConsent PDFs when the module is configured for your project. The seal lets a PDF viewer check whether the document has changed since sealing and identify the project's sealing certificate. With timestamping enabled, it also includes a timestamp from the timestamp authority selected by your administrator, either internal or external.
 
 The seal identifies the issuing project and organization. It does not establish the identity of the person who completed the consent form. It adds no visible stamp or watermark and does not replace the eConsent workflow.
 
@@ -97,3 +97,7 @@ Your current signer and timestamp policy remain in use while the replacement is 
 Canceling a CSR discards only its pending key/request, not the administrator's provider-change decision. Ask the administrator to **Cancel provider change** to withdraw that decision; it also discards any pending CSR but keeps the current signer. Old returned certificates cannot activate canceled requests.
 
 If no active signer exists, the page shows **Provider change — awaiting certificate** and sealing remains blocked until activation. REDCap may still store or deliver an unsealed PDF. If the target CA is retired, contact an administrator before continuing enrollment.
+
+### Timestamp source
+
+The project status page shows the current provider's timestamp source and B-B fallback policy read-only. Only CC administrators can change them. A successful source diagnostic does not guarantee future requests will succeed. If a required timestamp fails, sealing fails; REDCap can still store or deliver the preceding unsealed PDF. Check project Logging and contact an administrator.

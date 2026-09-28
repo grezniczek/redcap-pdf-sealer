@@ -11,7 +11,7 @@ final readonly class TimestampSettings
 {
     public function __construct(public string $mode, public bool $fallback)
     {
-        if (!in_array($mode, ['internal', 'none'], true)) {
+        if (!in_array($mode, ['internal', 'external', 'none'], true)) {
             throw new RuntimeException('Invalid timestamp mode setting');
         }
     }

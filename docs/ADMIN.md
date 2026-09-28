@@ -30,13 +30,30 @@ Settings on the **TSA** tab apply to future sealing operations for projects assi
 | Setting | Behavior |
 | --- | --- |
 | Internal timestamp authority (PAdES B-T) | Embeds a timestamp issued by this installation. This is the default. |
+| Registered external TSA | Requests and validates an HTTPS RFC 3161 timestamp against its separately configured CA chain. |
 | No timestamp (PAdES B-B) | Seals without a timestamp. |
-| Allow sealing without a timestamp (B-B fallback) | If internal timestamping fails, attempts a B-B seal. Enabled by default. |
-| Fail the sealing operation | If internal timestamping fails, the operation fails instead of using B-B. |
+| Allow sealing without a timestamp (B-B fallback) | If the selected timestamp source fails, attempts a B-B seal. Enabled by default for the initial built-in policy; external registration leaves it off. |
+| Fail the sealing operation | If the selected timestamp source fails, the operation fails instead of using B-B. |
 
-These controls configure the built-in CA provider and remain available only in the Control Center. The fallback preference is retained while timestamping is disabled. Invalid stored settings produce a warning and need correction. The built-in TSA policy is used automatically; normal setup does not require an OID to be configured. See [timestamp policy](sealing-and-validation.md) for the advanced override.
+These CC-only controls apply to the CA provider selected in **TSA → Timestamping**, including projects with existing signers. Select the source and explicitly allow B-B fallback if wanted. Selecting a new source clears the fallback checkbox; **No timestamp** clears and disables it. Saving applies to future seals; an operation already running may finish under its prior policy. The built-in TSA uses its default policy without requiring an OID. Invalid or unavailable configuration fails closed.
 
 **“Fail the sealing operation” does not mean “block the PDF.”** On failure, the Framework discards the failed working copy and retains the preceding PDF for REDCap to store or deliver. Project-key or signing-chain failures also fail the operation. A root private-key failure blocks new certificate issuance but does not by itself block an existing usable project signer. Decide how your local process handles failed or fallback seals.
+
+## Register and test an external TSA
+
+On **TSA → External timestamp sources**, enter a unique source name and HTTPS endpoint, then paste the public TSA **issuing CA chain**: direct issuing CA first, any parents next, self-signed root last. Do not paste the TSA leaf or a private key. The limit is eight certificates / 128 KiB. The chain is independent of the document-signing CA and must be currently valid. Cross-signed/alternate path discovery and remote certificate fetching are not supported.
+
+Leave the policy OID empty to accept this trusted TSA's default policy. A configured policy is sent as `reqPolicy` and must match the returned token. Anonymous access and HTTP Basic authentication are supported; credentials are encrypted using REDCap's installation encryption. Keep passwords or access tokens out of the URL; use the authentication fields. There is no private client certificate or custom authentication-header support.
+
+**Register external TSA** stores configuration without making a network request. Then choose **Test source**. This sends a random test imprint, validates the complete response and configured trust, and saves the result, observation time, signer fingerprint and certificate expiration. The browser displays the observation time in your local zone and profile format. Refresh retains both successes and failures. A successful diagnostic is historical evidence, not continuous availability or remote expiry monitoring. It does not use a PDF or participant data.
+
+Select a CA provider under **Timestamping**, select the tested source, and save its policy. Test an actual eConsent workflow and inspect the resulting PDF. Every seal validates its own fresh timestamp. The request contains a signature hash and nonce, not the PDF, project title, record ID or participant details. A timestamp rejection or outage follows that provider's explicit B-B policy; there is no implicit switch to the internal TSA.
+
+Requests use REDCap's HTTPS trust/proxy configuration, with a 3-second connection limit, 10-second total request limit, and 64 KiB response limit. Redirects and compressed responses are rejected. The Core `HttpClient::requestWithResponseLimit` helper is required; if unavailable, requests fail. Institutions can configure an internal HTTPS endpoint. The configured TSA CA chain validates timestamp signatures; it does not install a TLS trust anchor for the endpoint.
+
+Source configurations are immutable in this version. To change an endpoint, credentials, policy constraint or trust chain, register a new named source and explicitly reassign providers. At most 16 external sources are supported; editing/removal and ordered fallback sources remain future work. Old encrypted credentials remain stored with their source. Source registration and policy changes are audited without secrets; generic diagnostic failures do not expose remote error bodies or URLs. Daily expiry checks include configured CA chains referenced by active providers/signers, but do not continuously inspect a remote TSA certificate. External TSA chains are not yet included in the public certificate downloads; distribute them through your institution's trust process as needed.
+
+The **Diagnostic** tab continues to test the built-in CA/TSA independently of provider selection. Use **Test source** on the TSA tab for external services.
 
 ## Enable sealing in projects
 
@@ -64,7 +81,7 @@ For a busy project, enable the switch and **wait for the successful save confirm
 
 On **CA providers**, register a named external provider by uploading its public PEM chain: issuing CA first, any parent intermediates next, and the self-signed root last. A directly issuing root can be uploaded alone. The limit is eight certificates / 128 KiB. Certificates must be currently valid CAs with certificate-signing usage; ordering, signatures, path constraints, and duplicate chains are checked. Private keys are rejected. Registration publishes these certificates on the public trust page and includes them in daily expiry checks while the provider is active, even before a project uses them.
 
-Choose **No timestamp** or explicitly choose the **internal TSA** if initialized. B-B fallback is unchecked initially. These choices belong to this provider; changing the built-in provider's TSA-tab settings does not change external providers. External TSA endpoints and editing an external provider's saved policy are not available yet.
+Choose **No timestamp**, the initialized **internal TSA**, or a registered external source. B-B fallback is unchecked initially. Each provider has its own policy, editable on the **TSA** tab. Changing one provider's policy does not change other providers.
 
 To assign a provider, choose a project by title or PID in the searchable selector and select an active provider. Retired providers are excluded. The selector lists active projects with PDF Sealer enabled that have no provider binding, excluding pending issuance/enrollment as well as active signers. Successfully assigned projects disappear from the list immediately. The server still checks for assignments made after the page was loaded. After success, the confirmation names both the provider and project and clears the selections for another assignment. Failed requests retain your selections. PDF Sealer must be enabled there. Assignment reserves a project UUID; it does not issue a certificate or assign a PDF pipeline operation. An existing binding uses the separate **Change project provider** workflow below. Registration does not change the installation default: unassigned projects use the built-in provider when initialized only if the explicit-assignment gate is off. An external-only setup requires explicit project assignments.
 
@@ -161,7 +178,7 @@ Distribute trust instructions through your institution's established channels. R
 
 ## Development and current limits
 
-Automatic renewal/rotation, revocation publication, external TSA configuration, and PAdES B-LT/B-LTA are not implemented. Plan certificate lifecycle and recovery before operational reliance; [PKI](pki.md) describes the stored material and current behavior.
+Automatic renewal/rotation, revocation publication, ordered alternative TSA sources, and PAdES B-LT/B-LTA are not implemented. Plan certificate lifecycle and recovery before operational reliance; [PKI](pki.md) describes the stored material and current behavior.
 
 For implementation history, reproducible tests, acceptance evidence, and release packaging, see the repository's [developer documentation](https://github.com/grezniczek/redcap-pdf-sealer/tree/main/DEV_DOCS). It is intentionally excluded from installation packages; the linked development branch may be newer than your installed version. See also the [overview](../README.md) and [third-party notices](../THIRD_PARTY_NOTICES.md).
 
@@ -181,4 +198,4 @@ Only a single leaf PEM certificate (64 KiB maximum) is uploaded. Extra intermedi
 
 Review is read-only. Activation atomically records the encrypted identity and its public CA chain, switches the project binding, consumes the pending request, and records the actor/fingerprints. A replacement requires the reviewed active identity to remain unchanged. Earlier identity records, including encrypted keys, remain in the existing append-only identity history; cancellation only removes pending settings. Expiry checks follow the latest active signer and its pinned chain.
 
-Subsequent seals embed the project certificate and complete pinned CA chain. Timestamping follows that provider's CC policy, including a separately issued internal TSA chain if selected. External signing does not require the built-in CA's private key. The CC diagnostic still exercises the built-in CA/TSA; use an actual project workflow to verify external enrollment and signing.
+Subsequent seals embed the project certificate and complete pinned CA chain. Timestamping follows that provider's CC policy, with independent TSA trust validation for an external source if selected. External signing does not require the built-in CA's private key. The CC diagnostic still exercises the built-in CA/TSA; use an actual project workflow to verify external enrollment and signing.

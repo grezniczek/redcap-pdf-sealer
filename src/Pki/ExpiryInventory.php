@@ -67,8 +67,15 @@ final class ExpiryInventory
             if ($provider['kind'] === 'internal') { $add($provider['issuer_identity_id'], 'root'); }
             if ($provider['timestamp_source'] !== null) {
                 $source = $providers->source($provider['timestamp_source']);
-                $add($source['identity_id'], 'tsa');
-                $add($source['issuer_identity_id'], 'root');
+                if ($source['kind'] === 'internal') {
+                    $add($source['identity_id'], 'tsa');
+                    $add($source['issuer_identity_id'], 'root');
+                } else {
+                    // Monitor configured trust material, never claim to monitor a remote signer.
+                    foreach ($source['chain'] as $cert) {
+                        $wanted[$cert['sha256']] = ['role' => 'ca', 'pid' => null, 'der' => ProviderRepository::certificateDer($cert)];
+                    }
+                }
             }
         }
         if ($this->settings->get('active_tsa_identity_id') !== null && $providers->hasConfiguration()) {

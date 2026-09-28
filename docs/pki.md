@@ -66,7 +66,7 @@ No CRL or OCSP publication service is provided. A root certificate's `cRLSign` k
 
 The root is self-signed and belongs to this REDCap installation. Being embedded in a PDF or available for download does not make it a trusted anchor in a viewer. Institutions and recipients decide whether to trust it and how to verify its fingerprint.
 
-The TSA runs in the same installation and uses the server's time. It is not an independent external time authority. Maintain the host's clock synchronization and protect its PKI/encryption material. Read [sealing and validation](sealing-and-validation.md) for what an embedded timestamp establishes and what it does not provide.
+The built-in TSA runs in the same installation and uses the server's time. It is not an independent external time authority. Maintain the host's clock synchronization and protect its PKI/encryption material. Read [sealing and validation](sealing-and-validation.md) for what an embedded timestamp establishes and what it does not provide.
 
 ## Registered external CA chains
 
@@ -121,3 +121,9 @@ External transitions append the pending target without creating a key. Existing 
 A transition to the built-in CA issues a fresh identity and activates it within the same CC transaction; failure rolls back identity/binding/audit writes. It does not reuse historical identities or interrupted first-issuance recovery. Transitions do not change the installation default, assignment gate, or provider-specific timestamp configuration.
 
 Signing uses the current identity and its provider's timestamp policy until activation. An in-flight seal can finish under the identity it already selected. Projects without an active identity fail with `PROVIDER_TRANSITION_PENDING` while enrollment is pending; they cannot automatically issue under the previous assignment. Expiry inventory continues to follow active signers, and retirement impact includes both current and pending provider associations. Historical chains remain available.
+
+## External timestamp source storage and trust
+
+External sources are system-scoped `tsa_source_remote-tsa-…` settings with stable IDs, names, HTTPS endpoint, optional policy OID, a pinned public issuing-CA-to-root chain, and encrypted Basic credentials (or no credentials). The catalog is `external_tsa_source_ids`; the latest bounded diagnostic observation is `tsa_diagnostic_<source-id>`. Sources are immutable in this version and remain stored after providers switch away. Registration and policy changes share the PKI configuration lock and commit atomically with an EM audit entry. Browser summaries and audit payloads exclude credentials and endpoint URLs. Project copy/export must not transfer these system-scoped secrets.
+
+A CA provider can select one external source; the finalizer validates every response's signature, ESS binding, purpose, chain, imprint, nonce, time and policy. HTTPS endpoint trust and TSA signing trust are independent. Explicit B-B fallback applies to a rejected response or transport failure; there is no implicit alternative source. No remote AIA/CRL/OCSP fetching or revocation status check is performed. Diagnostics observe one response, and expiry inventory includes referenced configured CA chains rather than assuming the remote service keeps using a previously observed signer. See [external TSA administration](ADMIN.md#register-and-test-an-external-tsa).
