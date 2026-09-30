@@ -74,7 +74,7 @@ External provider configuration stores only public CA certificates (ordered issu
 
 External chains are published on the trust page and included in expiry monitoring; shared external certificates are deduplicated by SHA-256 in that inventory. Provider registration is serialized with built-in initialization. Project assignment uses the same project lock as local issuance and atomically stores the UUID/provider binding and administrative audit. External-only pending bindings do not prevent later built-in initialization.
 
-Assigned external projects can prepare a local key/CSR, activate a validated returned certificate, and seal using its pinned CA chain. Existing provider assignments remain immutable; built-in renewal, provider transitions, and provider retirement remain future work.
+Assigned external projects can prepare a local key/CSR, activate a validated returned certificate, and seal using its pinned CA chain. Provider assignment can change only through the explicit CC transition workflow. CA retirement/reactivation and manual built-in project certificate renewal are implemented; automatic renewal and root/TSA rotation remain future work.
 
 ## Explicit-assignment gate
 
@@ -129,3 +129,11 @@ External sources are system-scoped `tsa_source_remote-tsa-…` settings with sta
 A CA provider can select one external source; the finalizer validates every response's signature, ESS binding, purpose, chain, imprint, nonce, time and policy. HTTPS endpoint trust and TSA signing trust are independent. Explicit B-B fallback applies to a rejected response or transport failure; there is no implicit alternative source. No remote AIA/CRL/OCSP fetching or revocation status check is performed. Diagnostics observe one response, and expiry inventory includes referenced configured CA chains rather than assuming the remote service keeps using a previously observed signer. See [external TSA administration](ADMIN.md#register-and-test-an-external-tsa).
 
 External TSA tokens may use the RFC 3161 legacy ESSCertID certificate identifier, which hashes the signer certificate with SHA-1. This is accepted only for external timestamp tokens; SHA-1 token content digests and signature algorithms remain rejected. The built-in TSA and document signature verifier retain their stricter defaults.
+
+## Manual built-in project renewal
+
+The CC-only renewal service takes the project lock followed by the shared configuration lock. Its read-only review checks an existing built-in binding, public certificate provenance and validity dates, current issuer, module enablement, retirement, and absence of pending enrollment/provider transition. Review does not decrypt keys and permits an expired project leaf. Its SHA-256 review digest binds the project UUID/provider, current identity/certificate, and configured issuer ID/certificate; mutations recheck this state under both locks.
+
+Confirmation uses the existing built-in replacement issuer, always generating a new key. Issuer/key checks, encrypted identity append, active-binding replacement, and a system-scoped `project_certificate_renewal` audit commit in one transaction. The audit records the actor, PID, UUID, provider, issuer reference, old/new identity IDs and public certificate fingerprints. Failure rolls back the identity/binding/audit together. Integer serial allocation follows the normal PHP 8.2/8.3 reservation rules. No private material is returned through AJAX.
+
+The old project identity/key remains in append-only history; the existing expiry inventory follows the latest binding. No old PDFs are rewritten, and an in-flight seal may use the identity it acquired before renewal. Renewal preserves provider timestamp policy and does not extend issuer validity or rotate the root/TSA. See [the CC procedure](ADMIN.md#renew-a-built-in-project-certificate).

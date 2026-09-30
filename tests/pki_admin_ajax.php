@@ -248,7 +248,7 @@ namespace {
         } catch (\RuntimeException $e) {
             check($e->getMessage() === 'pki_access_denied', 'Unexpected timestamp settings authorization result');
         }
-        foreach (['register_timestamp_source', 'test_timestamp_source', 'save_provider_timestamp', 'register_ca_provider', 'assign_ca_provider', 'save_assignment_policy', 'preview_ca_retirement', 'set_ca_retirement', 'preview_provider_transition', 'start_provider_transition', 'cancel_provider_transition'] as $action) {
+        foreach (['preview_project_renewal', 'renew_project_certificate', 'register_timestamp_source', 'test_timestamp_source', 'save_provider_timestamp', 'register_ca_provider', 'assign_ca_provider', 'save_assignment_policy', 'preview_ca_retirement', 'set_ca_retirement', 'preview_provider_transition', 'start_provider_transition', 'cancel_provider_transition'] as $action) {
             try {
                 $module->redcap_module_ajax($action, [], $case['context']);
                 throw new \RuntimeException('Unauthorized provider request accepted');
@@ -298,6 +298,12 @@ namespace {
             ['pid'=>461,'review_hash'=>str_repeat('a',64),'provider'=>'bad id'],
             ['pid'=>461,'review_hash'=>str_repeat('a',64),'provider'=>'builtin-ca','extra'=>true]] as $payload) {
             check($module->redcap_module_ajax($action,$payload,null) === ['ok'=>false,'message'=>'pki_invalid_request'], 'Invalid transition payload accepted');
+        }
+    }
+    foreach (['preview_project_renewal','renew_project_certificate'] as $action) {
+        check(in_array($action,$config['auth-ajax-actions'],true) && !in_array($action,$config['no-auth-ajax-actions'],true), 'Renewal must require authentication');
+        foreach ([null, [], ['pid'=>'461'], ['pid'=>0]] as $payload) {
+            check($module->redcap_module_ajax($action,$payload,null) === ['ok'=>false,'message'=>'pki_invalid_request'], 'Malformed renewal accepted');
         }
     }
     // Exercise successful dispatch/service construction, not only rejected payloads.

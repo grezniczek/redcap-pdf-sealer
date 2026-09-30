@@ -97,6 +97,9 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             || $this->framework->getProjectId() !== null) {
             throw new \RuntimeException($this->framework->tt('pki_access_denied'));
         }
+        if (in_array($action, ['preview_project_renewal', 'renew_project_certificate'], true)) {
+            return $this->manageProjectRenewal($action, $payload);
+        }
         if (in_array($action, ['preview_provider_transition', 'start_provider_transition', 'cancel_provider_transition'], true)) {
             return $this->manageProviderTransition($action, $payload);
         }
@@ -165,6 +168,33 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             return ['ok' => false, 'message' => $this->framework->tt('enrollment_provider_retired')];
         } catch (\Throwable) {
             return ['ok' => false, 'message' => $this->framework->tt($certificateAction ? 'enrollment_certificate_failed' : 'enrollment_failed')];
+        }
+    }
+
+    private function manageProjectRenewal(string $action, mixed $payload): array
+    {
+        if (!is_array($payload) || !is_int($payload['pid'] ?? null) || $payload['pid'] < 1
+            || ($action === 'renew_project_certificate' && (!is_string($payload['review_hash'] ?? null)
+                || preg_match('/^[a-f0-9]{64}$/D', $payload['review_hash']) !== 1))) {
+            return ['ok' => false, 'message' => $this->framework->tt('pki_invalid_request')];
+        }
+        try {
+            $protector = new SecretProtector();
+            $identities = new IdentityRepository($this->framework, $protector);
+            $bindings = new \DE\RUB\PDFSealerExternalModule\Pki\ProjectBindingRepository($this->framework);
+            $projectLock = new \DE\RUB\PDFSealerExternalModule\Pki\ProjectIssueLock();
+            $configurationLock = new \DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationLock();
+            $health = new PkiHealthService($identities, $protector);
+            $enrollment = new \DE\RUB\PDFSealerExternalModule\Pki\ProjectEnrollmentService(
+                $this->framework, $bindings, $identities->providers(), $protector, $projectLock, null, $identities, $configurationLock);
+            $projects = new \DE\RUB\PDFSealerExternalModule\Pki\ProjectIdentityService($bindings, $identities, $protector,
+                CertificateIssuer::forFramework($this->framework), $health, $projectLock, $configurationLock);
+            $service = new \DE\RUB\PDFSealerExternalModule\Pki\ProjectRenewalService(
+                $this->framework, $bindings, $identities, $enrollment, $projects, $health, $projectLock, $configurationLock);
+            return ['ok' => true] + ($action === 'preview_project_renewal'
+                ? $service->preview($payload['pid']) : $service->renew($payload['pid'], $payload['review_hash']));
+        } catch (\Throwable) {
+            return ['ok' => false, 'message' => $this->framework->tt('renewal_failed')];
         }
     }
 

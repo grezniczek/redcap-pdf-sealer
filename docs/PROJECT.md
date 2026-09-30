@@ -24,6 +24,12 @@ Open **PDF Sealer status** from the project's menu. This page requires Project D
 
 The project certificate is created on first sealing use. An unissued certificate can therefore be normal before the first eligible PDF. Incomplete, expired, or unusable certificate states need administrator investigation. Opening the status page never issues, renews, or repairs certificates and does not validate old PDFs. Certificate dates are shown in UTC.
 
+## Renewing a project certificate
+
+A CC administrator can explicitly renew an existing built-in signing certificate, including one that has expired. Contact your administrator before expiry warnings become sealing failures. Renewal creates a fresh key/certificate while preserving your project UUID, CA assignment, and history. Refresh the status page after renewal to see the new fingerprint. Opening the page or creating a PDF never renews a certificate automatically.
+
+External CA projects obtain a replacement through the CSR workflow described below. Previously sealed PDFs keep their original certificates and signatures.
+
 ## Check a sealing outcome
 
 Users with the **Logging** user right can inspect the project's standard REDCap **Logging** page:

@@ -1,5 +1,7 @@
 # Handoff prompt: PDF Sealer certificate lifecycle
 
+**Resume note — 2026-09-30:** Work continued in the original chat. Manual CC built-in project certificate renewal is implemented; consult the current implementation status and testing guide for verification and pending browser acceptance. The original prompt below records the preceding handoff and must not be treated as a request to implement renewal again. Check the current working tree before continuing.
+
 Continue work in `/home/gr/redcap/dev-modules/pdf_sealer_v9.9.9`. Read the applicable global/project `AGENTS.md` instructions first. This is the development-only `v9.9.9` checkout; preserve that directory convention. Before this handoff file was added, the working tree was clean on `main`, with `3d11b29 Record FreeTSA timestamp acceptance in Acrobat` as the latest commit. Check status again before editing.
 
 ## Where the work stands

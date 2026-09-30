@@ -124,6 +124,18 @@ Without an active signer, a pending transition blocks sealing until activation; 
 
 All transition actions are CC-only, audited, and synchronized with retirement and enrollment. Confirmation rechecks the reviewed binding/pending-request state. A stale review is rejected; refresh and review again. Initial assignment policy and the installation default are unchanged by a project transition.
 
+## Renew a built-in project certificate
+
+On **Root CA → Renew built-in project certificate**, choose an enabled project with an existing built-in signing certificate. External CA projects use the [CSR replacement workflow](PROJECT.md#validate-and-activate-the-returned-certificate). A pending provider change or enrollment must be completed or canceled before renewal. The built-in CA must be active, currently valid, and have a usable issuing key.
+
+1. Select **1. Review current certificate**. Check its subject, SHA-256 fingerprint, validity dates, and the issuing CA's expiry. Review does not decrypt keys or change stored state. An expired project certificate is eligible.
+2. Select **2. Renew and activate certificate**. This creates a fresh 3072-bit RSA key and signing certificate with the normal two-year leaf profile. The active binding switches when the identity, binding, and audit transaction commits. Renewal does not extend the CA's lifetime; signing still requires a valid issuing chain.
+3. Refresh **PDF Sealer status** in the project. Its UUID and provider remain the same, while the fingerprint changes. Complete a new eConsent and check its seal and project Logging.
+
+Existing identity history and previously sealed PDFs are retained. Subsequent seals use the replacement; a seal already in progress may finish with its previous signer. Failure before commit leaves the original binding intact. A changed signer/issuer, retirement, or pending work invalidates a review. If the browser request is interrupted, inspect the saved project certificate before retrying: the transaction may already have committed.
+
+Only CC administrators can renew through authenticated AJAX. The audit records the actor, project, provider, and old/new public identity references and fingerprints. Page refresh, sealing, and expiry monitoring never trigger renewal. Automatic renewal and root/TSA rotation are separate future work.
+
 ## Diagnostic: capability check and saved result
 
 **Run diagnostic self-test** checks encryption, the active root and TSA, temporary signer issuance, B-B sealing, an RFC 3161 timestamp response, and B-T sealing. Both sealing profiles are checked regardless of the saved production mode; a failed B-T check is not hidden by fallback.
@@ -154,7 +166,7 @@ Configured recipients receive one summary rather than one email per certificate.
 
 The module declares the `certificate_expiry` Framework cron with a 24-hour interval. REDCap cron must be running, and the job must be registered/enabled. After adding this cron to an existing development version, refresh its cron registration; normal module enable/update registers it. A missing result or a result older than 48 hours is visibly flagged. Scheduling depends on REDCap cron availability, so the interval is not a guaranteed wall-clock delivery time.
 
-These are public-certificate date checks, not key, chain, revocation, or remote-service validation. They neither issue nor renew certificates. Arrange replacement before expiry; external projects can prepare and activate a replacement through enrollment; built-in renewal and automatic renewal are not yet available.
+These are public-certificate date checks, not key, chain, revocation, or remote-service validation. They neither issue nor renew certificates. Arrange replacement before expiry: CC administrators can manually renew built-in project certificates, and external projects can prepare and activate a replacement through enrollment. Automatic renewal and root/TSA rotation are not available.
 
 ## Public certificates and trust
 

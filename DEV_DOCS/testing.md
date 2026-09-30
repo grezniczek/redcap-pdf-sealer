@@ -20,6 +20,7 @@ php tests/providers.php
 php tests/pki_storage.php
 php tests/pki_initialization.php
 php tests/project_identity.php
+php tests/project_renewal.php
 php tests/admin_alarms.php
 php tests/expiry_monitor.php
 php tests/pki_admin_ajax.php
@@ -146,6 +147,20 @@ For browser acceptance, `tools/external_ca_fixture.php --create` prepares an exp
 The helper only handles local disposable test CA files and public CSRs/certificates. It does not access REDCap database, pending project keys, or live issuer keys.
 
 First external enrollment/sealing acceptance passed on **2026-09-27**: the supplied project CSR was signed with the disposable issuing CA, the returned certificate chain verified with OpenSSL, and the user reported Acrobat acceptance of the resulting PDF. See [the acceptance record](implementation_status.md#first-external-ca-pdf-acceptance--passed). This does not record separate browser acceptance of replacement or rejection cases. The procedure above remains available for regression checks.
+
+### Manual built-in project certificate renewal
+
+Run `php -d xdebug.mode=off tests/project_renewal.php` and the same command with `php8.2`. The suite reuses disposable enrollment fixtures and fake transactional storage. It covers public/no-decryption review, a genuinely expired project certificate, fresh keys and certificates, stable UUID/provider, retained history, stale/replayed reviews, pending CSR/transition isolation, enablement, retired/expired/unusable issuers, encryption/write/commit rollback, project-then-configuration locks, authenticated real AJAX dispatch, and expiry inventory selection. The actual finalizer's B-B/B-T PDFs use the renewed signer and pass independent signature/timestamp verification; a PDF using the previous signer remains verifiable. Lock interleavings are deterministic test doubles, not a live multi-connection load test.
+
+Verification on 2026-09-30: renewal, admin AJAX, provider-transition and retirement suites passed on PHP 8.2.34 and 8.5.11. Changed PHP lint, JavaScript syntax, config/language and diff checks passed. No live project identity, provider, or PDF was changed. Browser acceptance remains pending:
+
+1. Choose a test project that already seals under the built-in CA; note its UUID, provider, and certificate fingerprint on **PDF Sealer status**.
+2. In CC **Root CA → Renew built-in project certificate**, select that project and review the current certificate. Refresh the project page before confirmation to check that review alone changed nothing.
+3. Confirm renewal. Check the success notice identifies the project and new fingerprint and clears the selector. Refresh the project page: UUID/provider must match the originals, fingerprint must change, and signing status must be ready.
+4. Complete a new eConsent, inspect project Logging, and check certification/no-modification and the configured timestamp in Acrobat. An earlier PDF must retain its original seal.
+5. Optional stale-page check: review in two CC browser tabs, renew in one, then confirm the old review in the other. The stale action must fail without another certificate change; it must keep its project selection for a fresh review.
+
+External projects, unissued projects, and projects with a pending provider transition are excluded from the selector. Backend checks also reject stale selections, retired CAs, and pending/corrupt enrollment. Resolve those states through the existing workflows.
 
 ### CA retirement and reactivation
 
