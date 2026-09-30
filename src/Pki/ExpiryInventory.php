@@ -65,8 +65,8 @@ final class ExpiryInventory
         foreach (array_keys($providerIds) as $providerId) {
             $provider = $providers->provider($providerId);
             if ($provider['kind'] === 'internal') { $add($provider['issuer_identity_id'], 'root'); }
-            if ($provider['timestamp_source'] !== null) {
-                $source = $providers->source($provider['timestamp_source']);
+            foreach ($provider['timestamp_source'] === null ? [] : [$provider['timestamp_source'], ...$provider['timestamp_alternatives']] as $sourceId) {
+                $source = $providers->source($sourceId);
                 if ($source['kind'] === 'internal') {
                     $add($source['identity_id'], 'tsa');
                     $add($source['issuer_identity_id'], 'root');

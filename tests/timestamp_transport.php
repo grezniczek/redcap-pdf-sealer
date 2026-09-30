@@ -66,6 +66,18 @@ foreach ([response(302), response(401), response(500), response(type: 'text/html
         'Transport error leaks underlying details');
 }
 transportReject(fn() => $transport(str_repeat('x', 4097)));
+// Remaining operation budget shortens all HTTP timeouts; an exhausted budget
+// cannot start a network request.
+HttpClient::$response = response();
+$bounded = new HttpsTimestampTransport('https://tsa.example/', deadline: hrtime(true) / 1e9 + 0.5);
+$bounded('query');
+$budgetOptions = end(HttpClient::$calls)[2];
+transportCheck($budgetOptions['timeout'] > 0 && $budgetOptions['timeout'] <= 0.5
+    && $budgetOptions['connect_timeout'] === $budgetOptions['timeout']
+    && $budgetOptions['read_timeout'] === $budgetOptions['timeout'], 'Remaining deadline not applied');
+$count = count(HttpClient::$calls);
+transportReject(fn() => (new HttpsTimestampTransport('https://tsa.example/', deadline: hrtime(true) / 1e9 - 1))('query'));
+transportCheck(count(HttpClient::$calls) === $count, 'Expired budget contacted service');
 transportReject(fn() => serialize($transport));
 ob_start(); var_dump($transport); $debug = ob_get_clean();
 transportCheck(!str_contains($debug, 'secret') && !str_contains($debug, 'tsa-password'), 'Debug output leaks secrets');

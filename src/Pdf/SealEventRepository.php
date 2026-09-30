@@ -11,6 +11,16 @@ final class SealEventRepository
 {
     public function __construct(private readonly object $framework) {}
 
+    /** Restricted operational detail when an alternative or B-B fallback succeeds. */
+    public function appendTimestampOutcome(array $fields): void
+    {
+        $id = $this->framework->log('seal_timestamp_outcome', ['project_id' => null, 'record' => '',
+            'created_at' => gmdate('Y-m-d\\TH:i:s\\Z')] + $fields);
+        if ((!is_int($id) && !ctype_digit((string) $id)) || (int) $id < 1) {
+            throw new RuntimeException('Timestamp outcome log insertion failed');
+        }
+    }
+
     /** @param array<string, string|null> $fields */
     public function appendFailure(array $fields): void
     {

@@ -33,7 +33,7 @@ final class ProviderRepository
         ]);
         $this->write('ca_provider_' . self::BUILTIN_CA, [
             'id' => self::BUILTIN_CA, 'kind' => 'internal', 'issuer_identity_id' => $rootId,
-            'timestamp_source' => self::BUILTIN_TSA, 'bb_fallback' => true,
+            'timestamp_source' => self::BUILTIN_TSA, 'timestamp_alternatives' => [], 'bb_fallback' => true,
         ]);
         $this->framework->setSystemSetting('default_ca_provider', self::BUILTIN_CA);
     }
@@ -103,17 +103,19 @@ final class ProviderRepository
         return $id;
     }
 
-    /** @return array{id:string, kind:string, issuer_identity_id?:string, name?:string, chain?:array, timestamp_source:?string, bb_fallback:bool} */
+    /** @return array{id:string, kind:string, issuer_identity_id?:string, name?:string, chain?:array, timestamp_source:?string, timestamp_alternatives:list<string>, bb_fallback:bool} */
     public function provider(string $id): array
     {
         $value = $this->read('ca_provider_', $id);
+        if (!array_key_exists('timestamp_alternatives', $value)) { $value['timestamp_alternatives'] = []; }
+        self::assertTimestampOrder($value['timestamp_source'] ?? null, $value['timestamp_alternatives']);
         if (($value['id'] ?? null) !== $id || !is_bool($value['bb_fallback'] ?? null)
             || !array_key_exists('timestamp_source', $value)) { throw new RuntimeException('Invalid CA provider'); }
         if (($value['kind'] ?? null) === 'internal') {
-            if (count($value) !== 5) { throw new RuntimeException('Invalid internal provider'); }
+            if (count($value) !== 6) { throw new RuntimeException('Invalid internal provider'); }
             self::identityId($value['issuer_identity_id'] ?? null);
         } elseif (($value['kind'] ?? null) === 'external') {
-            if (count($value) !== 6 || !is_string($value['name'] ?? null) || trim($value['name']) === ''
+            if (count($value) !== 7 || !is_string($value['name'] ?? null) || trim($value['name']) === ''
                 || strlen($value['name']) > 128 || !is_array($value['chain'] ?? null)
                 || !array_is_list($value['chain']) || count($value['chain']) < 1 || count($value['chain']) > 8) {
                 throw new RuntimeException('Invalid external provider');
@@ -154,19 +156,34 @@ final class ProviderRepository
         if (!in_array($mode, ['internal', 'none'], true)) { throw new RuntimeException('Unsupported timestamp mode'); }
         $provider = $this->provider(self::BUILTIN_CA);
         $this->source(self::BUILTIN_TSA);
+        $provider['timestamp_alternatives'] = [];
         $provider['timestamp_source'] = $mode === 'none' ? null : self::BUILTIN_TSA;
         $provider['bb_fallback'] = $fallback;
         $this->write('ca_provider_' . self::BUILTIN_CA, $provider);
     }
 
     /** Caller holds the configuration lock and transaction; applies to future seals. */
-    public function saveTimestampPolicy(string $id, ?string $source, bool $fallback): void
+    public function saveTimestampPolicy(string $id, ?string $source, bool $fallback, array $alternatives = []): void
     {
         $provider = $this->provider($id);
-        if ($source !== null) { $this->source($source); }
+        self::assertTimestampOrder($source, $alternatives);
+        foreach ($source === null ? [] : [$source, ...$alternatives] as $sourceId) { $this->source($sourceId); }
+        $provider['timestamp_alternatives'] = $alternatives;
         $provider['timestamp_source'] = $source;
         $provider['bb_fallback'] = $source !== null && $fallback;
         $this->write('ca_provider_' . $id, $provider);
+    }
+
+    public static function assertTimestampOrder(?string $primary, mixed $alternatives): void
+    {
+        if (!is_array($alternatives) || !array_is_list($alternatives)
+            || count($alternatives) > \DE\RUB\PDFSealerExternalModule\Timestamp\OrderedTimestampProvider::MAX_ALTERNATIVES
+            || ($primary === null && $alternatives !== [])) {
+            throw new RuntimeException('Invalid timestamp alternatives');
+        }
+        $order = $primary === null ? [] : [$primary, ...$alternatives];
+        foreach ($order as $id) { self::assertId($id); }
+        if (count(array_unique($order)) !== count($order)) { throw new RuntimeException('Duplicate timestamp source'); }
     }
 
     /** @return list<string> */
@@ -198,7 +215,7 @@ final class ProviderRepository
         }
         $id = 'external-' . bin2hex(random_bytes(8));
         $value = ['id' => $id, 'kind' => 'external', 'name' => $name, 'chain' => $chain,
-            'timestamp_source' => $source, 'bb_fallback' => $fallback];
+            'timestamp_source' => $source, 'timestamp_alternatives' => [], 'bb_fallback' => $fallback];
         $this->write('ca_provider_' . $id, $value);
         $this->provider($id);
         $ids[] = $id;

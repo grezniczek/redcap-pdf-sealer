@@ -154,8 +154,11 @@ final class PdfSealBuilder
         $timestampClient = null;
         if ($timestampProvider !== null) {
             $asn1 = new PolicyOidAsn1($timestampProvider->policyOid());
+            // Ordered providers already enforce strict built-in versus legacy-ESS
+            // external validation before returning a selected response.
             $verifier = new SignedDataVerifier($asn1, requireSigningCertificate: true,
-                allowLegacyEssSha1: $timestampProvider instanceof ExternalTimestampProvider);
+                allowLegacyEssSha1: $timestampProvider instanceof ExternalTimestampProvider
+                    || $timestampProvider instanceof \DE\RUB\PDFSealerExternalModule\Timestamp\OrderedTimestampProvider);
             $timestampClient = new TimestampClient(new TimestampConfig('http://localhost.invalid/tsa'),
                 $asn1, verifier: $verifier);
         }

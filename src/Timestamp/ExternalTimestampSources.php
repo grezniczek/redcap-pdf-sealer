@@ -102,7 +102,7 @@ final class ExternalTimestampSources
         return $id;
     }
 
-    public function provider(string $id): ExternalTimestampProvider
+    public function provider(string $id, ?float $deadline = null): ExternalTimestampProvider
     {
         $source = $this->get($id);
         $auth = $source['credentials'] === null ? ['', '']
@@ -112,7 +112,7 @@ final class ExternalTimestampSources
         }
         $pem = implode('', array_map(static fn(array $cert): string => Certificate::derToPem(ProviderRepository::certificateDer($cert)), $source['chain']));
         return new ExternalTimestampProvider($this->framework, $pem,
-            new HttpsTimestampTransport($source['endpoint'], $auth[0], $auth[1]), $source['policy_oid']);
+            new HttpsTimestampTransport($source['endpoint'], $auth[0], $auth[1], $deadline), $source['policy_oid']);
     }
 
     /** No endpoint, credentials or untrusted service messages are returned to the browser. */
@@ -167,11 +167,12 @@ final class ExternalTimestampSources
         return $result;
     }
 
-    public function savePolicy(string $providerId, ?string $sourceId, bool $fallback): void
+    public function savePolicy(string $providerId, ?string $sourceId, bool $fallback, array $alternatives = []): void
     {
-        $this->mutate(function () use ($providerId, $sourceId, $fallback): void {
-            (new ProviderRepository($this->framework))->saveTimestampPolicy($providerId, $sourceId, $fallback);
+        $this->mutate(function () use ($providerId, $sourceId, $fallback, $alternatives): void {
+            (new ProviderRepository($this->framework))->saveTimestampPolicy($providerId, $sourceId, $fallback, $alternatives);
             $this->audit('policy', ['provider_id' => $providerId, 'source_id' => $sourceId ?? 'none',
+                'alternative_sources' => json_encode($alternatives, JSON_THROW_ON_ERROR),
                 'bb_fallback' => $sourceId !== null && $fallback ? '1' : '0']);
         });
     }

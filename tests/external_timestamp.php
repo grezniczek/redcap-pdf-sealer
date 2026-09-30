@@ -141,7 +141,9 @@ try {
     file_put_contents($files['config'], str_replace('ess_cert_id_alg=sha256', 'ess_cert_id_alg=sha1',
         file_get_contents($files['config'])));
     $legacy = (new PdfSealBuilder())->sealTimestamped(testPdf(), $project->certificateDer,
-        $project->privateKey(), [$otherRoot->certificateDer], time(), $make($openssl));
+        $project->privateKey(), [$otherRoot->certificateDer], time(),
+        new \DE\RUB\PDFSealerExternalModule\Timestamp\OrderedTimestampProvider(
+            ['remote-tsa-1111111111111111'], static fn() => $make($openssl)));
     checkSeal($legacy->profile === 'pades-b-t', 'Legacy ESS certificate identifier blocked external B-T');
     $legacyCms = verifySeal(testPdf(), $legacy->pdf, Certificate::derToPem($otherRoot->certificateDer));
     $legacyToken = (new Signer())->signatureTimestampTokens($legacyCms)[0];

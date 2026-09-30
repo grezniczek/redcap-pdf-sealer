@@ -157,9 +157,19 @@ namespace {
         }
     }
     foreach (['none', 'builtin-tsa'] as $source) {
-        check($module->redcap_module_ajax('save_provider_timestamp', ['provider' => 'builtin-ca', 'source' => $source, 'fallback' => false], null)['ok'], 'Provider policy dispatch failed');
+        check($module->redcap_module_ajax('save_provider_timestamp', ['provider' => 'builtin-ca', 'source' => $source, 'fallback' => false, 'alternatives' => []], null)['ok'], 'Provider policy dispatch failed');
         check($providers->provider('builtin-ca')['timestamp_source'] === ($source === 'none' ? null : $source), 'Provider policy dispatch did not save');
     }
+    $savedPolicy = $framework->settings;
+    foreach ([null, 'builtin-tsa', [1 => 'builtin-tsa'], ['builtin-tsa'], ['missing-source']] as $alternatives) {
+        check(!$module->redcap_module_ajax('save_provider_timestamp',
+            ['provider' => 'builtin-ca', 'source' => 'builtin-tsa', 'fallback' => false, 'alternatives' => $alternatives], null)['ok'],
+            'Invalid alternative payload accepted');
+        check($framework->settings === $savedPolicy, 'Invalid alternative payload changed policy');
+    }
+    check(!$module->redcap_module_ajax('save_provider_timestamp',
+        ['provider' => 'builtin-ca', 'source' => 'none', 'fallback' => false, 'alternatives' => ['builtin-tsa']], null)['ok'],
+        'No-timestamp policy accepted alternatives');
     $before = [$framework->settings, $framework->queries];
     foreach ([null, '', [], ['timestamp_mode' => 'internal'],
         ['timestamp_mode' => 'external', 'bb_fallback' => true],

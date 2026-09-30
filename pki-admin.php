@@ -82,7 +82,7 @@ try {
     $sourceSummaries = (new \DE\RUB\PDFSealerExternalModule\Timestamp\ExternalTimestampSources($framework))->summaries();
     foreach ($sourceSummaries as $source) { $sourceChoices[$source['id']] = $source['name']; }
 } catch (Throwable) { $sourcesUnavailable = true; }
-$timestampPolicies = array_map(static fn(array $p): array => array_intersect_key($p, array_flip(['id', 'timestamp_source', 'bb_fallback'])), $providerCatalog);
+$timestampPolicies = array_map(static fn(array $p): array => array_intersect_key($p, array_flip(['id', 'timestamp_source', 'timestamp_alternatives', 'bb_fallback'])), $providerCatalog);
 $assignableProviders = array_values(array_filter($providerCatalog, static fn(array $p): bool => !($p['retired'] ?? true)));
 $builtinRetired = false;
 foreach ($providerCatalog as $p) { if ($p['id'] === $providers::BUILTIN_CA) { $builtinRetired = $p['retired'] ?? false; } }
@@ -176,7 +176,7 @@ $renderCertificate = static function (string $role) use ($certificates, $framewo
 };
 require_once APP_PATH_DOCROOT . 'ControlCenter/header.php';
 $framework->initializeJavascriptModuleObject();
-foreach (['external_tsa_failed', 'external_tsa_passed', 'external_tsa_test_failed', 'external_tsa_testing', 'diagnostic_never', 'pki_fingerprint'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
+foreach (['external_tsa_failed', 'external_tsa_passed', 'external_tsa_test_failed', 'external_tsa_testing', 'timestamp_order_invalid', 'diagnostic_never', 'pki_fingerprint'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
 $framework->tt_transferToJavascriptModuleObject('provider_assigned');
 $framework->tt_transferToJavascriptModuleObject('provider_retirement_counts');
 foreach (['renewal_failed', 'renewal_saved', 'renewal_issuer_expiry'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
@@ -253,6 +253,9 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
                         <span class="badge <?= $provider['retired'] ? 'bg-secondary' : 'bg-success' ?>"><?= $escape($framework->tt($provider['retired'] ? 'provider_retired' : 'provider_active')) ?></span></h6>
                     <p class="small"><code><?= $escape($provider['id']) ?></code><br>
                         <?= $escape($framework->tt('timestamp_mode_label')) ?>: <?= $escape($sourceChoices[$provider['timestamp_source'] ?? 'none'] ?? $framework->tt('external_tsa_unavailable')) ?><br>
+                        <?php foreach ($provider['timestamp_alternatives'] as $index => $alternativeId): ?>
+                        <?= $escape($framework->tt('timestamp_alternative_' . ($index + 1))) ?>: <?= $escape($sourceChoices[$alternativeId] ?? $framework->tt('external_tsa_unavailable')) ?><br>
+                        <?php endforeach; ?>
                         <?php if ($provider['timestamp_source'] !== null): ?><?= $escape($framework->tt($provider['bb_fallback'] ? 'timestamp_fallback_allow' : 'timestamp_fallback_fail')) ?><?php endif; ?></p>
                     <?php foreach ($providerCertificates as $cert): if ($cert['provider_id'] !== $provider['id']) { continue; } ?>
                         <dl class="pdf-sealer-certificate">

@@ -352,9 +352,11 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
                 if (count($payload) !== 1 || !is_string($payload['source'] ?? null)) { return $failure; }
                 return ['ok' => true, 'diagnostic' => $service->diagnose($payload['source'])];
             }
-            if (count($payload) !== 3 || !is_string($payload['provider'] ?? null) || !is_string($payload['source'] ?? null)
+            if (array_diff(array_keys($payload), ['provider', 'source', 'fallback', 'alternatives']) !== []
+                || (array_key_exists('alternatives', $payload) && !is_array($payload['alternatives']))
+                || !is_string($payload['provider'] ?? null) || !is_string($payload['source'] ?? null)
                 || !is_bool($payload['fallback'] ?? null)) { return $failure; }
-            $service->savePolicy($payload['provider'], $payload['source'] === 'none' ? null : $payload['source'], $payload['fallback']);
+            $service->savePolicy($payload['provider'], $payload['source'] === 'none' ? null : $payload['source'], $payload['fallback'], $payload['alternatives'] ?? []);
             return ['ok' => true];
         } catch (\DE\RUB\PDFSealerExternalModule\Timestamp\TimestampSourceRegistrationFailed $e) {
             return ['ok' => false, 'message' => $this->framework->tt('external_tsa_register_' . $e->stage)];

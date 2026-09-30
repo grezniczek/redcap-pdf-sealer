@@ -47,10 +47,19 @@ if (!isset($framework) || !$framework->isSuperUser() || $framework->getProjectId
         <option value=""><?= $escape($framework->tt('timestamp_settings_choose')) ?></option>
         <?php foreach ($providerCatalog as $provider): ?><option value="<?= $escape($provider['id']) ?>"><?= $escape($provider['name'] ?? $framework->tt('provider_builtin')) ?></option><?php endforeach; ?>
     </select>
-    <label for="tsa-source"><?= $escape($framework->tt('timestamp_mode_label')) ?></label>
+    <label for="tsa-source"><?= $escape($framework->tt('timestamp_primary_source')) ?></label>
     <select id="tsa-source" class="form-select form-select-sm mb-3" required>
         <?php foreach ($sourceChoices as $id => $name): ?><option value="<?= $escape($id) ?>"><?= $escape($name) ?></option><?php endforeach; ?>
     </select>
+    <?php foreach ([1, 2] as $position): ?>
+    <label for="tsa-alternative-<?= $position ?>"><?= $escape($framework->tt('timestamp_alternative_' . $position)) ?></label>
+    <select id="tsa-alternative-<?= $position ?>" class="form-select form-select-sm mb-3">
+        <option value=""><?= $escape($framework->tt('timestamp_alternative_none')) ?></option>
+        <?php foreach ($sourceChoices as $id => $name): ?>
+        <?php if ($id !== 'none'): ?><option value="<?= $escape($id) ?>"><?= $escape($name) ?></option><?php endif; ?>
+        <?php endforeach; ?>
+    </select>
+    <?php endforeach; ?>
     <label class="mb-3"><input type="checkbox" id="tsa-fallback"> <?= $escape($framework->tt('timestamp_fallback_allow')) ?></label>
     <p class="small text-muted"><?= $escape($framework->tt('external_tsa_fallback_help')) ?></p>
     <p><?= $escape($framework->tt('timestamp_failure_help')) ?></p>

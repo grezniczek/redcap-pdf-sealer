@@ -56,21 +56,43 @@ window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime, pageUrl
     const provider = document.getElementById('tsa-provider');
     const source = document.getElementById('tsa-source');
     const fallback = document.getElementById('tsa-fallback');
+    const alternatives = [1, 2].map(position => document.getElementById('tsa-alternative-' + position));
     const save = document.getElementById('tsa-policy-save');
     const policyMessage = document.getElementById('tsa-policy-message');
-    const sync = () => { fallback.disabled = source.value === 'none'; if (fallback.disabled) fallback.checked = false; };
+    const sync = () => {
+        fallback.disabled = source.value === 'none';
+        if (fallback.disabled) fallback.checked = false;
+        alternatives.forEach((select, index) => {
+            select.disabled = source.value === 'none' || (index === 1 && !alternatives[0].value);
+            if (select.disabled) select.value = '';
+        });
+        alternatives.forEach((select, index) => {
+            Array.from(select.options).forEach(option => {
+                option.disabled = !!option.value && (option.value === source.value
+                    || alternatives.some((other, otherIndex) => otherIndex !== index && other.value === option.value));
+            });
+        });
+    };
     provider.addEventListener('change', () => {
         const policy = policies.find(item => item.id === provider.value);
         source.value = policy?.timestamp_source || 'none';
+        alternatives.forEach((select, index) => { select.value = policy?.timestamp_alternatives?.[index] || ''; });
         fallback.checked = !!policy?.bb_fallback;
         sync();
     });
-    source.addEventListener('change', () => { fallback.checked = false; sync(); });
+    source.addEventListener('change', () => { fallback.checked = false; alternatives.forEach(select => { select.value = ''; }); sync(); });
+    alternatives.forEach(select => select.addEventListener('change', sync));
     sync();
     save.addEventListener('click', async () => {
         if (save.disabled) return;
         if (!provider.reportValidity() || !source.reportValidity()) return;
-        const payload = {provider: provider.value, source: source.value, fallback: !fallback.disabled && fallback.checked};
+        const order = alternatives.filter(select => !select.disabled && select.value).map(select => select.value);
+        if (new Set([source.value, ...order]).size !== order.length + 1) {
+            policyMessage.textContent = text('timestamp_order_invalid');
+            policyMessage.hidden = false;
+            return;
+        }
+        const payload = {provider: provider.value, source: source.value, alternatives: order, fallback: !fallback.disabled && fallback.checked};
         save.disabled = true;
         try {
             const result = await module.ajax('save_provider_timestamp', payload);

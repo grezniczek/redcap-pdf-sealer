@@ -72,6 +72,20 @@ Manual acceptance (FreeTSA source and Acrobat checks passed; remaining checks be
 
 On 2026-09-28, the user registered FreeTSA through the CC page and its live **Test source** passed, with signer SHA-256 fingerprint `32e841a95cc1164101ffde41298ef2fc75c1c4372ef095e88a6bbd47dfb191fc`. A read-only REDCap dev-tool query confirmed the stored diagnostic. An independent OpenSSL timestamp request/verification and a replay of its response isolated the legacy ESSCertID issue. The user then selected FreeTSA for sealing and reported that Acrobat accepted the resulting eConsent PDF without modification. Acrobat initially could not verify the embedded timestamp; after the FreeTSA CA root was trusted in Acrobat, the user confirmed that the timestamp check passed. Project Logging, provider-label details, and the failed-source/B-B policy check were not separately reported. No PDF was supplied for independent verification. Automated tests use local responders rather than a live endpoint. Ordered alternatives, source editing/deletion and external TSA public-chain downloads remain outside this slice.
 
+## Ordered TSA alternatives
+
+Run `RANDFILE=/tmp/pdf-sealer-tsa-random php -d xdebug.mode=off tests/timestamp_alternatives.php`, also with `php8.2`. Disposable enrollment/activation fixtures and simulated HTTP/storage drive actual finalizer PDFs. Coverage includes distinct ordered sources, unknown/duplicate/non-list/over-limit rejection, policy/audit rollback, alternative CA inventory, primary short-circuit, explicit built-in and external alternatives with different policies, the same signature request across attempts, malformed response retry, exhausted/late deadlines, attempt logging, strict input preservation and final B-B fallback. A fake monotonic clock exercises budgets without sleeps. Transport tests check shortened HTTP options and no network call after expiry; these do not prove real proxy/TLS timeout behavior. The external timestamp suite independently verifies an OpenSSL-generated legacy ESS token through the ordered builder path.
+
+On 2026-09-30, the alternatives, external timestamp, transport, authorization, provider, expiry and built-in diagnostic checks passed on PHP 8.2.34 and 8.5.11. JavaScript state/payload checks exercise saved order, disabled/duplicate choices, primary/no-timestamp clearing and AJAX payloads. Changed PHP lint, JavaScript syntax, config/language validation and diff checks pass. No live source/provider settings or project certificates were changed.
+
+Browser/live acceptance remains pending. Use a disposable provider/project, or account for all projects sharing the selected CA provider's timestamp policy:
+
+1. In **TSA → Timestamping**, choose the test provider and a healthy primary, then one or two distinct alternatives. Save/refresh and reselect the provider: order must persist. Confirm the project status and CC provider card show it. Changing the primary clears alternatives/B-B; **No timestamp** disables and clears them. **Test source** must still probe only that source.
+2. Register a disposable unavailable source (for example `https://127.0.0.1:1/`, using a valid public TSA CA chain and no credentials). Choose it as primary and FreeTSA or the built-in TSA as first alternative, with B-B fallback **off**. Generate a new eConsent: Acrobat should show certification/no modification and an embedded timestamp. Project Logging should mark **alternative timestamp source**; the restricted `seal_timestamp_outcome` log should list the failed primary and actual selected alternative.
+3. With that unavailable primary and **no alternatives**, strict mode should fail sealing without silently trying the built-in TSA. REDCap may still store/deliver an unsealed PDF. Explicitly enable B-B fallback and generate another PDF: it should be B-B with **timestamp fallback** in project Logging. Restore the intended policy afterward.
+
+Sources are immutable; the disposable source remains registered after the test. Deadline and complete multi-source exhaustion are covered automatically; the browser procedure need not induce repeated 10-second outages.
+
 ## Live development-instance checks
 
 The following runners bootstrap REDCap and exercise real storage or dispatch. Use only a disposable development instance and synthetic project. Read the runner's preconditions; do not substitute a production project. The direct-hook runner requires uninitialized PKI, while the pipeline runner requires an initialized project and existing signer.
@@ -150,9 +164,11 @@ First external enrollment/sealing acceptance passed on **2026-09-27**: the suppl
 
 ### Manual built-in project certificate renewal
 
+The user reported that the browser check passed on 2026-09-30. The optional two-tab stale-review check was not separately reported. No resulting PDF was supplied for independent inspection.
+
 Run `php -d xdebug.mode=off tests/project_renewal.php` and the same command with `php8.2`. The suite reuses disposable enrollment fixtures and fake transactional storage. It covers public/no-decryption review, a genuinely expired project certificate, fresh keys and certificates, stable UUID/provider, retained history, stale/replayed reviews, pending CSR/transition isolation, enablement, retired/expired/unusable issuers, encryption/write/commit rollback, project-then-configuration locks, authenticated real AJAX dispatch, and expiry inventory selection. The actual finalizer's B-B/B-T PDFs use the renewed signer and pass independent signature/timestamp verification; a PDF using the previous signer remains verifiable. Lock interleavings are deterministic test doubles, not a live multi-connection load test.
 
-Verification on 2026-09-30: renewal, admin AJAX, provider-transition and retirement suites passed on PHP 8.2.34 and 8.5.11. Changed PHP lint, JavaScript syntax, config/language and diff checks passed. No live project identity, provider, or PDF was changed. Browser acceptance remains pending:
+Verification on 2026-09-30: renewal, admin AJAX, provider-transition and retirement suites passed on PHP 8.2.34 and 8.5.11. Changed PHP lint, JavaScript syntax, config/language and diff checks passed. No live project identity, provider, or PDF was changed by automated checks. The user subsequently reported that the browser check passed; the procedure remains available:
 
 1. Choose a test project that already seals under the built-in CA; note its UUID, provider, and certificate fingerprint on **PDF Sealer status**.
 2. In CC **Root CA → Renew built-in project certificate**, select that project and review the current certificate. Refresh the project page before confirmation to check that review alone changed nothing.

@@ -46,8 +46,13 @@ try {
     }
 } catch (Throwable) { $provider = null; $binding = null; /* Keep the explicit unavailable label. */ }
 $timestampName = $framework->tt('pki_not_configured');
+$timestampAlternatives = [];
 try {
     if ($provider !== null) {
+        foreach ($provider['timestamp_alternatives'] as $alternativeId) {
+            $timestampAlternatives[] = $alternativeId === 'builtin-tsa' ? $framework->tt('timestamp_mode_internal')
+                : $identities->providers()->source($alternativeId)['name'];
+        }
         $sourceId = $provider['timestamp_source'];
         $timestampName = $sourceId === null ? $framework->tt('timestamp_mode_none')
             : ($sourceId === 'builtin-tsa' ? $framework->tt('timestamp_mode_internal')
@@ -130,6 +135,7 @@ if ($enrollmentAvailable) { $framework->initializeJavascriptModuleObject(); }
         <dl class="pdf-sealer-certificate">
             <dt><?= $escape($framework->tt('provider_label')) ?></dt><dd><?= $escape($providerName) ?></dd>
             <dt><?= $escape($framework->tt('timestamp_mode_label')) ?></dt><dd><?= $escape($timestampName) ?>
+                <?php foreach ($timestampAlternatives as $index => $name): ?><br><?= $escape($framework->tt('timestamp_alternative_' . ($index + 1))) ?>: <?= $escape($name) ?><?php endforeach; ?>
                 <?php if (($provider['timestamp_source'] ?? null) !== null): ?><br><?= $escape($framework->tt($provider['bb_fallback'] ? 'timestamp_fallback_allow' : 'timestamp_fallback_fail')) ?><?php endif; ?>
             </dd>
             <dt><?= $escape($framework->tt('project_status_uuid')) ?></dt>

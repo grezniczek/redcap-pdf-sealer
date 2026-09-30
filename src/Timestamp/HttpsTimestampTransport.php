@@ -18,6 +18,7 @@ final class HttpsTimestampTransport
         #[\SensitiveParameter] private readonly string $endpoint,
         #[\SensitiveParameter] private readonly string $username = '',
         #[\SensitiveParameter] private readonly string $password = '',
+        private readonly ?float $deadline = null,
     ) {
         $url = parse_url($endpoint);
         if (strlen($endpoint) > 2048 || preg_match('/[\x00-\x20\x7f\\\\]/', $endpoint)
@@ -41,13 +42,16 @@ final class HttpsTimestampTransport
         if (!is_callable(['HttpClient', 'requestWithResponseLimit']) || !class_exists(ResponseByteLimit::class)) {
             throw new RuntimeException('REDCap bounded HTTP transport is unavailable');
         }
+        $timeout = $this->deadline === null ? self::TIMEOUT_SECONDS
+            : min(self::TIMEOUT_SECONDS, $this->deadline - hrtime(true) / 1e9);
+        if ($timeout < 0.05) { throw new RuntimeException('Timestamp time budget exhausted'); }
         $options = [
             'body' => $requestDer,
             'headers' => ['Content-Type' => 'application/timestamp-query', 'Accept' => 'application/timestamp-reply',
                 'Accept-Encoding' => 'identity'],
             'allow_redirects' => false, 'http_errors' => false, 'cookies' => false,
-            'connect_timeout' => 3, 'timeout' => self::TIMEOUT_SECONDS,
-            'read_timeout' => self::TIMEOUT_SECONDS, 'decode_content' => false,
+            'connect_timeout' => min(3, $timeout), 'timeout' => $timeout,
+            'read_timeout' => $timeout, 'decode_content' => false,
         ];
         if ($this->username !== '') { $options['auth'] = [$this->username, $this->password, 'basic']; }
         try {

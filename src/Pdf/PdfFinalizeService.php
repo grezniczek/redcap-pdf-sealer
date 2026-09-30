@@ -105,7 +105,7 @@ final class PdfFinalizeService
             } else {
                 $result = $this->sealWithFallback(
                     $source, $project->certificateDer, $key, $issuerChain,
-                    $identities, $protector, $health, $provider['timestamp_source'], $fallback, $now,
+                    $identities, $protector, $health, [$provider['timestamp_source'], ...$provider['timestamp_alternatives']], $fallback, $now, $event,
                 );
             }
             $written = file_put_contents($path, $result->pdf, LOCK_EX);
@@ -117,12 +117,22 @@ final class PdfFinalizeService
                 self::logProjectOutcome(
                     (int) $pid, $context, 'PDF seal succeeded',
                     'Profile: ' . ($result->profile === 'pades-b-t' ? 'PAdES B-T' : 'PAdES B-B')
-                        . ($fallbackUsed ? ' (timestamp fallback)' : ''),
+                        . ($fallbackUsed ? ' (timestamp fallback)' : (($event['alternative_used'] ?? '0') === '1' ? ' (alternative timestamp source)' : '')),
                 );
             } catch (Throwable $e) {
                 error_log('PDF Sealer project logging failed: ' . get_class($e));
                 return $this->failed($events, $event, $context, (int) $pid,
                     'PROJECT_LOG_FAILED', 'Could not record PDF seal outcome');
+            }
+            if ($fallbackUsed || ($event['alternative_used'] ?? '0') === '1') {
+                try {
+                    $events->appendTimestampOutcome([
+                        'pid' => (string) $pid, 'generation_id' => $event['generation_id'],
+                        'attempted_timestamp_sources' => $event['attempted_timestamp_sources'] ?? '[]',
+                        'timestamp_source' => $result->profile === 'pades-b-t' ? $event['timestamp_source'] : 'none',
+                        'profile' => $result->profile,
+                    ]);
+                } catch (Throwable $e) { error_log('PDF Sealer timestamp outcome logging failed: ' . get_class($e)); }
             }
             return PdfFinalizeResult::modified($path, true, [
                 'seal_profile' => $result->profile,
@@ -213,38 +223,43 @@ final class PdfFinalizeService
         IdentityRepository $identities,
         SecretProtector $protector,
         PkiHealthService $health,
-        string $sourceId,
+        array $sourceIds,
         bool $fallback,
         int $now,
+        array &$event,
     ): PdfSealResult {
+        $ordered = new \DE\RUB\PDFSealerExternalModule\Timestamp\OrderedTimestampProvider(
+            $sourceIds,
+            function (string $sourceId, float $deadline) use ($identities, $protector, $health, $now) {
+                $timestamp = $identities->providers()->source($sourceId);
+                if ($timestamp['kind'] === 'external') {
+                    return (new \DE\RUB\PDFSealerExternalModule\Timestamp\ExternalTimestampSources($this->framework))
+                        ->provider($sourceId, $deadline);
+                }
+                $report = $health->inspectTimestamp($sourceId, $now);
+                if ($report->status !== PkiHealth::Ready) {
+                    $this->alarm($report);
+                    throw new RuntimeException('TSA is unavailable');
+                }
+                $tsa = $identities->find($timestamp['identity_id']);
+                if ($tsa === null || $tsa->role !== 'tsa') { throw new RuntimeException('TSA unavailable'); }
+                $tsaRoot = $identities->publicCertificate($timestamp['issuer_identity_id'], 'root');
+                return new InternalTimestampProvider(
+                    new InternalTsaService($timestamp['policy_oid']),
+                    new TsaIdentity($tsa->certificateDer, $tsa->privateKey($protector), [$tsaRoot]),
+                );
+            },
+        );
         try {
-            $timestamp = $identities->providers()->source($sourceId);
-            if ($timestamp['kind'] === 'external') {
-                $provider = (new \DE\RUB\PDFSealerExternalModule\Timestamp\ExternalTimestampSources($this->framework))->provider($sourceId);
-                return $this->builder->sealTimestamped($source, $projectCert, $key, $issuerChain, $now, $provider, time());
-            }
-            $report = $health->inspectTimestamp($sourceId, $now);
-            if ($report->status !== PkiHealth::Ready) {
-                $this->alarm($report);
-                throw new RuntimeException('TSA is unavailable');
-            }
-            $timestamp = $identities->providers()->source($sourceId);
-            $policy = $timestamp['policy_oid'];
-            $tsa = $identities->find($timestamp['identity_id']);
-            if ($tsa === null || $tsa->role !== 'tsa') { throw new RuntimeException('TSA unavailable'); }
-            $tsaRoot = $identities->publicCertificate($timestamp['issuer_identity_id'], 'root');
-            $provider = new InternalTimestampProvider(
-                new InternalTsaService($policy),
-                new TsaIdentity($tsa->certificateDer, $tsa->privateKey($protector), [$tsaRoot]),
-            );
-            return $this->builder->sealTimestamped($source, $projectCert, $key, $issuerChain, $now, $provider, $now);
+            return $this->builder->sealTimestamped($source, $projectCert, $key, $issuerChain, $now, $ordered, time());
         } catch (Throwable $e) {
-            if (!$fallback) {
-                throw $e;
-            }
+            if (!$fallback) { throw $e; }
             error_log('PDF Sealer timestamp failed; trying B-B: ' . get_class($e));
-            $sealed = $this->builder->seal($source, $projectCert, $key, $issuerChain, $now);
-            return new PdfSealResult($sealed, 'pades-b-b');
+            return new PdfSealResult($this->builder->seal($source, $projectCert, $key, $issuerChain, $now), 'pades-b-b');
+        } finally {
+            $event['attempted_timestamp_sources'] = json_encode($ordered->attemptedSources(), JSON_THROW_ON_ERROR);
+            $event['timestamp_source'] = $ordered->selectedSource() ?? 'none';
+            $event['alternative_used'] = $ordered->selectedSource() !== null && $ordered->selectedSource() !== $sourceIds[0] ? '1' : '0';
         }
     }
 
