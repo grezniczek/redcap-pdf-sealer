@@ -214,7 +214,7 @@ The automated suite also covers retired targets, no-signer projects, and stale p
 
 ## Same-key root renewal in Acrobat — 2026-10-01
 
-**First Acrobat round passed, user-reported on 2026-10-01.** Acrobat already trusted the root used for PID 524, and the user imported none of the certificates in the ZIP. All three PDFs (A/B/C) were displayed as certified and timestamped. This establishes acceptance of the same-key renewed root, including fresh project/TSA leaves, while the original trusted root is still valid. Original-anchor expiry remains untested. This is a read-only developer probe, not an implemented renewal action.
+**First Acrobat round passed, user-reported on 2026-10-01.** Acrobat already trusted the root used for PID 524, and the user imported none of the certificates in the ZIP. All three PDFs (A/B/C) were displayed as certified and timestamped. This establishes acceptance of the same-key renewed root, including fresh project/TSA leaves, while the original trusted root is still valid. The separate expired-anchor certification check also passed as recorded below. This first round itself did not test expiry. This is a read-only developer probe, not an implemented renewal action.
 
 Run with PHP 8.4+ (tested on CLI PHP 8.5.11):
 
@@ -242,13 +242,13 @@ All three use the production B-T builder with strict internal timestamps. The re
 3. Open B and C, validate each, and report separately whether certification and the embedded timestamp remain trusted without any additional trust action. Both should report no document modification. Record the root fingerprint Acrobat actually chooses if accessible; it can build its chain to the original trusted root even though a different certificate with the same public key is embedded.
 4. Close Acrobat completely, reopen B/C, and repeat validation to avoid relying only on the existing process state.
 
-**Evidence limit:** the original root is still valid. A positive result establishes same-key renewal and fresh-leaf trust continuity under those conditions. Before relying on this as expiry maintenance, perform a separate controlled original-anchor expiry experiment; do not change the system clock or reinterpret the first run as expiry acceptance. Production activation/concurrency and CRL behavior are separate slices.
+**Evidence limit:** the original root in this first round is still valid. The result establishes same-key renewal and fresh-leaf acceptance under those conditions. The separate expired-anchor certification result is recorded below; it does not reproduce a trust-store entry expiring after installation. Production activation/concurrency and CRL behavior are separate slices.
 
 Artifact fingerprints, public output hashes and timestamps are in the generated `manifest.json`. No original deployment state needs migration; these old/new certificates are only the deliberate comparison required by the test.
 
 ## Expired original root in Acrobat — prepared 2026-10-01
 
-**Acrobat acceptance pending.** Following the reported PID 524 A/B/C acceptance, [root_expiry_probe.php](../tools/root_expiry_probe.php) prepares a separate disposable CA with a unique organization. The installation root and PID 524 identities cannot be selected as alternative trust anchors for this fixture. No live PKI, records, bindings, configuration or edocs are changed.
+**Certification acceptance passed, user-reported on 2026-10-01.** Acrobat imported the expired original root; D was reported as certified, and E reported “validity of the certification is UNKNOWN. The author could not be verified”. This is the expected distinction between a same-key renewed issuer and a same-name issuer with a different key. The user did not separately report D's timestamp validation or a post-restart result; those remain unconfirmed. Following the reported PID 524 A/B/C acceptance, [root_expiry_probe.php](../tools/root_expiry_probe.php) prepares a separate disposable CA with a unique organization. The installation root and PID 524 identities cannot be selected as alternative trust anchors for this fixture. No live PKI, records, bindings, configuration or edocs are changed.
 
 ```bash
 PDF_SEALER_LIVE_TEST=1 php -d xdebug.mode=off tools/root_expiry_probe.php --preview
@@ -275,4 +275,4 @@ The shared [diagnostic root clone](../tests/support/root_certificate_probe.php) 
 4. Open E. Its cryptographic signature and timestamp are correct, but its issuer should be unknown/untrusted. Record the validation messages rather than only the presence of a certification/timestamp badge.
 5. If results are positive, close Acrobat completely, reopen D/E, and report whether the same trust distinction persists.
 
-**Scope:** this imports an already-expired anchor. It does not reproduce the timed transition of a trust-store entry that was installed while valid. A successful result is evidence about validation with an expired trusted certificate; import restrictions or viewer-specific ambiguity require the timed test before choosing a production root policy. No system clock change is needed. No expiry result is claimed until the user reports it.
+**Scope:** this imports an already-expired anchor. It does not reproduce the timed transition of a trust-store entry that was installed while valid. The reported D/E result supports same-key root renewal for certification with an expired trusted certificate in the user's Acrobat installation; it does not establish every viewer's behavior, D's timestamp trust or a timed expiry transition. No system clock change was requested. A timed transition check remains a later acceptance option if needed; this completed D/E certification check does not need repeating.
