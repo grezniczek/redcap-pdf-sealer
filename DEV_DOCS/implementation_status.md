@@ -1,8 +1,8 @@
 # PDF Sealer implementation status
 
-## Current summary — 2026-09-30
+## Current summary — 2026-10-01
 
-[Ordered TSA alternatives](#ordered-tsa-alternatives--2026-09-30) are implemented: primary plus up to two explicit alternatives, a shared 20-second budget, per-source validation and safe outcome logging. Automated PHP 8.2/8.5 checks pass; browser/live failover acceptance remains pending.
+[Ordered TSA alternatives](#ordered-tsa-alternatives--2026-09-30) are implemented: primary plus up to two explicit alternatives, a shared 20-second budget, per-source validation and safe outcome logging. Automated PHP 8.2/8.5 checks pass; the user reported that live failover and Acrobat checks passed on 2026-10-01 in PID 524, records 2, 3, 4, 6, and 7.
 
 Manual CC renewal of built-in project signing certificates is implemented, including fresh keys, stable UUID/provider, history retention and atomic activation. Automated PHP 8.2/8.5 checks pass; the user reported that the [renewal browser check](testing.md#manual-built-in-project-certificate-renewal) passed on 2026-09-30.
 
@@ -28,7 +28,9 @@ The finalizer supplies one signature imprint/nonce to the ordered provider. Each
 
 Project Logging marks alternative TSA success or B-B fallback. Restricted EM outcome entries identify attempted/selected sources and profile, while failure diagnostics retain attempt order. No endpoints, credentials, remote errors or tokens enter these entries. Expiry inventory includes alternative sources' configured public CA chains.
 
-PHP 8.2.34/8.5.11 checks cover policy validation/rollback, same request, primary short-circuit, malformed response retry, different external policies, explicit internal alternatives, deadline expiry/late response rejection, shrinking HTTP timeouts, strict/B-B exhaustion, actual B-T PDFs, logs and alternative trust inventory. External timestamp/OpenSSL tests cover legacy ESS through the ordered builder path. Authorization, provider, expiry and built-in diagnostic regressions pass on both runtimes. JavaScript state/payload checks and syntax/language/diff checks pass. These use disposable crypto and simulated HTTP/storage; browser and live failover acceptance remain pending. No live PKI, settings, Core or Framework changes were made.
+PHP 8.2.34/8.5.11 checks cover policy validation/rollback, same request, primary short-circuit, malformed response retry, different external policies, explicit internal alternatives, deadline expiry/late response rejection, shrinking HTTP timeouts, strict/B-B exhaustion, actual B-T PDFs, logs and alternative trust inventory. External timestamp/OpenSSL tests cover legacy ESS through the ordered builder path. Authorization, provider, expiry and built-in diagnostic regressions pass on both runtimes. JavaScript state/payload checks and syntax/language/diff checks pass. These use disposable crypto and simulated HTTP/storage. No live PKI, settings, Core or Framework changes were made by the agent.
+
+On **2026-10-01**, the user reported that all requested test outcomes and Acrobat checks passed in **PID 524**, using **records 2, 3, 4, 6, and 7**. This completes the live acceptance matrix: healthy-primary B-T, first-alternative B-T, second-alternative B-T after two unavailable sources, strict failure after exhaustion, and explicitly permitted B-B fallback. The supplied record list is recorded collectively; no case-to-record mapping was provided. No resulting PDFs or logs were supplied for independent inspection. Deadline behavior remains supported by automated tests rather than a live timing measurement.
 
 The user requested a later [CA providers UI redesign](provider_lifecycle_design.md#deferred-ca-providers-ui-redesign--2026-09-30). Consider sub-tabs or task links with focused dialogs after discussing the design; it is not part of this implementation.
 
