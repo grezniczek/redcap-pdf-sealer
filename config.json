@@ -73,7 +73,7 @@
     "links": {
         "control-center": [
             {
-                "name": "PDF Sealer administration",
+                "name": "<b>PDF Sealer</b> &bull; Administration",
                 "tt_name": "pki_link_name",
                 "icon": "fas fa-lock",
                 "url": "pki-admin.php",
@@ -83,7 +83,7 @@
         "project": [
             {
                 "key": "public-trust",
-                "name": "PDF Sealer root certificates",
+                "name": "<b>PDF Sealer</b> &bull; Trust Certificates",
                 "tt_name": "project_trust_link_name",
                 "icon": "fas fa-certificate",
                 "url": "project-trust-link.php",
@@ -92,7 +92,7 @@
             },
             {
                 "key": "project-status",
-                "name": "PDF Sealer status",
+                "name": "<b>PDF Sealer</b> &bull; Status",
                 "tt_name": "project_status_title",
                 "icon": "fas fa-file-signature",
                 "url": "project-status.php",
