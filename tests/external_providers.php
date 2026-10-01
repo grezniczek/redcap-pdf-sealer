@@ -62,7 +62,7 @@ final class Framework {
         if (str_contains($sql, "NOT LIKE 'external-%'")) $rows = array_values(array_filter($rows, fn($r) => !str_starts_with($r['provider_id'] ?? '', 'external-')));
         if (str_contains($sql, 'ISNULL(issuer_chain_json)')) $rows = array_values(array_filter($rows, fn($r) => ($r['issuer_chain_json'] ?? null) === null));
         $index = 1;
-        foreach (['identity_id','identity_role','project_uuid','redcap_pid'] as $field) {
+        foreach (['identity_id','identity_role','project_uuid','redcap_pid','issuer_key_id'] as $field) {
             if (str_contains($sql, $field . ' = ?')) {
                 $value = $params[$index++];
                 $rows = array_values(array_filter($rows, fn($r) => ($r[$field] ?? null) === $value));

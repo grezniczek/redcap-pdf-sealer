@@ -156,6 +156,18 @@ A test message is clearly labeled as a test. Successful submission means REDCap 
 
 During sealing, actionable PKI health problems create system-scoped alarm entries and can trigger email. Repeated successful notifications for the same condition/identity are limited to one per hour. Failed or unconfigured delivery does not start the throttle. These sealing-time alarms contain diagnostic identifiers and time. Not every sealing failure sends an alarm: also review project Logging and detailed failure entries.
 
+### Revoke the current built-in project certificate
+
+On **CA providers → Revoke built-in project certificate**, select a project and review its current subject and fingerprint. Choose **Superseded** or **Key compromise**, then confirm the irreversible action. Use normal renewal for ordinary replacement: renewal leaves the previous certificate unrevoked. This control addresses the current built-in project signer; external certificates follow their issuer's process. TSA/root revocation controls are not yet available.
+
+Confirmation first commits a durable local block and public lifecycle audit. It then attempts CRL publication and fresh-key replacement in separate transactions. The result reports these outcomes separately. Publication or replacement failure never undoes the block. The new signer retains the UUID/provider and history; no private key is exported. A damaged revoked project key is not needed for recovery.
+
+Revocation remains available for disabled projects, retired CAs, pending enrollment/provider changes and unusable private keys. Disabled projects can recover without being enabled. Pending work and retirement can defer replacement, and unusable PKI can prevent it; resolve the cause and hourly maintenance retries with backoff. Revoked signers take priority over ordinary expiry renewal. Pending CRL entries are retried by hourly maintenance and daily publication. A missing/corrupt CRL counter/ledger requires repair, rather than restarting an empty list.
+
+Until replacement commits, sealing fails explicitly with the original PDF still available to REDCap. A seal being built must pass a final revocation check under the project lock before its working copy is accepted. Revocation that commits before this check blocks that result. A copy accepted before revocation may already be proceeding through REDCap storage/delivery; the module cannot recall it.
+
+The published CRL can change validation of earlier PDFs. Their signed bytes remain unchanged, and viewers may retain a cached earlier list. Publication does not guarantee immediate viewer awareness or repair evidence affected by key compromise. Back up the system EM log history as well as PKI/CRL settings: the immutable revocation audits are the local block and publication/recovery record.
+
 ### Automatic built-in certificate maintenance
 
 The hourly `certificate_maintenance` Framework cron renews the built-in root when it has **820 days or less** remaining (one full leaf lifetime plus the 90-day renewal window). Routine root renewal retains its existing key and exact subject/extensions. A fresh TSA, active root/TSA references and refreshed CRL activate together; historical certificates remain available on the trust page. TSA and **existing** built-in project signers renew with fresh keys within 90 days of expiry or when they use a previous root generation. Project UUIDs, CA assignments and identity history are retained. Normal module enable/update registers the job; Framework's **ExternalModuleValidation** job also discovers newly added crons in a development checkout. REDCap cron and this job must be enabled and running.
@@ -168,7 +180,7 @@ Pending enrollment/provider changes and retired CAs defer project renewal. The b
 
 **Routine built-in root renewal is automatic, including recovery after expiry/downtime.** It requires intact stored certificates, matching decryptable keys, coherent provider/source references and the existing CRL counter/entries. Renewal preserves the CRL URL and revoked serials while increasing its number. Missing/corrupt PKI is never reset. If root renewal fails, leaf replacement still requires at least 91 days of usable issuer validity.
 
-No routine root import or approval step is requested. The development Acrobat experiments accepted same-key renewal using the original trusted root; other viewers may have different trust behavior. **Manual revocation and fresh-root-key recovery after compromise remain future work.** A compromised key must not be repaired by same-key renewal. Ordinary renewal does not revoke prior certificates, rewrite old PDFs or provide long-term validation.
+No routine root import or approval step is requested. The development Acrobat experiments accepted same-key renewal using the original trusted root; other viewers may have different trust behavior. **TSA/root revocation and fresh-root-key recovery after compromise remain future work.** Built-in project certificate revocation and automatic replacement are available. A compromised key must not be repaired by same-key renewal. Ordinary renewal does not revoke prior certificates, rewrite old PDFs or provide long-term validation.
 
 ## Scheduled certificate expiry checks
 
@@ -200,7 +212,7 @@ Newly issued built-in project and TSA certificates include the CRL distribution 
 
 Refresh failures preserve the previous committed list and raise `CRL_PUBLICATION_FAILED` in the Alarms tab, with the normal email throttle. An absent, expired, future-dated, or corrupt list returns HTTP 503; an unknown issuing key returns 404. Anonymous downloads never trigger issuance or read private keys.
 
-This is the publication foundation. **Manual revocation controls and fresh-root-key recovery are not yet available**, so current live lists are empty. Routine same-key root renewal refreshes the existing list and preserves its entries and counter. Retirement and ordinary certificate renewal do not revoke a certificate. Publication neither establishes viewer trust nor makes a PDF LTV enabled. Viewer CRL caches can delay recognition of a subsequently published revocation. See [the CRL technical reference](pki.md#built-in-crl-publication).
+This is the publication foundation. **Confirmed built-in project revocation is available** and attempts prompt publication. Hourly maintenance and daily refresh retry unpublished entries; TSA/root revocation and fresh-root-key recovery remain future work. Routine same-key root renewal refreshes the existing list and preserves its entries and counter. Retirement and ordinary certificate renewal do not revoke a certificate. Publication neither establishes viewer trust nor makes a PDF LTV enabled. Viewer CRL caches can delay recognition of a subsequently published revocation. See [the CRL technical reference](pki.md#built-in-crl-publication).
 
 ## Troubleshooting
 
@@ -218,7 +230,7 @@ This is the publication foundation. **Manual revocation controls and fresh-root-
 
 ## Development and current limits
 
-Manual revocation controls, fresh-root-key recovery after compromise, and PAdES B-LT/B-LTA are not implemented. Hourly built-in root/TSA/project renewal is available. Built-in CRL publication is available as described above. Plan certificate lifecycle and recovery before operational reliance; [PKI](pki.md) describes the stored material and current behavior.
+TSA/root revocation, fresh-root-key recovery after compromise, and PAdES B-LT/B-LTA are not implemented. Confirmed built-in project revocation with automatic replacement is available. Hourly built-in root/TSA/project renewal is available. Built-in CRL publication is available as described above. Plan certificate lifecycle and recovery before operational reliance; [PKI](pki.md) describes the stored material and current behavior.
 
 For implementation history, reproducible tests, acceptance evidence, and release packaging, see the repository's [developer documentation](https://github.com/grezniczek/redcap-pdf-sealer/tree/main/DEV_DOCS). It is intentionally excluded from installation packages; the linked development branch may be newer than your installed version. See also the [overview](../README.md) and [third-party notices](../THIRD_PARTY_NOTICES.md).
 

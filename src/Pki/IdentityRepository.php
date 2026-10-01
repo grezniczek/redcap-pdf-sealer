@@ -27,6 +27,11 @@ final class IdentityRepository
         $this->settings = $settings ?? new PrimarySystemSettingReader($framework);
     }
 
+    public function revocations(): ProjectRevocationRepository
+    {
+        return new ProjectRevocationRepository($this->framework, $this->reader, $this);
+    }
+
     public function providers(): ProviderRepository
     {
         return new ProviderRepository($this->framework, $this->settings);

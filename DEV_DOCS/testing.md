@@ -23,6 +23,7 @@ php tests/pki_initialization.php
 php tests/crl.php
 php tests/project_identity.php
 php tests/project_renewal.php
+php tests/project_revocation.php
 php tests/builtin_maintenance.php
 php tests/root_renewal.php
 php tests/admin_alarms.php
@@ -361,3 +362,25 @@ Both pass on PHP 8.2.34/8.5.11 using disposable real certificates, fake transact
 Adjacent leaf maintenance, CRL, certificate serial, primitive issuance, initialization and diagnostic regression suites run on both PHP versions. This production service's CLI evidence is separate from the already accepted [Acrobat same-key experiment](#same-key-root-renewal-in-acrobat--2026-10-01).
 
 Read-only devctl inspection now confirms maintenance cron 127 is registered. The preceding leaf-only run at 2026-10-01 15:25:01 UTC reported ok, zero renewals and no failed/deferred/pending work; its first outcome was TSA/skipped, so it predates the new root phase. No manual registration is required. For a normal browser check, inspect the existing maintenance card after the next scheduled run and rerun the diagnostic if its versions changed. Existing long-lived live identities should not renew. Do not change the live clock, shorten installed certificates or reset PKI to trigger this slice. Revocation/recovery acceptance belongs to its next slice.
+
+## Built-in project revocation — 2026-10-01
+
+Run `php8.2 -d xdebug.mode=off tests/project_revocation.php` and the same command with `php`. The suite uses disposable real PKI plus fake transactional Framework/lock storage; no live certificate, database or project is changed.
+
+Coverage includes no-decryption public review, invalid/stale/replayed payloads, block transaction/audit rollback, independent CRL-setting/audit failure and replacement failure, preserved UUID/provider/history, permanent local block, exact Superseded/Key compromise serials, OpenSSL rejection of the old certificate and acceptance of its replacement, B-B/B-T finalizer output, disabled-project recovery, retired/pending-work deferral, damaged project/issuer keys, bounded revoked-first batches, new-block backoff reset, missing-counter refusal, ledger tampering, pending entries through same-key root renewal and authenticated real module AJAX dispatch.
+
+The finalizer race uses a deterministic query hook to commit revocation after identity acquisition and before acceptance; the result fails with `PROJECT_CERTIFICATE_REVOKED` and the original bytes remain. A competing revocation cannot enter while acceptance owns the project lock. These are defined working-copy acceptance checks, not a live multi-connection stress test or a guarantee that subsequent Core storage/delivery is canceled.
+
+### Browser and Acrobat procedure — pending
+
+Use a **disposable built-in test project** with PDF Sealer enabled and its finalization pipeline assigned. Revocation is permanent for the selected certificate and may affect validation of PDFs previously sealed with it.
+
+1. Create an eConsent PDF and retain it. Note the current project certificate fingerprint.
+2. In **CA providers → Revoke built-in project certificate**, choose that project and review the matching fingerprint. Cancel the confirmation once; the project certificate must remain unchanged.
+3. Review again, choose **Superseded**, and confirm. The message should report the local block, published CRL and fresh active signer separately. If either publication or replacement is pending, retain the message and inspect the underlying PKI/pending-work state; do not interpret it as a rejected block.
+4. Refresh the project status: the UUID/provider should be unchanged, the fingerprint should differ and status should be Ready. Create a second consent PDF and confirm unchanged certification/timestamp acceptance in Acrobat.
+5. Download the public root's CRL. Its number must increase and the **previous** project serial must appear with reason Superseded. The new project certificate is not on that list. An older cached Acrobat list can delay recognition; the automated OpenSSL check establishes exact serial rejection independently of viewer cache.
+6. If desired, repeat **Key compromise** on the new disposable signer, then make another consent. Expect another new key/fingerprint and successful future sealing. Old document bytes remain unchanged; a compromised signer's historical validation is not repaired.
+7. Refresh the CC page and check for normal GET/AJAX behavior. The accepted form clears its project/reason; failed or stale review requires a new review. No certificate download/import or manual replacement approval is needed.
+
+Failure recovery, disabled/retired/pending isolation and races are covered by disposable tests. Do not corrupt live keys/settings or manipulate live clocks to reproduce them. Browser/Acrobat acceptance of this slice has not yet been reported.

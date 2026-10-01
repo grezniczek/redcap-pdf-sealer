@@ -121,7 +121,7 @@ final class ProjectIdentityService
         $leaf = $certificate->fields($identity->certificateDer);
         $issuer = $certificate->fields($this->issuerCertificate($identity));
         $this->assertProjectIdentity($identity, $identity->projectUuid, $identity->providerId,
-            max($leaf['not_before'], $issuer['not_before']));
+            max($leaf['not_before'], $issuer['not_before']), true);
     }
 
     /**
@@ -166,6 +166,10 @@ final class ProjectIdentityService
                 'valid_from' => $details['validFrom_time_t'],
                 'valid_until' => $details['validTo_time_t'],
             ];
+            if ($this->identities->revocations()->find($identity) !== null) {
+                $status['state'] = 'revoked';
+                return $status;
+            }
             if ($details['validTo_time_t'] < $now) {
                 $status['state'] = 'expired';
                 return $status;
@@ -184,6 +188,15 @@ final class ProjectIdentityService
         return $status;
     }
 
+    /** Working-copy acceptance is serialized against revocation; a captured revoked key cannot publish its result. */
+    public function acceptSeal(int $pid, StoredIdentity $identity, callable $accept): mixed
+    {
+        return $this->lock->withLock($pid, function () use ($identity, $accept): mixed {
+            $this->identities->revocations()->assertNotRevoked($identity);
+            return $accept();
+        });
+    }
+
     public function issuerCertificate(StoredIdentity $identity): string
     {
         if ($identity->issuerChain !== []) { return $identity->issuerChain[0]; }
@@ -196,11 +209,12 @@ final class ProjectIdentityService
         return $identity->issuerChain !== [] ? $identity->issuerChain : [$this->issuerCertificate($identity)];
     }
 
-    private function assertProjectIdentity(StoredIdentity $identity, string $uuid, string $providerId, ?int $now = null): void
+    private function assertProjectIdentity(StoredIdentity $identity, string $uuid, string $providerId, ?int $now = null, bool $allowRevoked = false): void
     {
         if ($identity->role !== 'project' || $identity->projectUuid !== $uuid || $identity->providerId !== $providerId) {
             throw new RuntimeException('Project identity binding mismatch');
         }
+        if (!$allowRevoked) { $this->identities->revocations()->assertNotRevoked($identity); }
         $provider = $this->identities->providers()->provider($providerId);
         if ($provider['kind'] === 'external') {
             $this->identities->externalValidator()->validate($identity->certificateDer, $identity->issuerChain);

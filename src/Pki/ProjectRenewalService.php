@@ -54,12 +54,13 @@ final class ProjectRenewalService
             }
             $view = $this->snapshot($pid, false, $now);
             $identity = $this->identities->find($view['identity_id']);
-            if (!LeafRenewalPolicy::due($view['certificate']['valid_until'], $identity->issuerId, $view['issuer_identity_id'], $now)) {
+            $revoked = $this->identities->revocations()->find($identity) !== null;
+            if (!$revoked && !LeafRenewalPolicy::due($view['certificate']['valid_until'], $identity->issuerId, $view['issuer_identity_id'], $now)) {
                 return 'skipped';
             }
             LeafRenewalPolicy::assertIssuerWindow($view['issuer_valid_until'], $now);
-            $this->projects->assertReplacementProvenance($identity);
-            $this->activateReplacement($pid, $view, 'system:cron', 'automatic');
+            if (!$revoked) { $this->projects->assertReplacementProvenance($identity); }
+            $this->activateReplacement($pid, $view, 'system:cron', $revoked ? 'revocation_recovery' : 'automatic');
             return 'renewed';
         });
     }

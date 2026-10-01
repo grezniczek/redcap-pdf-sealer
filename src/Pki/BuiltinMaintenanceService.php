@@ -66,6 +66,15 @@ final class BuiltinMaintenanceService
                         if ($currentRootId !== $rootId) { $result['retries'] = []; }
                         $result['root_identity_id'] = $currentRootId;
                     } else { ++$result['remaining']; }
+                    $currentRootId = $this->identities->activeId('root');
+                    if ($this->readyToRetry($result, 'crl', $currentRootId, $now)) {
+                        $publication = new CrlPublicationService($this->framework,
+                            new PublicTrustRepository(new PrimaryLogReader($this->framework), $this->settings),
+                            $this->identities, $this->protector, new CrlRepository($this->framework, $this->settings),
+                            $this->configurationLock);
+                        $this->attempt($result, 'crl', $currentRootId, null, $now,
+                            fn(): string => $publication->run(max($now, time()), true)['published'] > 0 ? 'published' : 'skipped');
+                    } else { ++$result['remaining']; }
                     $source = $this->identities->providers()->source(ProviderRepository::BUILTIN_TSA);
                     if ($this->readyToRetry($result, 'tsa', $source['identity_id'], $now)) {
                         $this->attempt($result, 'tsa', $source['identity_id'], null, $now,
@@ -73,7 +82,7 @@ final class BuiltinMaintenanceService
                     } else { ++$result['remaining']; }
                     $enabled = array_fill_keys(array_map('intval', $this->framework->getProjectsWithModuleEnabled()), true);
                     $provider = $this->identities->providers()->provider(ProviderRepository::BUILTIN_CA);
-                    $candidates = []; $currentKeys = ['root' => true, 'tsa' => true];
+                    $candidates = []; $currentKeys = ['root' => true, 'crl' => true, 'tsa' => true];
                     foreach ($this->bindings->providerUsage(ProviderRepository::BUILTIN_CA) as $usage) {
                         $pid = $usage['pid'];
                         $binding = $this->bindings->find($pid);
@@ -84,25 +93,28 @@ final class BuiltinMaintenanceService
                         }
                         $currentKeys['project-' . $pid] = true;
                         $expires = (new Certificate())->fields($identity->certificateDer)['not_after'];
-                        if (!LeafRenewalPolicy::due($expires, $identity->issuerId, $provider['issuer_identity_id'], $now)) {
+                        $revocation = $this->identities->revocations()->find($identity);
+                        if ($revocation === null && !LeafRenewalPolicy::due($expires, $identity->issuerId, $provider['issuer_identity_id'], $now)) {
                             unset($result['retries']['project-' . $pid]);
                             continue;
                         }
-                        $candidates[] = ['pid' => $pid, 'id' => $identity->id, 'expires' => $expires, 'enabled' => isset($enabled[$pid])];
+                        $candidates[] = ['pid' => $pid, 'id' => $identity->id, 'expires' => $expires, 'enabled' => isset($enabled[$pid]),
+                            'revoked_at' => $revocation === null ? null : (int) $revocation['revoked_at']];
                     }
                     $result['retries'] = array_intersect_key($result['retries'], $currentKeys);
                     usort($candidates, static fn(array $a, array $b): int =>
-                        [!$a['enabled'], $a['expires'], $a['pid']] <=> [!$b['enabled'], $b['expires'], $b['pid']]);
+                        [$a['revoked_at'] === null, !$a['enabled'], $a['expires'], $a['pid']]
+                        <=> [$b['revoked_at'] === null, !$b['enabled'], $b['expires'], $b['pid']]);
                     $attempted = 0;
                     foreach ($candidates as $candidate) {
                         $key = 'project-' . $candidate['pid'];
                         if ($attempted >= self::PROJECT_LIMIT || ($this->monotonic)() >= $deadline
-                            || !$this->readyToRetry($result, $key, $candidate['id'], $now)) {
+                            || !$this->readyToRetry($result, $key, $candidate['id'], $now, $candidate['revoked_at'])) {
                             ++$result['remaining']; continue;
                         }
                         ++$attempted;
                         $this->attempt($result, $key, $candidate['id'], $candidate['pid'], $now,
-                            fn(): string => $this->renewal->renewAutomatically($candidate['pid'], $now));
+                            fn(): string => $this->renewal->renewAutomatically($candidate['pid'], $now), $candidate['revoked_at']);
                     }
                 }
             } catch (Throwable) {
@@ -122,22 +134,22 @@ final class BuiltinMaintenanceService
         });
     }
 
-    private function readyToRetry(array &$result, string $key, string $identityId, int $now): bool
+    private function readyToRetry(array &$result, string $key, string $identityId, int $now, ?int $revokedAt = null): bool
     {
         $retry = $result['retries'][$key] ?? null;
-        if ($retry !== null && $retry['identity_id'] !== $identityId) { unset($result['retries'][$key]); return true; }
+        if ($retry !== null && ($retry['identity_id'] !== $identityId || ($retry['revoked_at'] ?? null) !== $revokedAt)) { unset($result['retries'][$key]); return true; }
         return $retry === null || $retry['retry_at'] <= $now;
     }
 
-    private function attempt(array &$result, string $key, string $identityId, ?int $pid, int $now, callable $work): void
+    private function attempt(array &$result, string $key, string $identityId, ?int $pid, int $now, callable $work, ?int $revokedAt = null): void
     {
-        $role = $key === 'root' ? 'root' : ($pid === null ? 'tsa' : 'project');
+        $role = in_array($key, ['root', 'crl'], true) ? $key : ($pid === null ? 'tsa' : 'project');
         try { $status = $work(); }
         catch (Throwable) { $status = 'failed'; }
         if (in_array($status, ['failed', 'deferred'], true)) {
             $attempts = min(6, ($result['retries'][$key]['attempts'] ?? 0) + 1);
             $result['retries'][$key] = ['identity_id' => $identityId, 'attempts' => $attempts,
-                'retry_at' => $now + ($status === 'deferred' ? 3600 : min(86400, 3600 * 2 ** ($attempts - 1)))];
+                'revoked_at' => $revokedAt, 'retry_at' => $now + ($status === 'deferred' ? 3600 : min(86400, 3600 * 2 ** ($attempts - 1)))];
             ++$result[$status];
             try {
                 $this->framework->log('builtin_maintenance_outcome', [
@@ -229,10 +241,11 @@ final class BuiltinMaintenanceService
             if (!is_int($value[$count] ?? null) || $value[$count] < 0) { throw new RuntimeException('Invalid maintenance count'); }
         }
         foreach ($value['retries'] as $key => $retry) {
-            if (!is_string($key) || preg_match('/^(?:root|tsa|project-[1-9][0-9]*)$/D', $key) !== 1 || !is_array($retry)
+            if (!is_string($key) || preg_match('/^(?:root|crl|tsa|project-[1-9][0-9]*)$/D', $key) !== 1 || !is_array($retry)
                 || !is_string($retry['identity_id'] ?? null) || preg_match('/^[0-9a-f]{32}$/D', $retry['identity_id']) !== 1
                 || !is_int($retry['attempts'] ?? null) || $retry['attempts'] < 1 || $retry['attempts'] > 6
-                || !is_int($retry['retry_at'] ?? null) || $retry['retry_at'] < 1) {
+                || !is_int($retry['retry_at'] ?? null) || $retry['retry_at'] < 1
+                || (isset($retry['revoked_at']) && (!is_int($retry['revoked_at']) || $retry['revoked_at'] < 1))) {
                 throw new RuntimeException('Invalid maintenance retry');
             }
         }

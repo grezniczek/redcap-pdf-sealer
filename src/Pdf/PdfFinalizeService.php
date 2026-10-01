@@ -107,37 +107,41 @@ final class PdfFinalizeService
                     $identities, $health, [$provider['timestamp_source'], ...$provider['timestamp_alternatives']], $fallback, $now, $event,
                 );
             }
-            $written = file_put_contents($path, $result->pdf, LOCK_EX);
-            if ($written !== strlen($result->pdf)) {
-                return $this->failed($events, $event, $context, (int) $pid, 'OUTPUT_WRITE_FAILED', 'Could not write sealed PDF working copy');
-            }
-            $fallbackUsed = $mode !== 'none' && $result->profile === 'pades-b-b';
-            try {
-                self::logProjectOutcome(
-                    (int) $pid, $context, 'PDF seal succeeded',
-                    'Profile: ' . ($result->profile === 'pades-b-t' ? 'PAdES B-T' : 'PAdES B-B')
-                        . ($fallbackUsed ? ' (timestamp fallback)' : (($event['alternative_used'] ?? '0') === '1' ? ' (alternative timestamp source)' : '')),
-                );
-            } catch (Throwable $e) {
-                error_log('PDF Sealer project logging failed: ' . get_class($e));
-                return $this->failed($events, $event, $context, (int) $pid,
-                    'PROJECT_LOG_FAILED', 'Could not record PDF seal outcome');
-            }
-            if ($fallbackUsed || ($event['alternative_used'] ?? '0') === '1') {
+            return $projects->acceptSeal((int) $pid, $project, function () use ($path, $result, $mode, $event, $events, $context, $pid): PdfFinalizeResult {
+                $written = file_put_contents($path, $result->pdf, LOCK_EX);
+                if ($written !== strlen($result->pdf)) {
+                    return $this->failed($events, $event, $context, (int) $pid, 'OUTPUT_WRITE_FAILED', 'Could not write sealed PDF working copy');
+                }
+                $fallbackUsed = $mode !== 'none' && $result->profile === 'pades-b-b';
                 try {
-                    $events->appendTimestampOutcome([
-                        'pid' => (string) $pid, 'generation_id' => $event['generation_id'],
-                        'attempted_timestamp_sources' => $event['attempted_timestamp_sources'] ?? '[]',
-                        'timestamp_source' => $result->profile === 'pades-b-t' ? $event['timestamp_source'] : 'none',
-                        'profile' => $result->profile,
-                    ]);
-                } catch (Throwable $e) { error_log('PDF Sealer timestamp outcome logging failed: ' . get_class($e)); }
-            }
-            return PdfFinalizeResult::modified($path, true, [
-                'seal_profile' => $result->profile,
-                'timestamp_serial' => $result->timestampSerialHex,
-                'timestamp_time' => $result->timestampTime,
-            ]);
+                    self::logProjectOutcome(
+                        (int) $pid, $context, 'PDF seal succeeded',
+                        'Profile: ' . ($result->profile === 'pades-b-t' ? 'PAdES B-T' : 'PAdES B-B')
+                            . ($fallbackUsed ? ' (timestamp fallback)' : (($event['alternative_used'] ?? '0') === '1' ? ' (alternative timestamp source)' : '')),
+                    );
+                } catch (Throwable $e) {
+                    error_log('PDF Sealer project logging failed: ' . get_class($e));
+                    return $this->failed($events, $event, $context, (int) $pid,
+                        'PROJECT_LOG_FAILED', 'Could not record PDF seal outcome');
+                }
+                if ($fallbackUsed || ($event['alternative_used'] ?? '0') === '1') {
+                    try {
+                        $events->appendTimestampOutcome([
+                            'pid' => (string) $pid, 'generation_id' => $event['generation_id'],
+                            'attempted_timestamp_sources' => $event['attempted_timestamp_sources'] ?? '[]',
+                            'timestamp_source' => $result->profile === 'pades-b-t' ? $event['timestamp_source'] : 'none',
+                            'profile' => $result->profile,
+                        ]);
+                    } catch (Throwable $e) { error_log('PDF Sealer timestamp outcome logging failed: ' . get_class($e)); }
+                }
+                return PdfFinalizeResult::modified($path, true, [
+                    'seal_profile' => $result->profile,
+                    'timestamp_serial' => $result->timestampSerialHex,
+                    'timestamp_time' => $result->timestampTime,
+                ]);
+            });
+        } catch (\DE\RUB\PDFSealerExternalModule\Pki\ProjectRevoked) {
+            return $this->failed($events, $event, $context, (int) $pid, 'PROJECT_CERTIFICATE_REVOKED', 'Project certificate revoked; replacement pending');
         } catch (\DE\RUB\PDFSealerExternalModule\Pki\ProviderTransitionPending) {
             return $this->failed($events, $event, $context, (int) $pid, 'PROVIDER_TRANSITION_PENDING', 'Provider transition awaits certificate activation');
         } catch (\DE\RUB\PDFSealerExternalModule\Pki\CaProviderRetired) {
@@ -173,6 +177,7 @@ final class PdfFinalizeService
             try {
                 self::logProjectOutcome(
                     $projectLogPid, $context, match ($code) {
+                        'PROJECT_CERTIFICATE_REVOKED' => 'PDF seal failed: project certificate revoked',
                         'CA_ASSIGNMENT_REQUIRED' => 'PDF seal failed: CA assignment required',
                         'CA_PROVIDER_RETIRED' => 'PDF seal failed: CA provider retired',
                         'PROVIDER_TRANSITION_PENDING' => 'PDF seal failed: provider transition pending',

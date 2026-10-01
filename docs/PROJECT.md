@@ -26,6 +26,8 @@ The project certificate is created on first sealing use. An unissued certificate
 
 ## Renewing a project certificate
 
+An administrator can revoke a built-in project certificate, permanently blocking that signer. Fresh-key replacement is attempted automatically and retried by maintenance if needed. Until a replacement is active, status shows **Revoked** and sealing fails; earlier PDFs are not rewritten. Pending enrollment/provider changes and retired CAs may delay recovery.
+
 An hourly maintenance job automatically renews existing built-in signing certificates near expiry, or after expiry when catching up after downtime. Renewal uses a fresh key/certificate while preserving your project UUID, CA assignment and history. A CC administrator can also renew manually. Refresh the status page to see the new fingerprint. Opening the page or creating a PDF does not trigger renewal. Routine renewal of the built-in root and TSA is also automatic. Contact your administrator if expiry warnings persist: pending enrollment/provider changes, a retired CA or corrupt/unavailable PKI can defer or prevent automatic renewal. Externally issued certificates still require the CSR replacement workflow.
 
 External CA projects obtain a replacement through the CSR workflow described below. Previously sealed PDFs keep their original certificates and signatures.

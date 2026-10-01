@@ -68,7 +68,7 @@ final readonly class RootRenewalService
             if ((new SignedDataVerifier(requireSigningCertificate: true))->verify($token) !== $tsa->certificateDer) {
                 throw new RuntimeException('Renewed root/TSA sample failed');
             }
-            $crl = (new CrlIssuer())->issue($renewed, $previousCrl['number'] + 1, max($now, time()), $previousCrl['entries']);
+            $crl = (new CrlIssuer())->issue($renewed, $previousCrl['number'] + 1, max($now, time()), $this->identities->revocations()->merge($rootDer, $previousCrl['entries']));
             if ($this->framework->query('START TRANSACTION', []) === false) { throw new RuntimeException('Root renewal transaction failed'); }
             try {
                 $newRootId = $this->identities->append('root', $renewed);

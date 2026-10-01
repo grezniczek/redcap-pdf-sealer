@@ -27,11 +27,11 @@ final class CrlPublicationService
             : Closure::fromCallable($transaction);
     }
 
-    public function run(?int $now = null): array
+    public function run(?int $now = null, bool $pendingOnly = false): array
     {
         $now ??= time();
         if ($now < 1) { throw new RuntimeException('Invalid CRL publication time'); }
-        return $this->lock->withLock(function () use ($now): array {
+        return $this->lock->withLock(function () use ($now, $pendingOnly): array {
             $roots = $this->publicRoots->roots();
             $active = $this->publicRoots->activeRootId();
             if ($roots === [] && $active === null) { return ['status' => 'uninitialized', 'published' => 0]; }
@@ -50,11 +50,15 @@ final class CrlPublicationService
                 if ($previous !== null && $previous['this_update'] > $now) {
                     throw new RuntimeException('CRL clock moved backwards');
                 }
-                if ($previous !== null && $now - $previous['this_update'] < 86400
+                $entries = $this->identities->revocations()->merge($root['der'], $previous['entries'] ?? []);
+                $changed = $entries !== ($previous['entries'] ?? []);
+                if ($previous === null && $entries !== []) { throw new RuntimeException('Revocation publication requires an intact prior CRL'); }
+                if ($pendingOnly && !$changed) { continue; }
+                if (!$changed && $previous !== null && $now - $previous['this_update'] < 86400
                     && $previous['next_update'] > $now) { continue; }
                 // Expired retired issuers retain their last snapshot; root maintenance follows separately.
                 if ($root['valid_from'] > $now || $root['valid_until'] <= $now) {
-                    if ($root['id'] === $active) { throw new RuntimeException('Active CRL issuer is not currently valid'); }
+                    if ($root['id'] === $active || $changed) { throw new RuntimeException('Required CRL issuer is not currently valid'); }
                     continue;
                 }
                 $identity = $this->identities->find($root['id']);
@@ -65,7 +69,7 @@ final class CrlPublicationService
                     throw new RuntimeException('CRL number exhausted');
                 }
                 $record = (new CrlIssuer())->issue($identity->asGeneratedIdentity($this->protector),
-                    ($previous['number'] ?? 0) + 1, $now, $previous['entries'] ?? []);
+                    ($previous['number'] ?? 0) + 1, $now, $entries);
                 $this->transaction('START TRANSACTION');
                 try {
                     $this->crls->save($root['der'], $record);

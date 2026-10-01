@@ -165,6 +165,9 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             || $this->framework->getProjectId() !== null) {
             throw new \RuntimeException($this->framework->tt('pki_access_denied'));
         }
+        if (in_array($action, ['preview_project_revocation', 'revoke_project_certificate'], true)) {
+            return $this->manageProjectRevocation($action, $payload);
+        }
         if (in_array($action, ['preview_project_renewal', 'renew_project_certificate'], true)) {
             return $this->manageProjectRenewal($action, $payload);
         }
@@ -236,6 +239,50 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             return ['ok' => false, 'message' => $this->framework->tt('enrollment_provider_retired')];
         } catch (\Throwable) {
             return ['ok' => false, 'message' => $this->framework->tt($certificateAction ? 'enrollment_certificate_failed' : 'enrollment_failed')];
+        }
+    }
+
+    private function manageProjectRevocation(string $action, mixed $payload): array
+    {
+        if (!is_array($payload) || !is_int($payload['pid'] ?? null) || $payload['pid'] < 1
+            || ($action === 'revoke_project_certificate' && (!is_string($payload['review_hash'] ?? null)
+                || preg_match('/^[a-f0-9]{64}$/D', $payload['review_hash']) !== 1
+                || !in_array($payload['reason'] ?? null, ['superseded', 'compromise'], true)))) {
+            return ['ok' => false, 'message' => $this->framework->tt('pki_invalid_request')];
+        }
+        try {
+            $protector = new SecretProtector();
+            $identities = new IdentityRepository($this->framework, $protector);
+            $bindings = new \DE\RUB\PDFSealerExternalModule\Pki\ProjectBindingRepository($this->framework);
+            $projectLock = new \DE\RUB\PDFSealerExternalModule\Pki\ProjectIssueLock();
+            $configurationLock = new \DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationLock();
+            $health = new PkiHealthService($identities, $protector);
+            $enrollment = new \DE\RUB\PDFSealerExternalModule\Pki\ProjectEnrollmentService(
+                $this->framework, $bindings, $identities->providers(), $protector, $projectLock, null, $identities, $configurationLock);
+            $projects = new \DE\RUB\PDFSealerExternalModule\Pki\ProjectIdentityService($bindings, $identities, $protector,
+                CertificateIssuer::forFramework($this->framework, 'maintenance'), $health, $projectLock, $configurationLock);
+            $renewal = new \DE\RUB\PDFSealerExternalModule\Pki\ProjectRenewalService(
+                $this->framework, $bindings, $identities, $enrollment, $projects, $health, $projectLock, $configurationLock);
+            $settings = new \DE\RUB\PDFSealerExternalModule\Pki\PrimarySystemSettingReader($this->framework);
+            $crls = new \DE\RUB\PDFSealerExternalModule\Pki\CrlRepository($this->framework, $settings);
+            $publication = new \DE\RUB\PDFSealerExternalModule\Pki\CrlPublicationService($this->framework,
+                new \DE\RUB\PDFSealerExternalModule\Pki\PublicTrustRepository(
+                    new \DE\RUB\PDFSealerExternalModule\Pki\PrimaryLogReader($this->framework), $settings),
+                $identities, $protector, $crls, $configurationLock);
+            $service = new \DE\RUB\PDFSealerExternalModule\Pki\ProjectRevocationService(
+                $this->framework, $bindings, $identities, $identities->revocations(), $renewal, $publication, $crls,
+                $projectLock, $configurationLock);
+            $result = $action === 'preview_project_revocation' ? $service->preview($payload['pid'])
+                : $service->revoke($payload['pid'], $payload['review_hash'], $payload['reason']);
+            if ($action === 'revoke_project_certificate' && (!$result['crl_published'] || $result['replacement'] !== 'renewed')) {
+                try {
+                    (new AdminAlarmService($this->framework, new AlarmRepository($this->framework), new AlarmLock()))
+                        ->raise('PROJECT_REVOCATION_RECOVERY_PENDING', 'critical', $result['identity_id']);
+                } catch (\Throwable) { /* Durable block and maintenance retries remain independent of email. */ }
+            }
+            return ['ok' => true] + $result;
+        } catch (\Throwable) {
+            return ['ok' => false, 'message' => $this->framework->tt('revocation_failed')];
         }
     }
 

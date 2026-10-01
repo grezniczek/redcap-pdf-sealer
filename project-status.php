@@ -84,7 +84,7 @@ if ($enrollmentAvailable) {
 $pipelineTone = $pipeline['state'] === 'assigned' ? 'ready' : 'degraded';
 $identityTone = match ($identity['state']) {
     'ready' => 'ready',
-    'unusable', 'expired', 'not_yet_valid' => 'broken',
+    'unusable', 'expired', 'not_yet_valid', 'revoked' => 'broken',
     'pending', 'transition_pending', 'ca_retired', 'awaiting_certificate', 'assignment_required', 'unavailable' => 'degraded',
     default => 'uninitialized',
 };

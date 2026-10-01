@@ -94,7 +94,7 @@ The current Framework failure behavior remains: a failed sealing operation leave
 
 ## Lifecycle and health
 
-The user clarified the lifecycle target on **2026-10-01**: built-in root, TSA and dependent project certificates must be maintained automatically by cron, with manual revocation followed by automatic replacement. Required manual enrollment remains for external certificates. The [automatic built-in PKI plan](builtin_pki_lifecycle_plan.md) supersedes the earlier manual TSA/staged root proposal. It covers bounded work, atomic activation, downtime recovery, prerequisites and viewer-trust/public-revocation boundaries. Routine same-key root renewal and fresh-key TSA/project maintenance are implemented; manual revocation and fresh-root-key recovery remain future work.
+The user clarified the lifecycle target on **2026-10-01**: built-in root, TSA and dependent project certificates must be maintained automatically by cron, with manual revocation followed by automatic replacement. Required manual enrollment remains for external certificates. The [automatic built-in PKI plan](builtin_pki_lifecycle_plan.md) supersedes the earlier manual TSA/staged root proposal. It covers bounded work, atomic activation, downtime recovery, prerequisites and viewer-trust/public-revocation boundaries. Routine same-key root renewal and fresh-key TSA/project maintenance are implemented; confirmed project revocation/recovery is implemented; TSA/root revocation and fresh-root-key recovery remain future work.
 
 Separate these questions:
 
@@ -180,7 +180,7 @@ The next slice exposes immutable source registration, encrypted Basic credential
 
 ## Manual built-in project renewal implemented — 2026-09-30
 
-CC administrators can review and explicitly renew an existing built-in project signer, including an expired leaf. Renewal always uses a fresh key, preserves UUID/provider/history, checks pending work and active usable issuance, and switches binding with identity/audit in one transaction under project/configuration locks. A stale identity/issuer review is rejected. The public review does not decrypt keys. The project page remains read-only for built-in renewal, and expiry scans do not issue replacements. Automated PHP 8.2/8.5 and cryptographic finalizer checks pass; the user reported a passing renewal browser check on 2026-09-30. See the testing guide for scope. The subsequent built-in maintenance slices now automate routine root/TSA/project renewal; manual revocation and compromise recovery remain separate work. Ordered TSA alternatives are implemented below.
+CC administrators can review and explicitly renew an existing built-in project signer, including an expired leaf. Renewal always uses a fresh key, preserves UUID/provider/history, checks pending work and active usable issuance, and switches binding with identity/audit in one transaction under project/configuration locks. A stale identity/issuer review is rejected. The public review does not decrypt keys. The project page remains read-only for built-in renewal, and expiry scans do not issue replacements. Automated PHP 8.2/8.5 and cryptographic finalizer checks pass; the user reported a passing renewal browser check on 2026-09-30. See the testing guide for scope. The subsequent built-in maintenance slices now automate routine root/TSA/project renewal; project revocation/recovery is now implemented; TSA/root revocation and compromise recovery remain separate work. Ordered TSA alternatives are implemented below.
 
 ## Deferred CA providers UI redesign — 2026-09-30
 
