@@ -136,7 +136,8 @@ try {
     $freshHealth = new PkiHealthService($freshIdentities,$protector);
     $priorBinding = $freshBindings->find(104);
     (new DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationService($fresh,$freshIdentities,$freshBindings,$issuer,$freshHealth,
-        new DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationLock($lock)))->initialize('Added Later');
+        new DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationLock($lock), null,
+        new DE\RUB\PDFSealerExternalModule\Pki\CrlRepository($fresh,$freshSettings)))->initialize('Added Later');
     check($freshBindings->find(104) == $priorBinding && $freshHealth->inspect(time())->status === DE\RUB\PDFSealerExternalModule\Pki\PkiHealth::Ready,
         'External identity prevented later built-in initialization or lost binding');
     echo "External activation: review, rejection, rollback, stale requests, pinned-chain expiry, signer reuse/replacement, and B-B/B-T seals passed.\n";

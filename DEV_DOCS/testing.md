@@ -19,6 +19,7 @@ php tests/pki_primitives.php
 php tests/providers.php
 php tests/pki_storage.php
 php tests/pki_initialization.php
+php tests/crl.php
 php tests/project_identity.php
 php tests/project_renewal.php
 php tests/admin_alarms.php
@@ -276,3 +277,26 @@ The shared [diagnostic root clone](../tests/support/root_certificate_probe.php) 
 5. If results are positive, close Acrobat completely, reopen D/E, and report whether the same trust distinction persists.
 
 **Scope:** this imports an already-expired anchor. It does not reproduce the timed transition of a trust-store entry that was installed while valid. The reported D/E result supports same-key root renewal for certification with an expired trusted certificate in the user's Acrobat installation; it does not establish every viewer's behavior, D's timestamp trust or a timed expiry transition. No system clock change was requested. A timed transition check remains a later acceptance option if needed; this completed D/E certification check does not need repeating.
+
+## Built-in CRL publication — 2026-10-01
+
+Run `php tests/crl.php` and `php8.2 tests/crl.php`. The suite uses disposable identities and fake persistence; OpenSSL independently validates the signature and full-list extensions, accepts a nonrevoked leaf, and rejects the exact revoked serial. It checks both project/TSA CDPs, 128-bit serials on PHP 8.4+, bad URLs, cached metadata/signature tampering, rollback, daily/idempotent refresh, expired/future/missing public data, same-key renewal continuity and number exhaustion. The adjacent initialization/renewal/activation/diagnostic/public-trust regressions passed on both PHP versions.
+
+On the main development instance, normal Framework validation registered the new daily cron 126 and its first scheduled run passed. A read-only dev-control query confirmed empty CRL 1 and its update times. Anonymous HTTPS GET returned the exact cached DER with HTTP 200 and `application/pkix-crl`; OpenSSL independently verified it against the installed root. No previewed database mutation was needed. Check normal daily refresh later through `pki_crl_publication` audit metadata; this slice has not waited a real 24 hours.
+
+### Acrobat and browser acceptance
+
+1. Open the public trust page while logged out. The built-in root now has **Download certificate revocation list (CRL)**. It should download a `.crl` file without login or JavaScript. The current development endpoint is [the built-in CRL](https://dev-surveys/surveys/?pdf_sealer_crl=f8a748fa81720be8b9f4c53669432ae91563f2f1478b00e3d8978d9f33fa61b8).
+2. Use the [synthetic CRL B-T PDF](interop-artifacts/crl-probe/crl-probe-BT.pdf). It uses the already trusted live root with temporary project/TSA certificates; both certificates contain the live CRL URL. Confirm unchanged certification, timestamp validation, and each leaf's revocation finding. No new root import is needed. The user reported certification accepted, recorded a request to the CRL endpoint after clicking Check Revocation, and supplied Acrobat's explicit valid-certificate result against its cached CRL signed by REDCap PDF Sealer Root CA. Displayed update times (2026/10/01 15:55:01 +02:00 to 2026/10/04 15:55:01 +02:00) match published CRL 1. This completes project-certificate CRL acceptance. Separate timestamp/TSA revocation status and the logged-out browser link/download are not yet reported. For the project certificate, use Signature Properties → Show Signer’s Certificate → select the project leaf → Revocation; use Check Revocation if offered. [Adobe describes this tab](https://www.adobe.com/devnet-docs/acrobatetk/tools/DigSigDC/Acrobat_DigSig_WorkflowGuide.pdf).
+3. Existing PID 524/TSA certificates do not gain CDPs retrospectively. To exercise normal project issuance, use the existing CC renewal workflow for a chosen built-in test project, then create a new consent PDF. Its new project certificate should carry the CRL URL; the existing TSA still lacks that extension until it is replaced by future lifecycle work. Do not reset the installation solely to complete this check.
+
+Regenerate the read-only diagnostic on PHP 8.4+ if needed:
+
+```sh
+PDF_SEALER_LIVE_TEST=1 php tools/crl_probe.php --preview
+PDF_SEALER_LIVE_TEST=1 php tools/crl_probe.php --run
+```
+
+The probe enforces a read-only database session for PKI reads/temporary issuance, uses Framework temporary-file helpers, and refuses runtimes needing integer serial reservations. It saves public artifacts only under the ignored `interop-artifacts/crl-probe/` directory. qpdf, pdfsig, CMS/ByteRange, OpenSSL timestamp and CRL checks pass. Stored identities, provider/source choices and project bindings remain unchanged. These are synthetic test credentials, not an installed project/TSA replacement.
+
+Administrative revocation, prompt publish after revocation, local signing blocks and automatic replacement are future work. No production revocation was performed. CLI acceptance does not establish Acrobat network/cache behavior, long-term validation or root-trust withdrawal.

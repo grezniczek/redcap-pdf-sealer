@@ -60,7 +60,21 @@ The table summarizes built-in issuance health. Sealing checks the project key/ce
 
 Missing or corrupt existing identities are not treated as permission to silently replace them. Automatic certificate renewal and rotation are not implemented. A daily Framework cron checks active/public certificate dates and warns at 90, 30, and 7 days and after expiry; see [scheduled expiry checks](ADMIN.md#scheduled-certificate-expiry-checks) for scope and notification behavior. An expired project certificate is reported and rejected rather than automatically renewed. Retaining historical root certificates supports public inspection but is not a rotation workflow.
 
-No CRL or OCSP publication service is provided. A root certificate's `cRLSign` key usage does not imply that a CRL is published. Long-term validation evidence is not embedded by this version.
+Built-in CRLs are published as described below. Manual revocation controls and OCSP are not implemented. Long-term validation evidence is not embedded by this version.
+
+## Built-in CRL publication
+
+Complete, direct X.509 v2 CRLs cover certificates issued by each built-in CA key. Their signatures use RSA/SHA-256; authorityKeyIdentifier matches the root's subjectKeyIdentifier and cRLNumber increases on every publication. Empty lists omit revokedCertificates. The DER profile follows [RFC 5280 section 5](https://www.rfc-editor.org/rfc/rfc5280.html#section-5); HTTP delivers `application/pkix-crl` as described in [RFC 2585](https://www.rfc-editor.org/rfc/rfc2585.html).
+
+The stable issuer-key ID is SHA-256 of the certificate's subjectPublicKey BIT STRING contents, excluding the unused-bits octet. The canonical survey URL contains this ID. Newly issued built-in project/TSA certificates carry it in the noncritical CRL distribution-points extension. Root certificates and external enrollments are unchanged. Same-key, same-subject/profile root renewal can retain the URL, counter and revoked serials; a different key has a different URL. Routine root renewal itself is still future work.
+
+A hidden system setting `crl_<issuer-key-id>` stores one versioned JSON snapshot: key ID, increasing integer number, thisUpdate, nextUpdate, complete revocation entries and base64 DER. Hexadecimal certificate serials are retained as strings, including 128-bit serials. The initial/current list is empty because administrative revocation is not implemented. The encoder supports keyCompromise, superseded and cessationOfOperation entries for that later workflow. A future revocation operation must durably block local use and publish the changed complete list promptly; waiting for daily cron is insufficient.
+
+Publication uses the shared configuration lock and a transaction covering the snapshot and public `pki_crl_publication` EM audit. Read-back uses the primary database rather than cached settings. The worker deduplicates same-key root versions, preserves prior entries/counters, and retains a prior snapshot on failure. Corrupt storage, a backward clock and number exhaustion fail rather than resetting the list. Retired but still-valid historical issuing keys continue to publish; expired historical roots retain their last snapshot and require the future lifecycle policy before further publication. An expired active issuer fails publication and alarms.
+
+The daily job issues lists valid for up to 72 hours, capped at root expiry. Public reads verify the cached signature against a known public root and match the signed content to the stored metadata. Missing/expired/future/corrupt lists are unavailable, never synthesized as empty lists. Success responses permit a five-minute HTTP cache bounded by nextUpdate; viewers may maintain their own caches. No private-key access occurs on public requests. Include these system settings in PKI backups: recovery must preserve published revoked serials and monotonic counters, and this version has no restoration reconciliation wizard.
+
+CRLs do not withdraw external trust in a self-signed root, implement OCSP, or embed revocation evidence into PDFs. Existing leaf certificates cannot be retrofitted with distribution URLs. See [administrator operation](ADMIN.md#built-in-certificate-revocation-lists).
 
 ## Trust boundary
 

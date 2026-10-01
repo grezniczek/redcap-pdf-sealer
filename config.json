@@ -32,6 +32,14 @@
             "method": "checkCertificateExpiry",
             "cron_frequency": 86400,
             "cron_max_run_time": 3600
+        },
+        {
+            "cron_name": "certificate_crls",
+            "cron_description": "Publish PDF Sealer built-in certificate revocation lists",
+            "tt_cron_description": "crl_cron_description",
+            "method": "publishCertificateRevocationLists",
+            "cron_frequency": 86400,
+            "cron_max_run_time": 300
         }
     ],
     "pdf-finalize": [

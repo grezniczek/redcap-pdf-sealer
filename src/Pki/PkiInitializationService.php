@@ -22,6 +22,7 @@ final class PkiInitializationService
         private readonly PkiHealthService $health,
         private readonly PkiInitializationLock $lock,
         ?callable $transactionQuery = null,
+        private readonly ?CrlRepository $crls = null,
     ) {
         $this->transactionQuery = $transactionQuery === null
             ? fn (string $sql): mixed => $this->framework->query($sql, [])
@@ -43,6 +44,8 @@ final class PkiInitializationService
             // Generate before opening the transaction; these objects remain memory-only until all checks pass.
             $root = $this->issuer->createRoot($organization);
             $tsa = $this->issuer->createTsa($organization, $root);
+            $crl = (new CrlIssuer())->issue($root, 1, time());
+            $crls = $this->crls ?? new CrlRepository($this->framework, new PrimarySystemSettingReader($this->framework));
             $this->transaction('START TRANSACTION');
             try {
                 $this->framework->setSystemSetting('organization', $organization);
@@ -51,6 +54,8 @@ final class PkiInitializationService
                 $tsaId = $this->identities->append('tsa', $tsa);
                 $this->identities->activate('tsa', $tsaId);
                 $this->identities->providers()->initialize($rootId, $tsaId);
+                $crls->save($root->certificateDer, $crl);
+                CrlPublicationService::audit($this->framework, $rootId, $crl);
                 if ($this->health->inspect(time())->status !== PkiHealth::Ready) {
                     throw new RuntimeException('Initialized PKI did not pass health checks');
                 }

@@ -113,7 +113,9 @@ function fixture(FakeFramework $framework): array
         }
         return true;
     };
-    $service = new PkiInitializationService($framework, $identities, $bindings, $issuer, $health, $lock, $transaction);
+    $service = new PkiInitializationService($framework, $identities, $bindings, $issuer, $health, $lock, $transaction,
+        new \DE\RUB\PDFSealerExternalModule\Pki\CrlRepository($framework,
+            new PrimarySystemSettingReader($framework, [$framework, 'getSystemSetting'])));
     return [$service, $health, $identities, $bindings, $issuer];
 }
 

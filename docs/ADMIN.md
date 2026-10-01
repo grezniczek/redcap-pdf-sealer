@@ -176,6 +176,18 @@ The page and its downloads use the survey endpoint; they do not require public A
 
 Distribute trust instructions through your institution's established channels. Recipients should verify the root fingerprint against an independently trusted source before trusting it. Downloading the root alone does not configure trust. See [validation findings](sealing-and-validation.md).
 
+### Built-in certificate revocation lists
+
+The public certificate page includes a CRL link for each built-in issuing key. Its survey URL is `/surveys/?pdf_sealer_crl=<issuer-key-id>`; it returns a signed DER CRL directly, without login, JavaScript, public API access, or a `NOAUTH` parameter. External CAs remain responsible for their own revocation services.
+
+The `certificate_crls` Framework cron refreshes complete lists once daily. Lists are valid for up to **72 hours**, limited by the issuing root's expiry. A newly initialized PKI publishes its first empty list during initialization. Existing installations receive their first list when cron runs. Normal module enable/update registers the job; Framework's **ExternalModuleValidation** job also discovers a newly added cron in a development checkout. Check that REDCap cron and the CRL job are enabled and running.
+
+Newly issued built-in project and TSA certificates include the CRL distribution URL. Existing certificates and previously sealed PDFs remain unchanged; they cannot acquire this extension retrospectively. The URL must remain stable and reachable from recipients' PDF viewers. Changing the REDCap survey address requires preserving the old endpoint for certificates that already contain it.
+
+Refresh failures preserve the previous committed list and raise `CRL_PUBLICATION_FAILED` in the Alarms tab, with the normal email throttle. An absent, expired, future-dated, or corrupt list returns HTTP 503; an unknown issuing key returns 404. Anonymous downloads never trigger issuance or read private keys.
+
+This is the publication foundation. **Manual revocation controls and automatic certificate replacement are not yet available**, so current lists are empty. Retirement and ordinary certificate renewal do not revoke a certificate. Publication neither establishes viewer trust nor makes a PDF LTV enabled. Viewer CRL caches can delay recognition of a subsequently published revocation. See [the CRL technical reference](pki.md#built-in-crl-publication).
+
 ## Troubleshooting
 
 | Finding | Action |
@@ -192,7 +204,7 @@ Distribute trust instructions through your institution's established channels. R
 
 ## Development and current limits
 
-Automatic renewal/rotation, revocation publication, and PAdES B-LT/B-LTA are not implemented. Plan certificate lifecycle and recovery before operational reliance; [PKI](pki.md) describes the stored material and current behavior.
+Automatic renewal/rotation, manual revocation controls, and PAdES B-LT/B-LTA are not implemented. Built-in CRL publication is available as described above. Plan certificate lifecycle and recovery before operational reliance; [PKI](pki.md) describes the stored material and current behavior.
 
 For implementation history, reproducible tests, acceptance evidence, and release packaging, see the repository's [developer documentation](https://github.com/grezniczek/redcap-pdf-sealer/tree/main/DEV_DOCS). It is intentionally excluded from installation packages; the linked development branch may be newer than your installed version. See also the [overview](../README.md) and [third-party notices](../THIRD_PARTY_NOTICES.md).
 

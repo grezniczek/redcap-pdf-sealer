@@ -51,7 +51,7 @@ The internal timestamp source stores its policy OID; there is currently no UI co
 | --- | --- |
 | Document has not been modified since certification | The viewer accepts the document integrity/certification check. Inspect trust and timestamp findings separately. |
 | Unknown or untrusted issuer | The verifier has not established trust in this installation's root. The embedded chain alone is insufficient. |
-| Revocation could not be checked | The verifier lacks satisfactory revocation evidence. PDF Sealer does not publish CRL/OCSP information. |
+| Revocation could not be checked | The verifier lacks satisfactory revocation evidence. Newly issued built-in project/TSA certificates point to the public CRL; older certificates lack that URL. Network reachability, viewer settings, trust, and the external CA/TSA matter. OCSP is not provided. |
 | Signature includes an embedded timestamp | A timestamp is present. Its trust and cryptographic validity still need verification. |
 | Not LTV enabled / validity ends at a certificate date | The viewer has not established long-term validation evidence. B-T alone does not promise indefinite validation. |
 | Document changed or signature invalid | Investigate integrity and validation details. This is not explained merely by an untrusted root. |

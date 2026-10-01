@@ -2,7 +2,7 @@
 
 ## Status and target — 2026-10-01
 
-**Design only; automatic maintenance and revocation are not implemented.** The user clarified that the built-in root CA, TSA and dependent project certificates must require no routine administrator renewal or rotation. This replaces the earlier proposal for manual TSA renewal, staged root activation and subsequent manual project renewals. See [current status](implementation_status.md) and the broader [provider design](provider_lifecycle_design.md).
+**Automatic maintenance and revocation controls are not implemented.** The [CRL publication foundation](implementation_status.md#built-in-crl-publication-foundation--2026-10-01) is implemented, including daily cached lists, a public survey endpoint and CDPs on newly issued built-in leaves. The user clarified that the built-in root CA, TSA and dependent project certificates must require no routine administrator renewal or rotation. This replaces the earlier proposal for manual TSA renewal, staged root activation and subsequent manual project renewals. See [current status](implementation_status.md) and the broader [provider design](provider_lifecycle_design.md).
 
 After initial setup, the module should generate, validate and deploy built-in replacements automatically through Framework cron. An administrator explicitly revokes an identity when necessary; replacement and deployment then run automatically. External CA enrollment and externally supplied certificates keep their required manual workflows. External TSA services maintain their own signing certificates.
 
@@ -80,7 +80,7 @@ Offer deliberate, confirmed CC revocation actions with public identity details, 
 
 A revoke request must durably record both the block and replacement work. A failed replacement cannot undo the block. External identities follow their external CA's revocation/re-enrollment process and must not trigger local substitution.
 
-A local block prevents future module use; it does **not** inform Acrobat that an already distributed certificate is revoked. CRL publication and certificate distribution-point extensions, or another supported revocation service, require an explicit implementation slice. Withdrawing a self-signed root's trust from external viewer stores also remains outside the module. Do not label a local stop as externally verifiable certificate revocation before the corresponding mechanism exists.
+A local block prevents future module use; it does **not** inform Acrobat that an already distributed certificate is revoked. The CRL publication foundation and distribution-point extensions are now implemented. The future revocation slice must connect durable local blocks to prompt complete-list publication and automatic replacement. Withdrawing a self-signed root's trust from external viewer stores also remains outside the module. Do not label a local stop as externally verifiable certificate revocation before the corresponding mechanism exists.
 
 Revocation reason matters for historical evidence. [RFC 3161, section 4](https://www.rfc-editor.org/rfc/rfc3161.html#section-4) describes compromised TSA keys as undermining tokens made with them. Automatic replacement restores future operation; it cannot repair previous tokens. Normal renewal must not automatically classify an old key as compromised.
 

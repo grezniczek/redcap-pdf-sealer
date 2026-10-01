@@ -37,6 +37,29 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             . '; notification: ' . $result['mail_status'];
     }
 
+    /** Framework cron: refresh signed, cached CRLs for built-in issuing keys. */
+    public function publishCertificateRevocationLists($cronInfo): string
+    {
+        $framework = $this->framework;
+        $settings = new PrimarySystemSettingReader($framework);
+        $protector = new SecretProtector();
+        try {
+            $result = (new \DE\RUB\PDFSealerExternalModule\Pki\CrlPublicationService(
+                $framework, new PublicTrustRepository(new PrimaryLogReader($framework), $settings),
+                new IdentityRepository($framework, $protector), $protector,
+                new \DE\RUB\PDFSealerExternalModule\Pki\CrlRepository($framework, $settings),
+                new \DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationLock(),
+            ))->run();
+            return 'PDF Sealer CRL publication: ' . $result['status'] . '; published: ' . $result['published'];
+        } catch (\Throwable) {
+            try {
+                (new AdminAlarmService($framework, new AlarmRepository($framework), new AlarmLock()))
+                    ->raise('CRL_PUBLICATION_FAILED', 'critical');
+            } catch (\Throwable) { /* Framework also records the safe cron failure below. */ }
+            throw new \RuntimeException('PDF Sealer CRL publication failed; inspect the CC Alarms tab');
+        }
+    }
+
     public static function publicTrustUrl(): string
     {
         return APP_PATH_SURVEY_FULL . '?' . self::PUBLIC_TRUST_QUERY;
@@ -54,9 +77,10 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
 
     public function redcap_every_page_before_render($project_id): void
     {
-        if ($project_id !== null
-            || ($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET'
-            || ($_SERVER['QUERY_STRING'] ?? '') !== self::PUBLIC_TRUST_QUERY) {
+        $query = $_SERVER['QUERY_STRING'] ?? '';
+        $isTrust = $query === self::PUBLIC_TRUST_QUERY;
+        $isCrl = preg_match('/^pdf_sealer_crl=([0-9a-f]{64})$/D', $query, $matches) === 1;
+        if ($project_id !== null || ($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET' || (!$isTrust && !$isCrl)) {
             return;
         }
 
@@ -67,10 +91,16 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             return;
         }
 
-        define('PDF_SEALER_PUBLIC_TRUST_ROUTE', true);
         $module = $this;
-		$module->exitAfterHook();
-        require __DIR__ . '/trust.php';
+        $module->exitAfterHook();
+        if ($isCrl) {
+            define('PDF_SEALER_PUBLIC_CRL_ROUTE', true);
+            $crlKeyId = $matches[1];
+            require __DIR__ . '/crl.php';
+        } else {
+            define('PDF_SEALER_PUBLIC_TRUST_ROUTE', true);
+            require __DIR__ . '/trust.php';
+        }
     }
 
     public function redcap_module_link_check_display($project_id, $link)

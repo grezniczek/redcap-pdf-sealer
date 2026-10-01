@@ -94,6 +94,10 @@ header('Cache-Control: no-store');
                     </dl>
                     <button type="button" data-root-id="<?= $escape($root['id']) ?>" data-root-format="pem"><?= $escape($framework->tt('trust_download_pem')) ?></button>
                     <button type="button" data-root-id="<?= $escape($root['id']) ?>" data-root-format="der"><?= $escape($framework->tt('trust_download_der')) ?></button>
+                    <?php if (!isset($root['provider_name'])): ?>
+                        <p><a href="<?= $escape(\DE\RUB\PDFSealerExternalModule\Pki\CrlIssuer::url(APP_PATH_SURVEY_FULL, $root['der'])) ?>"><?= $escape($framework->tt('trust_crl_download')) ?></a></p>
+                        <p><?= $escape($framework->tt('trust_crl_help')) ?></p>
+                    <?php endif; ?>
                 </section>
             <?php endforeach; ?>
             <p id="trust-download-message" class="notice error" role="status" hidden></p>

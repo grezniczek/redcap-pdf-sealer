@@ -51,7 +51,7 @@ CONFIG;
     private Closure $reserveSerial;
 
     /** @param callable(string,?string):int $reserveSerial Used only on PHP 8.2/8.3. */
-    public function __construct(callable $createTempFile, callable $reserveSerial)
+    public function __construct(callable $createTempFile, callable $reserveSerial, private readonly ?string $surveyUrl = null)
     {
         $this->createTempFile = Closure::fromCallable($createTempFile);
         $this->reserveSerial = Closure::fromCallable($reserveSerial);
@@ -59,7 +59,8 @@ CONFIG;
 
     public static function forFramework(object $framework, string $purpose = 'issuance'): self
     {
-        return new self([$framework, 'createTempFile'], [new CertificateSerialAllocator($framework, $purpose), 'reserve']);
+        return new self([$framework, 'createTempFile'], [new CertificateSerialAllocator($framework, $purpose), 'reserve'],
+            defined('APP_PATH_SURVEY_FULL') ? APP_PATH_SURVEY_FULL : null);
     }
 
     public function createRoot(string $organization): GeneratedIdentity
@@ -166,7 +167,14 @@ CONFIG;
             throw new RuntimeException('Unable to create temporary OpenSSL configuration');
         }
         try {
-            if (file_put_contents($configPath, self::OPENSSL_CONFIG) === false) {
+            $config = self::OPENSSL_CONFIG;
+            if ($issuer !== null && $this->surveyUrl !== null) {
+                $url = CrlIssuer::url($this->surveyUrl, $issuer->certificateDer);
+                // Both built-in leaf profiles carry the same complete-CRL distribution point.
+                $config = str_replace(['[tsa_ext]', '[project_ext]'],
+                    ["[tsa_ext]\ncrlDistributionPoints = URI:$url", "[project_ext]\ncrlDistributionPoints = URI:$url"], $config);
+            }
+            if (file_put_contents($configPath, $config) === false) {
                 throw new RuntimeException('Unable to write temporary OpenSSL configuration');
             }
             $options = ['config' => $configPath, 'digest_alg' => 'sha256'];
