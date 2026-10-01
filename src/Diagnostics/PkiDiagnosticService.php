@@ -31,10 +31,11 @@ final readonly class PkiDiagnosticService
         private \DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationLock $configurationLock = new \DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationLock(),
     ) {}
 
-    /** @return array{passed: bool, checks: array<string, string>} Only fixed identifiers leave this service. */
+    /** Only fixed outcomes and public identity/policy versions leave this service. */
     public function run(): array
     {
         $checks = [];
+        $versions = ['root' => null, 'tsa' => null, 'tsa_issuer' => null, 'tsa_policy' => null];
         $step = static function (string $id, bool $enabled, callable $work) use (&$checks): mixed {
             $checks[$id] = 'skipped';
             if (!$enabled) { return null; }
@@ -53,20 +54,24 @@ final readonly class PkiDiagnosticService
                 throw new RuntimeException('Encryption round-trip failed');
             }
         });
-        $health = (new PkiHealthService($this->identities, $this->protector))->inspect(time());
-        $root = $step('root', true, function () use ($health) {
-            if (!in_array($health->status, [PkiHealth::Ready, PkiHealth::Degraded], true)) {
+        $root = $step('root', true, function () use (&$versions) {
+            $versions['root'] = $this->identities->activeId('root');
+            $health = new PkiHealthService($this->identities, $this->protector);
+            if ($versions['root'] === null || $health->inspectIssuance($versions['root'], time())->status !== PkiHealth::Ready) {
                 throw new RuntimeException('Root is not ready');
             }
-            $root = $this->identities->find($this->identities->activeId('root'));
+            $root = $this->identities->find($versions['root']);
             if ($root === null || $root->role !== 'root') { throw new RuntimeException('Root unavailable'); }
             return $root->asGeneratedIdentity($this->protector);
         });
         $timestampSource = null;
-        $tsa = $step('tsa', true, function () use (&$timestampSource) {
+        $tsa = $step('tsa', true, function () use (&$timestampSource, &$versions) {
             $sourceId = \DE\RUB\PDFSealerExternalModule\Pki\ProviderRepository::BUILTIN_TSA;
             $health = new PkiHealthService($this->identities, $this->protector);
             $timestampSource = $this->identities->providers()->source($sourceId);
+            $versions['tsa'] = $timestampSource['identity_id'];
+            $versions['tsa_issuer'] = $timestampSource['issuer_identity_id'];
+            $versions['tsa_policy'] = $timestampSource['policy_oid'];
             return $health->captureTimestamp($timestampSource, time());
         });
         $signer = $step('signer', $root !== null, function () use ($root) {
@@ -106,7 +111,7 @@ final readonly class PkiDiagnosticService
             }
             $verifier->verify($sample, $sealed->pdf, $signer->certificateDer, $tsa->certificateDer);
         });
-        return ['passed' => count(array_filter($checks, static fn(string $status): bool => $status !== 'passed')) === 0, 'checks' => $checks];
+        return ['passed' => count(array_filter($checks, static fn(string $status): bool => $status !== 'passed')) === 0, 'checks' => $checks, 'versions' => $versions];
     }
 
     public static function samplePdf(): string

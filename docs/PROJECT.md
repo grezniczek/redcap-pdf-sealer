@@ -26,7 +26,7 @@ The project certificate is created on first sealing use. An unissued certificate
 
 ## Renewing a project certificate
 
-A CC administrator can explicitly renew an existing built-in signing certificate, including one that has expired. Contact your administrator before expiry warnings become sealing failures. Renewal creates a fresh key/certificate while preserving your project UUID, CA assignment, and history. Refresh the status page after renewal to see the new fingerprint. Opening the page or creating a PDF never renews a certificate automatically.
+An hourly maintenance job automatically renews existing built-in signing certificates near expiry, or after expiry when catching up after downtime. Renewal uses a fresh key/certificate while preserving your project UUID, CA assignment and history. A CC administrator can also renew manually. Refresh the status page to see the new fingerprint. Opening the page or creating a PDF does not trigger renewal. Contact your administrator if expiry warnings persist: pending enrollment/provider changes, a retired CA or an unusable root can defer or prevent automatic renewal. Externally issued certificates still require the CSR replacement workflow.
 
 External CA projects obtain a replacement through the CSR workflow described below. Previously sealed PDFs keep their original certificates and signatures.
 

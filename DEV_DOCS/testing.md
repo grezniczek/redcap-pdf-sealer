@@ -23,6 +23,7 @@ php tests/pki_initialization.php
 php tests/crl.php
 php tests/project_identity.php
 php tests/project_renewal.php
+php tests/builtin_maintenance.php
 php tests/admin_alarms.php
 php tests/expiry_monitor.php
 php tests/pki_admin_ajax.php
@@ -320,3 +321,19 @@ Passed on PHP 8.2.34 and 8.5.11. The suite uses disposable identities and fake t
 - TSA or issuing-chain expiry before token creation rejects the response.
 
 Existing `tests/pki_primitives.php`, `tests/pki_diagnostic.php`, `tests/timestamp_alternatives.php`, `tests/project_renewal.php` and `tests/crl.php` also pass on both runtimes. These tests establish the issuance and capture prerequisites; automatic renewal, revocation boundaries and diagnostic version tracking require their own coverage when implemented.
+
+## Automatic built-in leaf maintenance — 2026-10-01
+
+Run `php8.2 tests/builtin_maintenance.php` and `php tests/builtin_maintenance.php` from the module root. Both pass on PHP 8.2.34/8.5.11. The suite reuses manual renewal/enrollment fixtures, adds synthetic expired/due built-in certificates, and drives the real maintenance service and finalizer. No REDCap bootstrap, live database mutation or external HTTP request is used.
+
+Coverage includes the exact 90-day boundary and insufficient issuer window; expired TSA/project recovery; six due projects processed across bounded runs; enabled priority and retained disabled-project maintenance; fresh public keys and stable UUID/provider/history; idempotency; atomic TSA pointer/source/audit and project commit rollback; exponential retry and recovery; competing worker refusal and mutation lock ownership; preservation of pending CSR/provider changes; retired project CA with independent TSA maintenance; expired external signer and unissued-project isolation; deadline refusal; immutable diagnostic cache with changed-version detection; and the public cron entry on uninitialized PKI without a human session. Missing existing root pointers fail without resetting storage.
+
+The original expired-fixture run revealed that backdating leaves before their newly minted issuer was invalid. The corrected disposable issuer has a historically valid start date. The suite also caught request-start time being too early for a newly generated TSA; production sample checks now obtain current time after generation.
+
+For browser acceptance:
+
+1. Let Framework **ExternalModuleValidation** discover `certificate_maintenance`, or refresh cron registration through the normal module workflow. The read-only devctl check initially showed only the existing expiry/CRL jobs; the hourly maintenance job had not yet been registered.
+2. After a maintenance run, open **Alarms → Automatic built-in certificate maintenance** and confirm the status, local/profile-formatted run time and counts. Existing long-lived identities should remain unchanged.
+3. Open **Diagnostic**. An older snapshot may warn that it lacks version evidence. Run the diagnostic, refresh, and confirm the warning clears while the saved result/time persists.
+
+Forced expiry/rotation and new-pair B-T sealing are covered by disposable tests. Do not change the live clock or shorten live certificates to trigger acceptance. Live automatic replacement itself has not been reported as browser/Acrobat verified.

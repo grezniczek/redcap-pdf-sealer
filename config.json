@@ -26,6 +26,14 @@
     "no-auth-ajax-actions": ["download_public_root_certificate"],
     "crons": [
         {
+            "cron_name": "certificate_maintenance",
+            "cron_description": "Renew PDF Sealer built-in TSA and project certificates",
+            "tt_cron_description": "maintenance_cron_description",
+            "method": "maintainBuiltinCertificates",
+            "cron_frequency": 3600,
+            "cron_max_run_time": 300
+        },
+        {
             "cron_name": "certificate_expiry",
             "cron_description": "Check PDF Sealer certificate expiry and send advance alarms",
             "tt_cron_description": "expiry_cron_description",

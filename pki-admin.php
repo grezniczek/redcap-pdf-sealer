@@ -143,6 +143,14 @@ $snapshot = null;
 $snapshotUnavailable = false;
 try { $snapshot = (new DiagnosticSnapshot($framework))->load(); }
 catch (Throwable) { $snapshotUnavailable = true; }
+if ($snapshot !== null) {
+    try { $snapshot['versions_changed'] = DiagnosticSnapshot::versionsChanged($snapshot, DiagnosticSnapshot::currentVersions($identities)); }
+    catch (Throwable) { $snapshot['versions_changed'] = true; }
+}
+$maintenanceSnapshot = null;
+$maintenanceUnavailable = false;
+try { $maintenanceSnapshot = \DE\RUB\PDFSealerExternalModule\Pki\BuiltinMaintenanceService::load($settings); }
+catch (Throwable) { $maintenanceUnavailable = true; }
 $expirySnapshot = null;
 $expiryUnavailable = false;
 try { $expirySnapshot = ExpiryMonitor::load($framework); }
@@ -377,6 +385,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
         <time id="pdf-sealer-diagnostic-time" class="d-block small"></time>
         <div id="pdf-sealer-diagnostic-outcome" class="mt-2"></div>
     </div>
+    <div id="pdf-sealer-diagnostic-versions" class="alert alert-warning mt-2" role="status" hidden><?= $escape($framework->tt('diagnostic_versions_changed')) ?></div>
     <p class="small text-muted"><?= $escape($framework->tt('diagnostic_snapshot_help')) ?></p>
     <div id="pdf-sealer-diagnostic-cache-message" class="alert alert-warning" role="status" hidden></div>
     <button id="pdf-sealer-diagnostic" type="button" class="btn btn-primaryrc btn-sm"><?= $escape($framework->tt('diagnostic_run')) ?></button>
@@ -391,6 +400,25 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
     </table>
     </section>
     <section class="pdf-sealer-panel" id="pki-panel-alarms" role="tabpanel" aria-labelledby="pki-tab-alarms" tabindex="0" hidden>
+    <h5><?= $escape($framework->tt('maintenance_title')) ?></h5>
+    <p class="text-muted"><?= $escape($framework->tt('maintenance_help')) ?></p>
+    <?php if ($maintenanceUnavailable): ?>
+        <p class="alert alert-warning"><?= $escape($framework->tt('maintenance_unavailable')) ?></p>
+    <?php elseif ($maintenanceSnapshot === null): ?>
+        <p class="text-muted"><?= $escape($framework->tt('maintenance_never')) ?></p>
+    <?php else: ?>
+        <?php if (time() - $maintenanceSnapshot['completed_at'] > 7200): ?>
+            <p class="alert alert-warning"><?= $escape($framework->tt('maintenance_stale')) ?></p>
+        <?php endif; ?>
+        <div class="pdf-sealer-card mb-3">
+            <strong class="<?= $maintenanceSnapshot['status'] === 'failed' ? 'text-danger' : ($maintenanceSnapshot['status'] === 'pending' ? 'text-warning' : 'text-success') ?>"><?= $escape($framework->tt('maintenance_status_' . $maintenanceSnapshot['status'])) ?></strong>
+            <time class="d-block small text-muted" data-expiry-epoch="<?= $maintenanceSnapshot['completed_at'] ?>"><?= $escape(gmdate('c', $maintenanceSnapshot['completed_at'])) ?></time>
+            <div><?= $escape($framework->tt('maintenance_counts', [
+                'renewed' => $maintenanceSnapshot['renewed'], 'deferred' => $maintenanceSnapshot['deferred'],
+                'failed' => $maintenanceSnapshot['failed'], 'remaining' => $maintenanceSnapshot['remaining'],
+            ])) ?></div>
+        </div>
+    <?php endif; ?>
     <h5><?= $escape($framework->tt('expiry_title')) ?></h5>
     <p class="text-muted"><?= $escape($framework->tt('expiry_help')) ?></p>
     <?php if ($expiryUnavailable || $expirySnapshot === null): ?>
@@ -780,6 +808,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
     };
     const renderSnapshot = () => {
         if (!snapshot) return;
+        document.getElementById('pdf-sealer-diagnostic-versions').hidden = snapshot.versions_changed !== true;
         const seconds = serverEpoch + (Date.now() - loadedAt) / 1000 - snapshot.completed_at;
         const days = Math.floor(Math.max(0, seconds) / 86400);
         const future = seconds < -60;

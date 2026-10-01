@@ -13,7 +13,7 @@ final class CertificateSerialAllocator
 
     public function __construct(private object $framework, private string $purpose = 'issuance')
     {
-        if (!in_array($purpose, ['issuance', 'diagnostic'], true)) {
+        if (!in_array($purpose, ['issuance', 'diagnostic', 'maintenance'], true)) {
             throw new RuntimeException('Invalid certificate reservation purpose');
         }
     }

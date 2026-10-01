@@ -60,6 +60,44 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
         }
     }
 
+    /** Framework cron: renew existing built-in leaves without a human session or project assignment. */
+    public function maintainBuiltinCertificates($cronInfo): string
+    {
+        $framework = $this->framework;
+        $settings = new PrimarySystemSettingReader($framework);
+        $protector = new SecretProtector();
+        $identities = new IdentityRepository($framework, $protector);
+        $bindings = new \DE\RUB\PDFSealerExternalModule\Pki\ProjectBindingRepository($framework);
+        $health = new PkiHealthService($identities, $protector);
+        $issuer = CertificateIssuer::forFramework($framework, 'maintenance');
+        $projectLock = new \DE\RUB\PDFSealerExternalModule\Pki\ProjectIssueLock();
+        $configurationLock = new \DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationLock();
+        $projects = new \DE\RUB\PDFSealerExternalModule\Pki\ProjectIdentityService(
+            $bindings, $identities, $protector, $issuer, $health, $projectLock, $configurationLock,
+        );
+        $enrollment = new \DE\RUB\PDFSealerExternalModule\Pki\ProjectEnrollmentService(
+            $framework, $bindings, $identities->providers(), $protector, $projectLock, $settings, $identities, $configurationLock,
+        );
+        $renewal = new \DE\RUB\PDFSealerExternalModule\Pki\ProjectRenewalService(
+            $framework, $bindings, $identities, $enrollment, $projects, $health, $projectLock, $configurationLock,
+        );
+        $alarms = new AdminAlarmService($framework, new AlarmRepository($framework), new AlarmLock());
+        try {
+            $result = (new \DE\RUB\PDFSealerExternalModule\Pki\BuiltinMaintenanceService(
+                $framework, $identities, $bindings, $protector, $issuer, $health, $renewal,
+                $configurationLock, new AlarmLock(), $alarms, $settings,
+            ))->run();
+        } catch (\Throwable) {
+            try { $alarms->raise('BUILTIN_MAINTENANCE_FAILED', 'critical'); } catch (\Throwable) {}
+            throw new \RuntimeException('PDF Sealer maintenance failed; inspect the CC Alarms tab');
+        }
+        if ($result['status'] === 'failed') {
+            throw new \RuntimeException('PDF Sealer maintenance failed; inspect the CC Alarms tab');
+        }
+        return 'PDF Sealer maintenance: ' . $result['status'] . '; renewed: ' . $result['renewed']
+            . '; deferred: ' . $result['deferred'] . '; remaining: ' . $result['remaining'];
+    }
+
     public static function publicTrustUrl(): string
     {
         return APP_PATH_SURVEY_FULL . '?' . self::PUBLIC_TRUST_QUERY;
@@ -334,6 +372,10 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             );
             $result = $service->run();
             $completedAt = time();
+            try {
+                $result['versions_changed'] = DiagnosticSnapshot::versionsChanged($result,
+                    DiagnosticSnapshot::currentVersions(new IdentityRepository($this->framework, $protector)));
+            } catch (\Throwable) { $result['versions_changed'] = true; }
             $saved = true;
             try {
                 (new DiagnosticSnapshot($this->framework))->save($result, $completedAt);

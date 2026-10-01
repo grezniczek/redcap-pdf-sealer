@@ -106,6 +106,8 @@ try {
     $diagnosticResult = $diagnostic->run();
     $f->onSettingRead = null;
     check($diagnosticResult['passed'] && $diagnosticReads === 1, 'Diagnostic re-read/mixed the TSA policy or identity');
+    check($diagnosticResult['versions'] === ['root'=>$rootAId,'tsa'=>$tsaAId,'tsa_issuer'=>$rootAId,'tsa_policy'=>$sourceA['policy_oid']],
+        'Diagnostic versions described later configuration rather than the identities actually tested');
     $bad = $sourceA; $bad['issuer_identity_id'] = $rootBId;
     rejects(fn() => $health->captureTimestamp($bad, time()));
     // An earlier request clock must not date a token before its newly captured TSA certificate.

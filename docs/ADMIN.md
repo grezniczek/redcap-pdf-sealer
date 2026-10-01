@@ -134,7 +134,7 @@ On **Root CA → Renew built-in project certificate**, choose an enabled project
 
 Existing identity history and previously sealed PDFs are retained. Subsequent seals use the replacement; a seal already in progress may finish with its previous signer. Failure before commit leaves the original binding intact. A changed signer/issuer, retirement, or pending work invalidates a review. If the browser request is interrupted, inspect the saved project certificate before retrying: the transaction may already have committed.
 
-Only CC administrators can renew through authenticated AJAX. The audit records the actor, project, provider, and old/new public identity references and fingerprints. Page refresh, sealing, and expiry monitoring never trigger renewal. Automatic renewal and root/TSA rotation are separate future work.
+Only CC administrators can manually renew through authenticated AJAX. The audit records the actor, project, provider, and old/new public identity references and fingerprints. Page refresh, sealing, and expiry monitoring never trigger renewal. The hourly [maintenance cron](#automatic-built-in-certificate-maintenance) automatically renews existing built-in TSA/project certificates separately.
 
 ## Diagnostic: capability check and saved result
 
@@ -142,7 +142,7 @@ Only CC administrators can renew through authenticated AJAX. The audit records t
 
 The test uses temporary identities and sample PDFs. It does not create a project certificate, write project sealing logs, change sealing settings, or send alarm emails. It saves a small summary of its completion time and fixed check outcomes. On PHP 8.2/8.3, temporary signer issuance also adds a system-scoped serial reservation containing its role, issuing-root fingerprint, and diagnostic purpose; no test certificate or private key is stored.
 
-The last completed result remains visible after refresh, with its timestamp in the browser's local time zone (including the zone label) and its age. The timestamp follows your REDCap profile's date/time format, including date order, separators, and 12/24-hour clock; REDCap's system default applies when no profile preference is set. Certificate validity dates remain in UTC. Passing results are green for the first 24 hours, neutral until day 7, then increasingly red at 7, 14, and 30 days. Failed results stay red. These colors describe a historical result's age and outcome; they are not continuous monitoring. Rerun after relevant configuration or certificate changes.
+The last completed result remains visible after refresh, with its timestamp in the browser's local time zone (including the zone label) and its age. The timestamp follows your REDCap profile's date/time format, including date order, separators, and 12/24-hour clock; REDCap's system default applies when no profile preference is set. Certificate validity dates remain in UTC. Passing results are green for the first 24 hours, neutral until day 7, then increasingly red at 7, 14, and 30 days. Failed results stay red. These colors describe a historical result's age and outcome; they are not continuous monitoring. Rerun after relevant configuration or certificate changes. Saved diagnostics record the exact root, TSA, issuing root and policy tested; a warning appears when those versions differ from current configuration, or an older result lacks version information. The original run time and outcomes stay unchanged.
 
 Failed checks replace the previous completed result too. If the diagnostic cannot complete, the previous result remains. If saving fails, the page identifies the new result as unsaved.
 
@@ -156,7 +156,19 @@ A test message is clearly labeled as a test. Successful submission means REDCap 
 
 During sealing, actionable PKI health problems create system-scoped alarm entries and can trigger email. Repeated successful notifications for the same condition/identity are limited to one per hour. Failed or unconfigured delivery does not start the throttle. These sealing-time alarms contain diagnostic identifiers and time. Not every sealing failure sends an alarm: also review project Logging and detailed failure entries.
 
-### Scheduled certificate expiry checks
+### Automatic built-in certificate maintenance
+
+The hourly `certificate_maintenance` Framework cron renews the built-in TSA and **existing** built-in project signers when they enter the 90-day expiry window or use a previous issuing-root generation. It generates fresh keys, preserves project UUIDs and CA assignments, and retains historical identities. Normal module enable/update registers the job; Framework's **ExternalModuleValidation** job also discovers newly added crons in a development checkout. REDCap cron and this job must be enabled and running.
+
+Each run renews the TSA if due, then starts at most five project renewals within a 60-second work budget. Already started work is allowed to finish; lock waits and generation can extend the run. Enabled projects take priority, then earliest expiry. Existing signers in temporarily disabled projects are maintained without enabling their module. The next run catches up after downtime. No certificates or assignments are created for projects without an active binding, and external certificates are never replaced with built-in identities.
+
+Pending enrollment/provider changes and retired CAs defer project renewal. The built-in TSA continues to be maintained independently of CA retirement because external providers may use it. Failures retain prior references, alarm, and retry after one hour, doubling to a maximum of 24 hours; a changed identity or root generation bypasses obsolete backoff. Deferred projects retry hourly. An expired identity remains unusable until replacement succeeds.
+
+**Alarms → Automatic built-in certificate maintenance** shows the last result, run time, renewal/deferred/failure counts and work awaiting another run or retry. A result over two hours old is flagged. Lifecycle audits use a system actor and public identity references; maintenance does not create a per-PDF project Logging entry. Daily expiry checks remain separate and can report a certificate whose maintenance is deferred or failing.
+
+**Root renewal and manual revocation are still future work.** Cron never resets missing/corrupt PKI. A root that is expired, unusable or has less than 91 days remaining cannot support this leaf maintenance; the worker reports failure rather than issuing a replacement already within its renewal window. Completion of automatic root maintenance is needed before built-in PKI can be considered fully maintenance free.
+
+## Scheduled certificate expiry checks
 
 The **Alarms** tab also shows the latest daily certificate expiry scan. It checks active registered external CA chains, the configured root/TSA, each project's latest active signer, and their referenced issuing certificates. Issued identities in disabled projects remain monitored. Historical signers that are no longer active are excluded, while an old or retired CA still referenced by an active signer remains included. Retired CAs with no active signer or TSA dependency are excluded from routine expiry alarms. Shared issuing certificates are counted once.
 
@@ -166,7 +178,7 @@ Configured recipients receive one summary rather than one email per certificate.
 
 The module declares the `certificate_expiry` Framework cron with a 24-hour interval. REDCap cron must be running, and the job must be registered/enabled. After adding this cron to an existing development version, refresh its cron registration; normal module enable/update registers it. A missing result or a result older than 48 hours is visibly flagged. Scheduling depends on REDCap cron availability, so the interval is not a guaranteed wall-clock delivery time.
 
-These are public-certificate date checks, not key, chain, revocation, or remote-service validation. They neither issue nor renew certificates. Arrange replacement before expiry: CC administrators can manually renew built-in project certificates, and external projects can prepare and activate a replacement through enrollment. Automatic renewal and root/TSA rotation are not available.
+These are public-certificate date checks, not key, chain, revocation, or remote-service validation. They neither issue nor renew certificates. Built-in TSA/project renewal is handled by the separate hourly maintenance job; a CC administrator can also manually renew a built-in project certificate. External projects require replacement through enrollment. Automatic root renewal remains future work.
 
 ## Public certificates and trust
 
@@ -186,7 +198,7 @@ Newly issued built-in project and TSA certificates include the CRL distribution 
 
 Refresh failures preserve the previous committed list and raise `CRL_PUBLICATION_FAILED` in the Alarms tab, with the normal email throttle. An absent, expired, future-dated, or corrupt list returns HTTP 503; an unknown issuing key returns 404. Anonymous downloads never trigger issuance or read private keys.
 
-This is the publication foundation. **Manual revocation controls and automatic certificate replacement are not yet available**, so current lists are empty. Retirement and ordinary certificate renewal do not revoke a certificate. Publication neither establishes viewer trust nor makes a PDF LTV enabled. Viewer CRL caches can delay recognition of a subsequently published revocation. See [the CRL technical reference](pki.md#built-in-crl-publication).
+This is the publication foundation. **Manual revocation controls and automatic root replacement are not yet available**, so current lists are empty. Retirement and ordinary certificate renewal do not revoke a certificate. Publication neither establishes viewer trust nor makes a PDF LTV enabled. Viewer CRL caches can delay recognition of a subsequently published revocation. See [the CRL technical reference](pki.md#built-in-crl-publication).
 
 ## Troubleshooting
 
@@ -195,7 +207,7 @@ This is the publication foundation. **Manual revocation controls and automatic c
 | No sealing activity | Check document type, module enablement, operation assignment/order, and that the active Core/Framework installation supports finalization. |
 | PKI uninitialized | Complete one-time setup on Root CA. |
 | PKI degraded | Inspect TSA details, run the diagnostic, and check the timestamp/fallback choice. A usable root can still support B-B. |
-| PKI broken | Investigate root records, validity, encryption availability, and key/certificate consistency. No automatic replacement occurs. |
+| PKI broken | Investigate root records, validity, encryption availability, and key/certificate consistency. No automatic root replacement or storage repair occurs. |
 | Project certificate incomplete, expired, or unusable | Inspect the project status and failure details. Viewing the page will not renew or repair it. |
 | PDF seal failed | Use the project Logging reference to locate its corresponding system-scoped `seal_event` EM log entry. Record/event IDs are associated when supplied. |
 | B-B timestamp fallback | Check TSA health, settings, and the diagnostic. An intact B-B seal has no embedded timestamp. |
@@ -204,7 +216,7 @@ This is the publication foundation. **Manual revocation controls and automatic c
 
 ## Development and current limits
 
-Automatic renewal/rotation, manual revocation controls, and PAdES B-LT/B-LTA are not implemented. Built-in CRL publication is available as described above. Plan certificate lifecycle and recovery before operational reliance; [PKI](pki.md) describes the stored material and current behavior.
+Automatic root renewal, manual revocation controls, and PAdES B-LT/B-LTA are not implemented. Hourly built-in TSA/project renewal is available. Built-in CRL publication is available as described above. Plan certificate lifecycle and recovery before operational reliance; [PKI](pki.md) describes the stored material and current behavior.
 
 For implementation history, reproducible tests, acceptance evidence, and release packaging, see the repository's [developer documentation](https://github.com/grezniczek/redcap-pdf-sealer/tree/main/DEV_DOCS). It is intentionally excluded from installation packages; the linked development branch may be newer than your installed version. See also the [overview](../README.md) and [third-party notices](../THIRD_PARTY_NOTICES.md).
 
@@ -214,7 +226,7 @@ Pending enrollment is stored separately from active identities in system-scoped 
 
 Cancellation removes the encrypted pending key and CSR from active settings and retains only public audit identifiers/fingerprints. It cannot erase older backups or database recovery history. Restore keys and their related project/provider/CSR state consistently. A stale browser request cannot download or cancel a different, newer enrollment. Corrupt or mismatched pending storage is reported as unavailable and is not silently replaced.
 
-There is no project-key export, private-key import, automatic renewal, or cancellation-recovery UI. See the [project CSR workflow](PROJECT.md#generate-and-download-a-csr).
+For external certificates, there is no project-key export, private-key import, automatic renewal, or cancellation-recovery UI. See the [project CSR workflow](PROJECT.md#generate-and-download-a-csr).
 
 ### External certificate acceptance and signing
 

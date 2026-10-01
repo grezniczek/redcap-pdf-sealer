@@ -8,7 +8,7 @@ use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certifi
 use RuntimeException;
 use Throwable;
 
-/** Explicit same-provider built-in renewal; no automatic issuance or key export. */
+/** Same-provider built-in renewal for CC review or bounded cron; no key export. */
 final class ProjectRenewalService
 {
     public function __construct(
@@ -35,36 +35,66 @@ final class ProjectRenewalService
             if (!hash_equals($view['review_hash'], $reviewHash)) {
                 throw new RuntimeException('Renewal state changed; review again');
             }
-            if ($this->framework->query('START TRANSACTION', []) === false) {
-                throw new RuntimeException('Renewal transaction unavailable');
-            }
-            try {
-                $identity = $this->projects->issueBuiltinReplacement($view['uuid'], $view['provider_id']);
-                $this->bindings->replace($pid, $view['uuid'], $view['identity_id'], $identity->id);
-                $fingerprint = hash('sha256', $identity->certificateDer);
-                $id = $this->framework->log('project_certificate_renewal', [
-                    'project_id' => null, 'record' => '', 'redcap_pid' => (string) $pid,
-                    'project_uuid' => $view['uuid'], 'provider_id' => $view['provider_id'],
-                    'previous_identity_id' => $view['identity_id'], 'identity_id' => $identity->id,
-                    'previous_certificate_sha256' => $view['certificate']['fingerprint'],
-                    'certificate_sha256' => $fingerprint, 'issuer_identity_id' => $view['issuer_identity_id'],
-                    'actor' => $this->framework->getUser()->getUsername(),
-                ]);
-                if ((!is_int($id) && !ctype_digit((string) $id)) || (int) $id < 1) {
-                    throw new RuntimeException('Renewal audit failed');
-                }
-                if ($this->framework->query('COMMIT', []) === false) { throw new RuntimeException('Renewal commit failed'); }
-                return ['identity_id' => $identity->id, 'fingerprint' => $fingerprint];
-            } catch (Throwable $e) {
-                $this->framework->query('ROLLBACK', []);
-                throw $e;
-            }
+            return $this->activateReplacement($pid, $view, $this->framework->getUser()->getUsername(), 'manual');
         });
     }
 
-    private function snapshot(int $pid): array
+    /** Cron entry: no human review/session; recheck eligibility under the same locks as CC renewal. */
+    public function renewAutomatically(int $pid, int $now): string
     {
-        if (!in_array($pid, array_map('intval', $this->framework->getProjectsWithModuleEnabled()), true)) {
+        return $this->withLocks($pid, function () use ($pid, $now): string {
+            $now = max($now, time());
+            $binding = $this->bindings->find($pid);
+            if ($binding === null || $binding->identityId === null || $binding->providerId !== ProviderRepository::BUILTIN_CA) {
+                return 'skipped';
+            }
+            if ($binding->pendingProviderId !== null || $this->enrollment->inspect($pid) !== null
+                || $this->identities->providers()->isRetired($binding->providerId)) {
+                return 'deferred';
+            }
+            $view = $this->snapshot($pid, false, $now);
+            $identity = $this->identities->find($view['identity_id']);
+            if (!LeafRenewalPolicy::due($view['certificate']['valid_until'], $identity->issuerId, $view['issuer_identity_id'], $now)) {
+                return 'skipped';
+            }
+            LeafRenewalPolicy::assertIssuerWindow($view['issuer_valid_until'], $now);
+            $this->projects->assertReplacementProvenance($identity);
+            $this->activateReplacement($pid, $view, 'system:cron', 'automatic');
+            return 'renewed';
+        });
+    }
+
+    private function activateReplacement(int $pid, array $view, string $actor, string $reason): array
+    {
+        if ($this->framework->query('START TRANSACTION', []) === false) {
+            throw new RuntimeException('Renewal transaction unavailable');
+        }
+        try {
+            $identity = $this->projects->issueBuiltinReplacement($view['uuid'], $view['provider_id']);
+            $this->bindings->replace($pid, $view['uuid'], $view['identity_id'], $identity->id);
+            $fingerprint = hash('sha256', $identity->certificateDer);
+            $id = $this->framework->log('project_certificate_renewal', [
+                'project_id' => null, 'record' => '', 'redcap_pid' => (string) $pid,
+                'project_uuid' => $view['uuid'], 'provider_id' => $view['provider_id'],
+                'previous_identity_id' => $view['identity_id'], 'identity_id' => $identity->id,
+                'previous_certificate_sha256' => $view['certificate']['fingerprint'],
+                'certificate_sha256' => $fingerprint, 'issuer_identity_id' => $view['issuer_identity_id'],
+                'actor' => $actor, 'reason' => $reason,
+            ]);
+            if ((!is_int($id) && !ctype_digit((string) $id)) || (int) $id < 1) {
+                throw new RuntimeException('Renewal audit failed');
+            }
+            if ($this->framework->query('COMMIT', []) === false) { throw new RuntimeException('Renewal commit failed'); }
+            return ['identity_id' => $identity->id, 'fingerprint' => $fingerprint];
+        } catch (Throwable $e) {
+            $this->framework->query('ROLLBACK', []);
+            throw $e;
+        }
+    }
+
+    private function snapshot(int $pid, bool $requireEnabled = true, ?int $now = null): array
+    {
+        if ($requireEnabled && !in_array($pid, array_map('intval', $this->framework->getProjectsWithModuleEnabled()), true)) {
             throw new RuntimeException('Renewal requires PDF Sealer enabled');
         }
         $binding = $this->bindings->find($pid);
@@ -91,7 +121,7 @@ final class ProjectRenewalService
         }
         // Expiration of the old leaf does not block an explicit replacement.
         $issuerDer = $this->identities->publicCertificate($provider['issuer_identity_id'], 'root');
-        $this->health->assertRootCertificate($issuerDer, time());
+        $this->health->assertRootCertificate($issuerDer, $now ?? time());
         $issuerDetails = openssl_x509_parse(Certificate::derToPem($issuerDer));
         $view = ['pid' => $pid, 'uuid' => $binding->uuid, 'provider_id' => $binding->providerId,
             'identity_id' => $binding->identityId, 'issuer_identity_id' => $provider['issuer_identity_id'],

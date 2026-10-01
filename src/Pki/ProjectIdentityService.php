@@ -114,6 +114,16 @@ final class ProjectIdentityService
         return $identity;
     }
 
+    /** Check historical identity integrity before maintenance, allowing an expired leaf/issuer. */
+    public function assertReplacementProvenance(StoredIdentity $identity): void
+    {
+        $certificate = new Certificate();
+        $leaf = $certificate->fields($identity->certificateDer);
+        $issuer = $certificate->fields($this->issuerCertificate($identity));
+        $this->assertProjectIdentity($identity, $identity->projectUuid, $identity->providerId,
+            max($leaf['not_before'], $issuer['not_before']));
+    }
+
     /**
      * Read-only status; never issues, activates, repairs, or logs an identity.
      * Only public metadata leaves this method, even when validation fails.

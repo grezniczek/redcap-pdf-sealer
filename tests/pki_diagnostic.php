@@ -119,7 +119,7 @@ $run = static function () use ($framework, $service, &$tempPaths): array {
         check(array_keys($row) === ['log_id', 'message', 'project_id', 'record', 'identity_role', 'issuer_sha256', 'purpose']
             && $row['purpose'] === 'diagnostic', 'Diagnostic persisted more than reservation metadata');
     }
-    check(array_keys($result) === ['passed', 'checks'], 'Unexpected diagnostic response fields');
+    check(array_keys($result) === ['passed', 'checks', 'versions'], 'Unexpected diagnostic response fields');
     check(array_keys($result['checks']) === ['encryption', 'root', 'tsa', 'signer', 'bb', 'timestamp', 'bt'], 'Unexpected check identifiers');
     foreach ($result['checks'] as $status) {
         check(in_array($status, ['passed', 'failed', 'skipped'], true), 'Diagnostic exposed unexpected details');

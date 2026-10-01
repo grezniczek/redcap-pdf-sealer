@@ -2,7 +2,7 @@
 
 ## Status and target — 2026-10-01
 
-**Automatic maintenance and revocation controls are not implemented.** The [CRL publication foundation](implementation_status.md#built-in-crl-publication-foundation--2026-10-01) is implemented, including daily cached lists, a public survey endpoint and CDPs on newly issued built-in leaves. The user clarified that the built-in root CA, TSA and dependent project certificates must require no routine administrator renewal or rotation. This replaces the earlier proposal for manual TSA renewal, staged root activation and subsequent manual project renewals. See [current status](implementation_status.md) and the broader [provider design](provider_lifecycle_design.md).
+**Automatic built-in TSA/project renewal is implemented; automatic root renewal and revocation controls remain future work.** The [CRL publication foundation](implementation_status.md#built-in-crl-publication-foundation--2026-10-01) is implemented, including daily cached lists, a public survey endpoint and CDPs on newly issued built-in leaves. The user clarified that the built-in root CA, TSA and dependent project certificates must require no routine administrator renewal or rotation. This replaces the earlier proposal for manual TSA renewal, staged root activation and subsequent manual project renewals. See [current status](implementation_status.md) and the broader [provider design](provider_lifecycle_design.md).
 
 After initial setup, the module should generate, validate and deploy built-in replacements automatically through Framework cron. An administrator explicitly revokes an identity when necessary; replacement and deployment then run automatically. External CA enrollment and externally supplied certificates keep their required manual workflows. External TSA services maintain their own signing certificates.
 
@@ -29,7 +29,7 @@ Routine rotation does not rewrite existing PDFs, retrospectively extend their va
 
 ## Proposed maintenance policy
 
-Use a dedicated, bounded Framework maintenance cron, separate from the existing daily read-only expiry scan. An hourly run is a starting recommendation; it must handle downtime by processing overdue work on the next run.
+The dedicated hourly Framework maintenance cron is implemented separately from daily read-only expiry scans. It renews due TSA/project leaves, starts up to five project replacements within a monotonic 60-second budget, prioritizes enabled projects and retains disabled-project bindings. Failed work retries with one-hour-to-24-hour backoff; deferred enrollment/transition/retirement work retries hourly. Root renewal is the next slice.
 
 | Managed item | Automatic trigger | Deployment |
 | --- | --- | --- |
@@ -39,7 +39,7 @@ Use a dedicated, bounded Framework maintenance cron, separate from the existing 
 | External project identity/CA material | Approaching expiry or external revocation information | Report required enrollment/configuration action; do not replace with built-in credentials |
 | External TSA | Source diagnostic or configured trust-chain problem | Report the problem and use only explicitly permitted alternatives/fallback |
 
-Initial timing recommendations are 90 days before leaf expiry and a root window of one full leaf lifetime plus 90 days. With current lifetimes of 730 days and 3,650 days, that means root rollover before 820 days of remaining validity. Derive this from issuer policy rather than duplicating constants. These are implementation defaults to verify with fake-clock tests.
+The implemented leaf window is 90 days before expiry; the proposed root window is one full leaf lifetime plus 90 days. With current lifetimes of 730 days and 3,650 days, that means root rollover before 820 days of remaining validity. Derive this from issuer policy rather than duplicating constants. Leaf-window boundaries are tested; derive and test the root window in its next implementation slice.
 
 Maintain existing built-in project bindings, including retained bindings for temporarily disabled projects, without enabling modules or creating certificates for every project. Prioritize enabled projects and revoked identities; process a bounded number per run. A missed schedule must not require an administrator to click renew after re-enabling a project.
 
@@ -51,10 +51,10 @@ Retirement remains distinct from revocation. Do not silently reactivate an inten
 
 1. **Issuer validity limits — implemented 2026-10-01.** Built-in TSA/project/diagnostic leaves use the lesser of 730 days and the issuer's remaining whole days, with at least one full day required. Issuance recalculates the limit after key generation and verifies the resulting expiry. Maintenance must renew the root first when its remaining validity is insufficient; signing paths do not reset PKI.
 2. **Coherent identity capture — implemented 2026-10-01.** The finalizer and diagnostic capture the source's TSA/issuer/policy together and validate exactly those immutable versions. A concurrency fixture replaces source configuration immediately after its read and verifies that the captured certificate, issuer and policy are used throughout.
-3. **Time and diagnostic versions — partially implemented.** Production internal tokens now use actual server UTC at token creation and check the TSA and issuing chain at that time. Cached diagnostics still need identity-version metadata and an indication that a replacement occurred after the recorded run, without changing the original run time.
-4. **Cron-safe issuance primitives.** Reuse crypto/transaction rules from manual renewal, with a system maintenance actor. Do not fabricate a human session or invoke CC AJAX handlers from cron.
+3. **Time and diagnostic versions — implemented.** Production internal tokens now use actual server UTC at token creation and check the TSA and issuing chain at that time. Cached diagnostics now record root/TSA/issuer/policy versions and warn on mismatch without changing the original run time.
+4. **Cron-safe issuance primitives — implemented.** Automatic project replacement shares the manual renewal activation transaction with a system maintenance actor; TSA replacement atomically stores identity, source and active pointer after strict sample validation. Cron neither uses a human session nor invokes CC AJAX handlers.
 
-The validity/capture fixes and token-time checks pass standalone cryptographic and finalizer tests on PHP 8.2.34 and 8.5.11. They do not perform automatic maintenance, persist diagnostic identity versions, or mutate live PKI. See [the prerequisite test record](testing.md#built-in-lifecycle-prerequisites--2026-10-01).
+The validity/capture fixes and token-time checks pass standalone cryptographic and finalizer tests on PHP 8.2.34 and 8.5.11. The subsequent [automatic leaf maintenance slice](implementation_status.md#automatic-built-in-leaf-maintenance--2026-10-01) adds bounded renewal and diagnostic identity versions. Development tests use disposable state; live certificates were not replaced during implementation. See [the prerequisite test record](testing.md#built-in-lifecycle-prerequisites--2026-10-01).
 
 ## Activation, concurrency and recovery
 
@@ -94,8 +94,8 @@ Alarm on persistent failed maintenance, an overdue/stale worker, revoked identit
 
 ## Small implementation slices and acceptance
 
-1. **Validity and capture prerequisites:** leaf validity caps, coherent internal timestamp references and actual token-time checks are implemented and verified on PHP 8.2/8.5. Diagnostic identity-version tracking remains for the maintenance slice.
-2. **Automatic leaf maintenance:** bounded cron for built-in TSA/project replacements, stable UUID/provider/history, system audit, downtime catch-up, retry/rollback and external/pending-work isolation. Accept browser status and a newly sealed PDF in Acrobat.
+1. **Validity and capture prerequisites:** leaf validity caps, coherent internal timestamp references and actual token-time checks are implemented and verified on PHP 8.2/8.5. Diagnostic identity-version tracking is also implemented with maintenance.
+2. **Automatic leaf maintenance — implemented:** bounded cron for built-in TSA/project replacements, stable UUID/provider/history, system audit, downtime catch-up, retry/rollback and external/pending-work isolation. Accept browser status and a newly sealed PDF in Acrobat.
 3. **Automatic root rollover:** resolve viewer-trust expectations, then atomic pair activation, resumable dependent project replacement and retained public root history. Test old/new issuer coexistence and strict timestamps with fake clocks before live rollover.
 4. **Revocation and recovery:** reviewed manual block, prioritized automatic replacement, in-flight use boundaries and explicit public revocation scope. Implement separately from ordinary renewal.
 
