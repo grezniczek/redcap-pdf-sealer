@@ -23,7 +23,7 @@ The first implementation slice adds explicit built-in provider/source records, p
 | CC administrator | Select each CA provider's timestamp source, permitted fallback sources, and final failure policy |
 | CC administrator | Set the default CA provider or require explicit assignment; assign/change a project's provider |
 | Project designer or administrator | Generate a project key/CSR, download the CSR, submit the returned certificate/chain, and activate a validated replacement for the assigned provider |
-| Module | Enforce authorization, validate identities and timestamp responses, encrypt private material, serialize activation, and retain audit/history records |
+| Module | Enforce authorization, validate identities and timestamp responses, encrypt private material, serialize activation, and retain audit/history records; automatically maintain built-in root/TSA/project identities (planned) |
 
 Project pages show the effective provider and timestamp policy read-only. Project users cannot select a different TSA, change fallback policy, or substitute a different CA by uploading a certificate. Authorization must be enforced at the server action, not just by hiding controls.
 
@@ -94,6 +94,8 @@ The current Framework failure behavior remains: a failed sealing operation leave
 
 ## Lifecycle and health
 
+The user clarified the lifecycle target on **2026-10-01**: built-in root, TSA and dependent project certificates must be maintained automatically by cron, with manual revocation followed by automatic replacement. Required manual enrollment remains for external certificates. The [automatic built-in PKI plan](builtin_pki_lifecycle_plan.md) supersedes the earlier manual TSA/staged root proposal. It covers bounded work, atomic activation, downtime recovery, prerequisites and viewer-trust/public-revocation boundaries. Automatic maintenance and revocation are not yet implemented.
+
 Separate these questions:
 
 1. Can this provider issue a new identity locally, or does it require external enrollment?
@@ -104,7 +106,7 @@ The absence or failure of the built-in CA private key must not by itself invalid
 
 Expiry monitoring covers active project certificates, relevant issuing chains, and locally managed root/TSA identities. For external timestamp sources, show diagnostic observations with their observation time; a previously observed TSA signer certificate does not prove which certificate the remote service will use next. Do not claim that a local expiry scan monitors a remote service continuously.
 
-Actions differ by provider: built-in identities can support local renewal, whereas external identities need a new enrollment/CSR and returned certificate. Prefer a new key for renewal. Keep the current usable identity active until its replacement is ready, then atomically switch the binding and retain historical public certificates and audit records. Root rotation remains a separately designed operation.
+Actions differ by provider: built-in identities are to receive automatic local renewal, whereas external identities need their required enrollment/CSR and returned certificate. Use fresh keys for built-in replacement. Keep the current usable, nonrevoked identity active until its replacement is ready, then atomically switch the binding and retain historical public certificates and audit records. Automatic root/TSA rollover and dependent project replacement are described in the built-in PKI plan; external viewer trust requires separate distribution.
 
 Changing a project's provider prepares a deliberate transition; it must not silently bind the old certificate to the new provider. Show active and pending providers while replacement is underway. Disable/cancel the pending enrollment if its assignment is withdrawn. Define any emergency stop separately from normal renewal.
 
