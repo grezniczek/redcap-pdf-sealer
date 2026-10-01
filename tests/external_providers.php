@@ -18,6 +18,7 @@ final class Framework {
     public int $projectId = 104;
     public array $enabled = [101,102];
     public ?Closure $onLog = null;
+    public ?Closure $onSettingRead = null;
     public function getProjectId(): int { return $this->projectId; }
     public function getModuleInstance(): object { return (object)['PREFIX'=>'pdf_sealer']; }
     public function prefixSettingKey(string $key): string { return $key; }
@@ -26,7 +27,11 @@ final class Framework {
     public bool $allowIdentityReads = false;
     public bool $failAudit = false, $failCatalog = false, $failEnrollment = false;
     public function createTempFile(): string { return $this->paths[] = tempnam('/tmp', 'pdf-sealer-external-'); }
-    public function getSystemSetting(string $key): mixed { return $this->settings[$key] ?? null; }
+    public function getSystemSetting(string $key): mixed {
+        $value = $this->settings[$key] ?? null;
+        if ($this->onSettingRead !== null) { ($this->onSettingRead)($key); }
+        return $value;
+    }
     public function setSystemSetting(string $key, mixed $value): void {
         if ($this->failCatalog && $key === 'external_ca_provider_ids') throw new RuntimeException('Catalog write failed');
         $this->settings[$key] = $value;

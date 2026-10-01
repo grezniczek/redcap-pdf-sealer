@@ -18,7 +18,6 @@ use DE\RUB\PDFSealerExternalModule\Pki\ProjectIssueLock;
 use DE\RUB\PDFSealerExternalModule\Pki\SecretProtector;
 use DE\RUB\PDFSealerExternalModule\Timestamp\InternalTimestampProvider;
 use DE\RUB\PDFSealerExternalModule\Timestamp\InternalTsaService;
-use DE\RUB\PDFSealerExternalModule\Timestamp\TsaIdentity;
 use ExternalModules\PdfFinalizeResult;
 use RuntimeException;
 use Throwable;
@@ -80,10 +79,10 @@ final class PdfFinalizeService
             $project = $projects->getOrIssue((int) $pid);
             $issuerChain = $projects->issuerChain($project);
             $provider = $providers->provider($project->providerId);
-            $timestampSettings = $providers->timestampSettings($project->providerId);
+            // Keep order and fallback from the same provider record throughout this seal.
             $event['attempted_timestamp_source'] = $provider['timestamp_source'] ?? 'none';
-            $mode = $timestampSettings->mode;
-            $fallback = $timestampSettings->fallback;
+            $mode = $provider['timestamp_source'] === null ? 'none' : 'timestamp';
+            $fallback = $provider['bb_fallback'];
             if ($provider['kind'] === 'internal') {
                 $issuanceHealth = $health->inspectIssuance($provider['issuer_identity_id'], time());
                 if ($issuanceHealth->status !== PkiHealth::Ready) { $this->alarm($issuanceHealth); }
@@ -105,7 +104,7 @@ final class PdfFinalizeService
             } else {
                 $result = $this->sealWithFallback(
                     $source, $project->certificateDer, $key, $issuerChain,
-                    $identities, $protector, $health, [$provider['timestamp_source'], ...$provider['timestamp_alternatives']], $fallback, $now, $event,
+                    $identities, $health, [$provider['timestamp_source'], ...$provider['timestamp_alternatives']], $fallback, $now, $event,
                 );
             }
             $written = file_put_contents($path, $result->pdf, LOCK_EX);
@@ -221,7 +220,6 @@ final class PdfFinalizeService
         \OpenSSLAsymmetricKey $key,
         array $issuerChain,
         IdentityRepository $identities,
-        SecretProtector $protector,
         PkiHealthService $health,
         array $sourceIds,
         bool $fallback,
@@ -230,23 +228,21 @@ final class PdfFinalizeService
     ): PdfSealResult {
         $ordered = new \DE\RUB\PDFSealerExternalModule\Timestamp\OrderedTimestampProvider(
             $sourceIds,
-            function (string $sourceId, float $deadline) use ($identities, $protector, $health, $now) {
+            function (string $sourceId, float $deadline) use ($identities, $health) {
                 $timestamp = $identities->providers()->source($sourceId);
                 if ($timestamp['kind'] === 'external') {
                     return (new \DE\RUB\PDFSealerExternalModule\Timestamp\ExternalTimestampSources($this->framework))
                         ->provider($sourceId, $deadline);
                 }
-                $report = $health->inspectTimestamp($sourceId, $now);
-                if ($report->status !== PkiHealth::Ready) {
-                    $this->alarm($report);
+                try {
+                    $tsa = $health->captureTimestamp($timestamp, time());
+                } catch (Throwable) {
+                    $this->alarm(new PkiHealthReport(PkiHealth::Degraded, 'TSA_IDENTITY_INVALID', $timestamp['identity_id']));
                     throw new RuntimeException('TSA is unavailable');
                 }
-                $tsa = $identities->find($timestamp['identity_id']);
-                if ($tsa === null || $tsa->role !== 'tsa') { throw new RuntimeException('TSA unavailable'); }
-                $tsaRoot = $identities->publicCertificate($timestamp['issuer_identity_id'], 'root');
                 return new InternalTimestampProvider(
                     new InternalTsaService($timestamp['policy_oid']),
-                    new TsaIdentity($tsa->certificateDer, $tsa->privateKey($protector), [$tsaRoot]),
+                    $tsa, static fn(): int => time(),
                 );
             },
         );

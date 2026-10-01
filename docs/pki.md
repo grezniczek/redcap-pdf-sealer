@@ -9,10 +9,12 @@ PKI means public key infrastructure: the certificates, keys, and trust relations
 | Identity | Purpose | Issuer | Issuance validity |
 | --- | --- | --- | --- |
 | Root CA | Certifies the installation's TSA and project signers | Self-signed | 3,650 days |
-| Timestamp authority (TSA) | Signs timestamp tokens | Root CA | 730 days |
-| Project signer | Certifies PDFs for one project | Root CA | 730 days |
+| Timestamp authority (TSA) | Signs timestamp tokens | Root CA | Up to 730 days, capped by issuer validity |
+| Project signer | Certifies PDFs for one project | Root CA | Up to 730 days, capped by issuer validity |
 
 Each identity has a distinct RSA 3072-bit key. Certificates use SHA-256 signatures. These issuance durations do not guarantee a usable chain for that whole interval: the root and other validation conditions must also be satisfied. The actual certificate dates are authoritative and displayed in UTC.
+
+Built-in leaf issuance uses the lesser of 730 days and the issuer's remaining whole days. At least one full day must remain; otherwise issuance fails until a usable issuer is available. The limit is checked before allocating a serial and recalculated after key generation. The issued certificate's expiry is also checked against the issuer's expiry. This applies to project, TSA and temporary diagnostic certificates; it does not renew the root automatically.
 
 The root is named **REDCap PDF Sealer Root CA**. The TSA is **REDCap PDF Sealer Timestamp Authority** and has a critical timestamping extended key usage. Project certificates use the document-signing extended key usage and a subject common name of **REDCap Project &lt;UUID&gt;**. All include the organization chosen at initialization; TSA and project subjects also include the organizational unit **REDCap PDF Sealer**.
 
@@ -79,6 +81,8 @@ CRLs do not withdraw external trust in a self-signed root, implement OCSP, or em
 ## Trust boundary
 
 The root is self-signed and belongs to this REDCap installation. Being embedded in a PDF or available for download does not make it a trusted anchor in a viewer. Institutions and recipients decide whether to trust it and how to verify its fingerprint.
+
+Each internal timestamp attempt captures its source's TSA identity, issuing certificate and policy together. Health validation and signing use those exact versions even if configuration changes during the operation. Production tokens use current server UTC at token creation, and both the TSA certificate and its chain must be valid at that time. Diagnostic timestamp checks follow the same capture rules.
 
 The built-in TSA runs in the same installation and uses the server's time. It is not an independent external time authority. Maintain the host's clock synchronization and protect its PKI/encryption material. Read [sealing and validation](sealing-and-validation.md) for what an embedded timestamp establishes and what it does not provide.
 

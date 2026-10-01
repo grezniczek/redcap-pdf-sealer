@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace DE\RUB\PDFSealerExternalModule\Pki;
 
 use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate;
+use DE\RUB\PDFSealerExternalModule\Timestamp\TsaIdentity;
 use OpenSSLAsymmetricKey;
 use RuntimeException;
 use Throwable;
@@ -74,15 +75,23 @@ final class PkiHealthService
     {
         try {
             $source = $this->identities->providers()->source($sourceId);
-            $rootDer = $this->identities->publicCertificate($source['issuer_identity_id'], 'root');
-            $this->assertRootCertificate($rootDer, $now);
-            $tsa = $this->identities->find($source['identity_id']);
-            if ($tsa === null || $tsa->role !== 'tsa') { throw new RuntimeException('TSA unavailable'); }
-            $this->assertTsa($tsa, $rootDer, $now);
+            $this->captureTimestamp($source, $now);
             return new PkiHealthReport(PkiHealth::Ready);
         } catch (Throwable) {
             return new PkiHealthReport(PkiHealth::Degraded, 'TSA_IDENTITY_INVALID', $source['identity_id'] ?? null);
         }
+    }
+
+    /** Validate and return exactly the immutable identities referenced by one captured source record. */
+    public function captureTimestamp(array $source, int $now): TsaIdentity
+    {
+        if (($source['kind'] ?? null) !== 'internal') { throw new RuntimeException('Internal timestamp source required'); }
+        $rootDer = $this->identities->publicCertificate($source['issuer_identity_id'], 'root');
+        $this->assertRootCertificate($rootDer, $now);
+        $tsa = $this->identities->find($source['identity_id']);
+        if ($tsa === null || $tsa->role !== 'tsa') { throw new RuntimeException('TSA unavailable'); }
+        $key = $this->assertTsa($tsa, $rootDer, $now);
+        return new TsaIdentity($tsa->certificateDer, $key, [$rootDer]);
     }
 
     private function assertRoot(StoredIdentity $root, int $now): void
@@ -120,7 +129,7 @@ final class PkiHealthService
         return is_array($details) && $details['type'] === OPENSSL_KEYTYPE_RSA && $details['bits'] === 3072;
     }
 
-    private function assertTsa(StoredIdentity $tsa, string $rootDer, int $now): void
+    private function assertTsa(StoredIdentity $tsa, string $rootDer, int $now): OpenSSLAsymmetricKey
     {
         $der = $tsa->certificateDer;
         $this->certificate->assertValidAt($der, $now);
@@ -144,9 +153,8 @@ final class PkiHealthService
         if (!$rootPublic instanceof OpenSSLAsymmetricKey || !$tsaPublic instanceof OpenSSLAsymmetricKey
             || !$this->isRsa3072($tsaPublic) || $tsaFields['issuer'] !== $rootFields['subject']
             || openssl_x509_verify(Certificate::derToPem($der), $rootPublic) !== 1) {
-            throw new RuntimeException('TSA certificate is not issued by active root');
+            throw new RuntimeException('TSA certificate is not issued by its captured root');
         }
-        $key = $tsa->privateKey($this->protector);
-        unset($key);
+        return $tsa->privateKey($this->protector);
     }
 }

@@ -16,7 +16,7 @@ final class CertificateIssuer
 {
     private const KEY_BITS = 3072;
     private const ROOT_DAYS = 3650;
-    private const LEAF_DAYS = 730;
+    public const LEAF_DAYS = 730;
 
     private const OPENSSL_CONFIG = <<<'CONFIG'
 [req]
@@ -140,9 +140,19 @@ CONFIG;
         }
     }
 
+    /** OpenSSL accepts whole days; recompute immediately before signing after key/CSR generation. */
+    private function leafDays(int $issuerExpires): int
+    {
+        $days = min(self::LEAF_DAYS, intdiv($issuerExpires - time(), 86400));
+        if ($days < 1) { throw new RuntimeException('Issuer has less than one full day of validity remaining'); }
+        return $days;
+    }
+
     /** @param array<string,string> $subject */
     private function issue(array $subject, string $extension, int $days, ?GeneratedIdentity $issuer = null): GeneratedIdentity
     {
+        $issuerExpires = $issuer === null ? null : (new Certificate())->fields($issuer->certificateDer)['not_after'];
+        if ($issuerExpires !== null) { $days = $this->leafDays($issuerExpires); }
         $serial = 0;
         $serialHex = null;
         if (PHP_VERSION_ID >= 80400) {
@@ -190,7 +200,7 @@ CONFIG;
                 $csr,
                 $issuerCertificate,
                 $issuer?->privateKey() ?? $key,
-                $days,
+                $issuerExpires === null ? $days : $this->leafDays($issuerExpires),
                 $options + ['x509_extensions' => $extension],
                 $serial,
             ];
@@ -207,6 +217,10 @@ CONFIG;
             if (!is_array($details)
                 || strcasecmp(ltrim($details['serialNumberHex'] ?? '', '0'), ltrim($expectedHex, '0')) !== 0) {
                 throw new RuntimeException('Issued certificate serial does not match its allocation');
+            }
+            if ($issuerExpires !== null && (!is_int($details['validTo_time_t'] ?? null)
+                || $details['validTo_time_t'] > $issuerExpires)) {
+                throw new RuntimeException('Issued certificate exceeds issuer validity');
             }
             return new GeneratedIdentity(Certificate::pemToDer($certificatePem), $privateKeyPem);
         } finally {

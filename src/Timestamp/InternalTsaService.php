@@ -133,6 +133,7 @@ final class InternalTsaService
         }
         $this->certificate->assertUsableForSigning($cert);
         $this->certificate->assertValidAt($cert, $now);
+        foreach ($identity->chainDer as $issuerDer) { $this->certificate->assertValidAt($issuerDer, $now); }
         $details = openssl_pkey_get_details($identity->privateKey);
         if ($details === false || $details['type'] !== OPENSSL_KEYTYPE_RSA) {
             throw new RuntimeException('TSA key must be RSA');

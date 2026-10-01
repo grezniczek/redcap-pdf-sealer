@@ -16,6 +16,7 @@ php tests/external_timestamp_settings.php
 php tests/timestamp_transport.php
 php tests/certificate_serials.php
 php tests/pki_primitives.php
+php tests/pki_lifecycle_prerequisites.php
 php tests/providers.php
 php tests/pki_storage.php
 php tests/pki_initialization.php
@@ -300,3 +301,22 @@ PDF_SEALER_LIVE_TEST=1 php tools/crl_probe.php --run
 The probe enforces a read-only database session for PKI reads/temporary issuance, uses Framework temporary-file helpers, and refuses runtimes needing integer serial reservations. It saves public artifacts only under the ignored `interop-artifacts/crl-probe/` directory. qpdf, pdfsig, CMS/ByteRange, OpenSSL timestamp and CRL checks pass. Stored identities, provider/source choices and project bindings remain unchanged. These are synthetic test credentials, not an installed project/TSA replacement.
 
 Administrative revocation, prompt publish after revocation, local signing blocks and automatic replacement are future work. No production revocation was performed. CLI acceptance does not establish Acrobat network/cache behavior, long-term validation or root-trust withdrawal.
+
+## Built-in lifecycle prerequisites — 2026-10-01
+
+Run from the module root:
+
+```sh
+php8.2 tests/pki_lifecycle_prerequisites.php
+php tests/pki_lifecycle_prerequisites.php
+```
+
+Passed on PHP 8.2.34 and 8.5.11. The suite uses disposable identities and fake transactional Framework storage; it never changes live PKI or REDCap data.
+
+- Project and TSA leaf expiry stays within an issuer with two remaining whole days; OpenSSL verifies both chains. A longer-lived issuer retains the 730-day default, and a one-day issuer produces a one-day leaf.
+- An issuer with less than one full day remaining rejects issuance before allocating a serial or temporary configuration file.
+- A setting-read callback replaces an internal source immediately after it is captured. The real finalizer still produces a verified B-T seal using the captured TSA certificate, issuing root and policy, with only one source read. The CC diagnostic likewise uses one captured source even when its replacement has an invalid policy.
+- A mismatched captured issuer is rejected. A stale request-start time does not become the production token time: an injected current clock supplies the token's actual creation time.
+- TSA or issuing-chain expiry before token creation rejects the response.
+
+Existing `tests/pki_primitives.php`, `tests/pki_diagnostic.php`, `tests/timestamp_alternatives.php`, `tests/project_renewal.php` and `tests/crl.php` also pass on both runtimes. These tests establish the issuance and capture prerequisites; automatic renewal, revocation boundaries and diagnostic version tracking require their own coverage when implemented.

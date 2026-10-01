@@ -17,8 +17,6 @@ use DE\RUB\PDFSealerExternalModule\Pki\SecretProtector;
 use DE\RUB\PDFSealerExternalModule\Timestamp\InternalTimestampProvider;
 use DE\RUB\PDFSealerExternalModule\Timestamp\InternalTsaService;
 use DE\RUB\PDFSealerExternalModule\Timestamp\PolicyOidAsn1;
-use DE\RUB\PDFSealerExternalModule\Timestamp\TsaIdentity;
-use DE\RUB\PDFSealerExternalModule\Timestamp\TsaPolicy;
 use RuntimeException;
 use Throwable;
 
@@ -64,16 +62,12 @@ final readonly class PkiDiagnosticService
             if ($root === null || $root->role !== 'root') { throw new RuntimeException('Root unavailable'); }
             return $root->asGeneratedIdentity($this->protector);
         });
-        $tsa = $step('tsa', true, function () {
+        $timestampSource = null;
+        $tsa = $step('tsa', true, function () use (&$timestampSource) {
             $sourceId = \DE\RUB\PDFSealerExternalModule\Pki\ProviderRepository::BUILTIN_TSA;
             $health = new PkiHealthService($this->identities, $this->protector);
-            if ($health->inspectTimestamp($sourceId, time())->status !== PkiHealth::Ready) {
-                throw new RuntimeException('TSA is not ready');
-            }
-            $source = $this->identities->providers()->source($sourceId);
-            $tsa = $this->identities->find($source['identity_id']);
-            $rootDer = $this->identities->publicCertificate($source['issuer_identity_id'], 'root');
-            return new TsaIdentity($tsa->certificateDer, $tsa->privateKey($this->protector), [$rootDer]);
+            $timestampSource = $this->identities->providers()->source($sourceId);
+            return $health->captureTimestamp($timestampSource, time());
         });
         $signer = $step('signer', $root !== null, function () use ($root) {
             return $this->configurationLock->withLock(function () use ($root) {
@@ -90,11 +84,9 @@ final readonly class PkiDiagnosticService
             $sealed = $builder->seal($sample, $signer->certificateDer, $signer->privateKey(), [$root->certificateDer], time());
             $verifier->verify($sample, $sealed, $signer->certificateDer);
         });
-        $provider = $step('timestamp', $tsa !== null, function () use ($tsa) {
-            $policy = $this->identities->providers()->source(\DE\RUB\PDFSealerExternalModule\Pki\ProviderRepository::BUILTIN_TSA)['policy_oid'];
-            if ($policy === null || $policy === '') { $policy = TsaPolicy::DEFAULT_OID; }
-            if (!is_string($policy)) { throw new RuntimeException('Invalid policy'); }
-            $provider = new InternalTimestampProvider(new InternalTsaService($policy), $tsa);
+        $provider = $step('timestamp', $tsa !== null, function () use ($tsa, $timestampSource) {
+            $policy = $timestampSource['policy_oid'];
+            $provider = new InternalTimestampProvider(new InternalTsaService($policy), $tsa, static fn(): int => time());
             // Match the sealing path: omit reqPolicy (Config cannot encode UUID-sized arcs).
             // Codec only: the responder runs in process; this URL is never fetched.
             $client = new Client(new Config('http://localhost.invalid/tsa'), new PolicyOidAsn1($policy));

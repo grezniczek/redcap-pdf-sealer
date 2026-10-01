@@ -49,12 +49,12 @@ Retirement remains distinct from revocation. Do not silently reactivate an inten
 
 ## Prerequisites from current code inspection
 
-1. **Issuer validity limits.** The fixed leaf lifetime can currently exceed its root's remaining validity. Cap every built-in TSA/project/diagnostic leaf to the lesser of its configured lifetime and the issuer's remaining whole-day window; verify the resulting expiry. If issuance has insufficient time remaining, maintenance must replace the root first. Signing paths must not silently reset PKI.
-2. **Coherent identity capture.** The finalizer reads an internal source, checks health by reading it again, then constructs a provider. Capture the source's TSA/issuer/policy together and validate exactly those immutable versions. A writer transaction alone does not make separate reader queries coherent.
-3. **Time and diagnostic versions.** Generate tokens using actual server UTC at token creation; a replacement TSA's validity must not be compared with an earlier request-start time. Cached diagnostics should record the identity versions tested and show when they precede a replacement without changing their original run time.
+1. **Issuer validity limits — implemented 2026-10-01.** Built-in TSA/project/diagnostic leaves use the lesser of 730 days and the issuer's remaining whole days, with at least one full day required. Issuance recalculates the limit after key generation and verifies the resulting expiry. Maintenance must renew the root first when its remaining validity is insufficient; signing paths do not reset PKI.
+2. **Coherent identity capture — implemented 2026-10-01.** The finalizer and diagnostic capture the source's TSA/issuer/policy together and validate exactly those immutable versions. A concurrency fixture replaces source configuration immediately after its read and verifies that the captured certificate, issuer and policy are used throughout.
+3. **Time and diagnostic versions — partially implemented.** Production internal tokens now use actual server UTC at token creation and check the TSA and issuing chain at that time. Cached diagnostics still need identity-version metadata and an indication that a replacement occurred after the recorded run, without changing the original run time.
 4. **Cron-safe issuance primitives.** Reuse crypto/transaction rules from manual renewal, with a system maintenance actor. Do not fabricate a human session or invoke CC AJAX handlers from cron.
 
-These findings are not yet fixes or reproduced live failures.
+The validity/capture fixes and token-time checks pass standalone cryptographic and finalizer tests on PHP 8.2.34 and 8.5.11. They do not perform automatic maintenance, persist diagnostic identity versions, or mutate live PKI. See [the prerequisite test record](testing.md#built-in-lifecycle-prerequisites--2026-10-01).
 
 ## Activation, concurrency and recovery
 
@@ -94,7 +94,7 @@ Alarm on persistent failed maintenance, an overdue/stale worker, revoked identit
 
 ## Small implementation slices and acceptance
 
-1. **Validity and capture prerequisites:** leaf validity caps, coherent internal timestamp references and versioned diagnostics. Verify crypto, expiry boundaries, concurrency and PHP 8.2/current-runtime behavior.
+1. **Validity and capture prerequisites:** leaf validity caps, coherent internal timestamp references and actual token-time checks are implemented and verified on PHP 8.2/8.5. Diagnostic identity-version tracking remains for the maintenance slice.
 2. **Automatic leaf maintenance:** bounded cron for built-in TSA/project replacements, stable UUID/provider/history, system audit, downtime catch-up, retry/rollback and external/pending-work isolation. Accept browser status and a newly sealed PDF in Acrobat.
 3. **Automatic root rollover:** resolve viewer-trust expectations, then atomic pair activation, resumable dependent project replacement and retained public root history. Test old/new issuer coexistence and strict timestamps with fake clocks before live rollover.
 4. **Revocation and recovery:** reviewed manual block, prioritized automatic replacement, in-flight use boundaries and explicit public revocation scope. Implement separately from ordinary renewal.

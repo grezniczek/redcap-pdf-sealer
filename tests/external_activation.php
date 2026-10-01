@@ -9,7 +9,7 @@ function db_query(string $sql, array $params, mixed ...$rest): Rows {
     global $f;
     if (str_contains($sql,'GET_LOCK') || str_contains($sql,'RELEASE_LOCK')) return new Rows([[1]]);
     if (str_contains($sql,'SELECT s.value')) {
-        $value = $f->settings[$params[1]] ?? null;
+        $value = $f->getSystemSetting($params[1]);
         return new Rows($value === null ? [] : [['value'=>$value,'type'=>'string']]);
     }
     return $f->queryLogs($sql,$params);
