@@ -19,6 +19,7 @@ final class Framework {
     public array $enabled = [101,102];
     public ?Closure $onLog = null;
     public ?Closure $onSettingRead = null;
+    public ?Closure $onSettingWrite = null;
     public function getProjectId(): int { return $this->projectId; }
     public function getModuleInstance(): object { return (object)['PREFIX'=>'pdf_sealer']; }
     public function prefixSettingKey(string $key): string { return $key; }
@@ -35,6 +36,7 @@ final class Framework {
     public function setSystemSetting(string $key, mixed $value): void {
         if ($this->failCatalog && $key === 'external_ca_provider_ids') throw new RuntimeException('Catalog write failed');
         $this->settings[$key] = $value;
+        if ($this->onSettingWrite !== null) { ($this->onSettingWrite)($key); }
     }
     public function removeSystemSetting(string $key): void { unset($this->settings[$key]); }
     public function getProjectsWithModuleEnabled(): array { return $this->enabled; }

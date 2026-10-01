@@ -7,7 +7,6 @@ use DE\RUB\PDFSealerExternalModule\Alerts\{AdminAlarmService, AlarmRepository, A
 use DE\RUB\PDFSealerExternalModule\Diagnostics\{DiagnosticSnapshot, PkiDiagnosticService, SampleSealVerifier};
 use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate;
 use DE\RUB\PDFSealerExternalModule\Pdf\PdfFinalizeService;
-use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Asn1;
 
 // Real crypto, primary-reader doubles, transactional storage and lock interleavings; no live REDCap data.
 require __DIR__ . '/project_renewal.php';
@@ -24,19 +23,7 @@ final class CronFramework
     }
 }
 
-/** Disposable clone signed by the known issuing key; preserves leaf subject, key and extensions. */
-function maintenanceCertificate(string $der, OpenSSLAsymmetricKey $issuerKey, int $start, int $end): string
-{
-    $asn1 = new Asn1(); $outer = $asn1->readSingleElement($der, 0x30, 'certificate'); $offset = 0;
-    $tbs = $asn1->readTlv($outer['value'], $offset); $algorithm = $asn1->readTlv($outer['value'], $offset);
-    $fields = []; $offset = 0;
-    while ($offset < strlen($tbs['value'])) { $fields[] = $asn1->readTlv($tbs['value'], $offset); }
-    $encodeTime = static fn(int $time): string => "\x17\x0d" . gmdate('ymdHis', $time) . 'Z';
-    $fields[4]['raw'] = $asn1->encodeSequence($encodeTime($start) . $encodeTime($end));
-    $newTbs = $asn1->encodeSequence(implode('', array_column($fields, 'raw')));
-    check(openssl_sign($newTbs, $signature, $issuerKey, OPENSSL_ALGO_SHA256), 'Fixture signing failed');
-    return $asn1->encodeSequence($newTbs . $algorithm['raw'] . "\x03" . $asn1->encodeLength(strlen($signature) + 1) . "\x00" . $signature);
-}
+require __DIR__ . '/support/certificate_validity.php';
 
 $cronFramework = new CronFramework($framework);
 $automaticRenewal = new ProjectRenewalService($cronFramework, $bindings, $identities, $enrollment, $projects, $health, $projectLock, $configLock);
@@ -191,7 +178,7 @@ try {
     $result = $budgetWorker->run($now + 21611);
     check($result['renewed'] === 0 && $result['remaining'] === 1 && $bindings->find(309)->identityId === $budgetProject, 'Work budget started a late project renewal');
 
-    // Near-expiry root is never reset; capped leaves already inside the renewal window are not deployed.
+    // Incoherent root/TSA references prevent root recovery; capped leaves already due are not deployed.
     $nearRootDer = maintenanceCertificate($rootGenerated->certificateDer,$rootGenerated->privateKey(),$now - 86400,$now + 20 * 86400);
     $nearRootId = $identities->append('root',new GeneratedIdentity($nearRootDer,$rootGenerated->privateKeyPem()));
     $identities->activate('root',$nearRootId);

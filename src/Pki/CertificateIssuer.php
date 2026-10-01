@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace DE\RUB\PDFSealerExternalModule\Pki;
 
-use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate;
 use Closure;
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\{Asn1, Certificate};
 use OpenSSLAsymmetricKey;
 use OpenSSLCertificate;
 use OpenSSLCertificateSigningRequest;
@@ -73,6 +73,66 @@ CONFIG;
         );
     }
 
+    /** Routine renewal preserves exact DER names/profile and the existing key, including after expiry. */
+    public function renewRoot(GeneratedIdentity $root): GeneratedIdentity
+    {
+        $certificate = new Certificate();
+        $before = $certificate->fields($root->certificateDer);
+        $parsed = openssl_x509_parse(Certificate::derToPem($root->certificateDer));
+        $organization = $parsed['subject']['O'] ?? null;
+        if (!is_string($organization) || $before['not_before'] > time()) {
+            throw new RuntimeException('Root renewal requires a previously valid built-in identity');
+        }
+        $this->assertOrganization($organization);
+        $this->assertRoot($organization, $root, $before['not_before']);
+        if ($before['issuer'] !== $before['subject']) { throw new RuntimeException('Root names are not self-issued'); }
+
+        $asn1 = new Asn1();
+        $outer = $asn1->readSingleElement($root->certificateDer, 0x30, 'root certificate');
+        $offset = 0;
+        $tbs = $asn1->readTlv($outer['value'], $offset);
+        $algorithm = $asn1->readTlv($outer['value'], $offset);
+        $expectedAlgorithm = $asn1->encodeSequence($asn1->encodeObjectIdentifier('1.2.840.113549.1.1.11') . $asn1->encodeNull());
+        if ($algorithm['raw'] !== $expectedAlgorithm) { throw new RuntimeException('Unsupported root signature profile'); }
+        $parts = []; $offset = 0;
+        while ($offset < strlen($tbs['value'])) { $parts[] = $asn1->readTlv($tbs['value'], $offset); }
+        if (array_column($parts, 'tag') !== [0xA0, 0x02, 0x30, 0x30, 0x30, 0x30, 0x30, 0xA3]) {
+            throw new RuntimeException('Unsupported root certificate profile');
+        }
+        [$serial, $serialHex] = $this->allocateSerial('root', null);
+        $hex = $serialHex ?? dechex($serial);
+        $parts[1]['raw'] = $asn1->encodeIntegerBytes(hex2bin(strlen($hex) % 2 === 0 ? $hex : '0' . $hex));
+        $now = time();
+        $expires = $now + self::ROOT_DAYS * 86400;
+        if ($expires <= $before['not_after']) { throw new RuntimeException('Root renewal would not extend validity'); }
+        $encodeTime = static function (int $time) use ($asn1): string {
+            $generalized = (int) gmdate('Y', $time) >= 2050;
+            $value = gmdate($generalized ? 'YmdHis' : 'ymdHis', $time) . 'Z';
+            return chr($generalized ? 0x18 : 0x17) . $asn1->encodeLength(strlen($value)) . $value;
+        };
+        $parts[4]['raw'] = $asn1->encodeSequence($encodeTime($now) . $encodeTime($expires));
+        $renewedTbs = $asn1->encodeSequence(implode('', array_column($parts, 'raw')));
+        if (!openssl_sign($renewedTbs, $signature, $root->privateKey(), OPENSSL_ALGO_SHA256)) {
+            throw new RuntimeException('Unable to sign renewed root');
+        }
+        $der = $asn1->encodeSequence($renewedTbs . $algorithm['raw']
+            . "\x03" . $asn1->encodeLength(strlen($signature) + 1) . "\x00" . $signature);
+        $after = $certificate->fields($der);
+        foreach (['issuer', 'subject', 'public_key'] as $field) {
+            if ($before[$field] !== $after[$field]) { throw new RuntimeException('Root renewal changed its trust profile'); }
+        }
+        if ($certificate->extensions($root->certificateDer) !== $certificate->extensions($der)) {
+            throw new RuntimeException('Root renewal changed its extensions');
+        }
+        $details = openssl_x509_parse(Certificate::derToPem($der));
+        if (!is_array($details) || strcasecmp(ltrim($details['serialNumberHex'] ?? '', '0'), ltrim($hex, '0')) !== 0) {
+            throw new RuntimeException('Renewed root serial does not match its allocation');
+        }
+        $renewed = new GeneratedIdentity($der, $root->privateKeyPem());
+        $this->assertRoot($organization, $renewed);
+        return $renewed;
+    }
+
     public function createTsa(string $organization, GeneratedIdentity $root): GeneratedIdentity
     {
         $this->assertOrganization($organization);
@@ -117,14 +177,14 @@ CONFIG;
         }
     }
 
-    private function assertRoot(string $organization, GeneratedIdentity $root): void
+    private function assertRoot(string $organization, GeneratedIdentity $root, ?int $now = null): void
     {
         $pem = Certificate::derToPem($root->certificateDer);
         $certificate = openssl_x509_read($pem);
         $details = $certificate === false ? false : openssl_x509_parse($certificate);
         $publicKey = $certificate === false ? false : openssl_pkey_get_public($certificate);
         $keyDetails = $publicKey === false ? false : openssl_pkey_get_details($publicKey);
-        $now = time();
+        $now ??= time();
         if (!$certificate instanceof OpenSSLCertificate || !is_array($details)
             || !$publicKey instanceof OpenSSLAsymmetricKey
             || !is_array($keyDetails) || $keyDetails['type'] !== OPENSSL_KEYTYPE_RSA
@@ -140,6 +200,27 @@ CONFIG;
         }
     }
 
+    /** @return array{int, ?string} Shared allocation for OpenSSL issuance and exact-profile root renewal. */
+    private function allocateSerial(string $role, ?GeneratedIdentity $issuer): array
+    {
+        $serial = 0;
+        $serialHex = null;
+        if (PHP_VERSION_ID >= 80400) {
+            $bytes = random_bytes(16);
+            // A positive 128-bit value, disjoint from all integer serials. OpenSSL adds
+            // the DER sign octet. The remaining 127 bits are cryptographically random.
+            $bytes[0] = chr(ord($bytes[0]) | 0x80);
+            $serialHex = bin2hex($bytes);
+        } else {
+            $serial = ($this->reserveSerial)($role,
+                $issuer === null ? null : hash('sha256', $issuer->certificateDer));
+            if (!is_int($serial) || $serial <= 0 || (PHP_OS_FAMILY === 'Windows' && $serial > 2147483647)) {
+                throw new RuntimeException('Invalid reserved certificate serial');
+            }
+        }
+        return [$serial, $serialHex];
+    }
+
     /** OpenSSL accepts whole days; recompute immediately before signing after key/CSR generation. */
     private function leafDays(int $issuerExpires): int
     {
@@ -153,21 +234,7 @@ CONFIG;
     {
         $issuerExpires = $issuer === null ? null : (new Certificate())->fields($issuer->certificateDer)['not_after'];
         if ($issuerExpires !== null) { $days = $this->leafDays($issuerExpires); }
-        $serial = 0;
-        $serialHex = null;
-        if (PHP_VERSION_ID >= 80400) {
-            $bytes = random_bytes(16);
-            // A positive 128-bit value, disjoint from all integer serials. OpenSSL adds
-            // the DER sign octet. The remaining 127 bits are cryptographically random.
-            $bytes[0] = chr(ord($bytes[0]) | 0x80);
-            $serialHex = bin2hex($bytes);
-        } else {
-            $serial = ($this->reserveSerial)(substr($extension, 0, -4),
-                $issuer === null ? null : hash('sha256', $issuer->certificateDer));
-            if (!is_int($serial) || $serial <= 0 || (PHP_OS_FAMILY === 'Windows' && $serial > 2147483647)) {
-                throw new RuntimeException('Invalid reserved certificate serial');
-            }
-        }
+        [$serial, $serialHex] = $this->allocateSerial(substr($extension, 0, -4), $issuer);
         $key = openssl_pkey_new(['private_key_type' => OPENSSL_KEYTYPE_RSA, 'private_key_bits' => self::KEY_BITS]);
         if (!$key instanceof OpenSSLAsymmetricKey) {
             throw new RuntimeException('Unable to generate RSA identity key');

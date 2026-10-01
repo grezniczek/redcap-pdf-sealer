@@ -12,7 +12,7 @@ use DE\RUB\PDFSealerExternalModule\Timestamp\{InternalTimestampProvider, Interna
 use RuntimeException;
 use Throwable;
 
-/** Hourly, bounded built-in leaf maintenance; never initializes or replaces a root. */
+/** Hourly same-key root and fresh-key leaf maintenance; never initializes or resets missing PKI. */
 final class BuiltinMaintenanceService
 {
     public const SETTING = 'last-builtin-maintenance';
@@ -58,6 +58,14 @@ final class BuiltinMaintenanceService
                     }
                     $result['status'] = 'uninitialized';
                 } else {
+                    if ($this->readyToRetry($result, 'root', $rootId, $now)) {
+                        $rootRenewal = new RootRenewalService($this->framework, $this->identities, $this->protector,
+                            $this->issuer, $this->health, new CrlRepository($this->framework, $this->settings), $this->configurationLock);
+                        $this->attempt($result, 'root', $rootId, null, $now, fn(): string => $rootRenewal->renewIfDue($now));
+                        $currentRootId = $this->identities->activeId('root');
+                        if ($currentRootId !== $rootId) { $result['retries'] = []; }
+                        $result['root_identity_id'] = $currentRootId;
+                    } else { ++$result['remaining']; }
                     $source = $this->identities->providers()->source(ProviderRepository::BUILTIN_TSA);
                     if ($this->readyToRetry($result, 'tsa', $source['identity_id'], $now)) {
                         $this->attempt($result, 'tsa', $source['identity_id'], null, $now,
@@ -65,7 +73,7 @@ final class BuiltinMaintenanceService
                     } else { ++$result['remaining']; }
                     $enabled = array_fill_keys(array_map('intval', $this->framework->getProjectsWithModuleEnabled()), true);
                     $provider = $this->identities->providers()->provider(ProviderRepository::BUILTIN_CA);
-                    $candidates = []; $currentKeys = ['tsa' => true];
+                    $candidates = []; $currentKeys = ['root' => true, 'tsa' => true];
                     foreach ($this->bindings->providerUsage(ProviderRepository::BUILTIN_CA) as $usage) {
                         $pid = $usage['pid'];
                         $binding = $this->bindings->find($pid);
@@ -123,6 +131,7 @@ final class BuiltinMaintenanceService
 
     private function attempt(array &$result, string $key, string $identityId, ?int $pid, int $now, callable $work): void
     {
+        $role = $key === 'root' ? 'root' : ($pid === null ? 'tsa' : 'project');
         try { $status = $work(); }
         catch (Throwable) { $status = 'failed'; }
         if (in_array($status, ['failed', 'deferred'], true)) {
@@ -134,15 +143,15 @@ final class BuiltinMaintenanceService
                 $this->framework->log('builtin_maintenance_outcome', [
                     'project_id' => null, 'record' => '', 'actor' => 'system:cron',
                     'redcap_pid' => $pid === null ? '' : (string) $pid, 'identity_id' => $identityId,
-                    'operation' => $pid === null ? 'tsa_renewal' : 'project_renewal', 'status' => $status,
+                    'operation' => $role . '_renewal', 'status' => $status,
                     'retry_at' => (string) $result['retries'][$key]['retry_at'],
                 ]);
             } catch (Throwable) { /* Keep the failure/retry snapshot even if its supplemental log fails. */ }
         } else {
             unset($result['retries'][$key]);
-            if ($status === 'renewed') { ++$result['renewed']; }
+            if ($status === 'renewed') { $result['renewed'] += $role === 'root' ? 2 : 1; }
         }
-        $result['items'][] = ['role' => $pid === null ? 'tsa' : 'project', 'pid' => $pid, 'status' => $status];
+        $result['items'][] = ['role' => $role, 'pid' => $pid, 'status' => $status];
     }
 
     private function renewTsa(int $now): string
@@ -220,7 +229,7 @@ final class BuiltinMaintenanceService
             if (!is_int($value[$count] ?? null) || $value[$count] < 0) { throw new RuntimeException('Invalid maintenance count'); }
         }
         foreach ($value['retries'] as $key => $retry) {
-            if (!is_string($key) || preg_match('/^(?:tsa|project-[1-9][0-9]*)$/D', $key) !== 1 || !is_array($retry)
+            if (!is_string($key) || preg_match('/^(?:root|tsa|project-[1-9][0-9]*)$/D', $key) !== 1 || !is_array($retry)
                 || !is_string($retry['identity_id'] ?? null) || preg_match('/^[0-9a-f]{32}$/D', $retry['identity_id']) !== 1
                 || !is_int($retry['attempts'] ?? null) || $retry['attempts'] < 1 || $retry['attempts'] > 6
                 || !is_int($retry['retry_at'] ?? null) || $retry['retry_at'] < 1) {

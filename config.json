@@ -27,7 +27,7 @@
     "crons": [
         {
             "cron_name": "certificate_maintenance",
-            "cron_description": "Renew PDF Sealer built-in TSA and project certificates",
+            "cron_description": "Renew PDF Sealer built-in root, TSA and project certificates",
             "tt_cron_description": "maintenance_cron_description",
             "method": "maintainBuiltinCertificates",
             "cron_frequency": 3600,

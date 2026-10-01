@@ -24,6 +24,7 @@ php tests/crl.php
 php tests/project_identity.php
 php tests/project_renewal.php
 php tests/builtin_maintenance.php
+php tests/root_renewal.php
 php tests/admin_alarms.php
 php tests/expiry_monitor.php
 php tests/pki_admin_ajax.php
@@ -217,7 +218,7 @@ The automated suite also covers retired targets, no-signer projects, and stale p
 
 ## Same-key root renewal in Acrobat — 2026-10-01
 
-**First Acrobat round passed, user-reported on 2026-10-01.** Acrobat already trusted the root used for PID 524, and the user imported none of the certificates in the ZIP. All three PDFs (A/B/C) were displayed as certified and timestamped. This establishes acceptance of the same-key renewed root, including fresh project/TSA leaves, while the original trusted root is still valid. The separate expired-anchor certification check also passed as recorded below. This first round itself did not test expiry. This is a read-only developer probe, not an implemented renewal action.
+**First Acrobat round passed, user-reported on 2026-10-01.** Acrobat already trusted the root used for PID 524, and the user imported none of the certificates in the ZIP. All three PDFs (A/B/C) were displayed as certified and timestamped. This establishes acceptance of the same-key renewed root, including fresh project/TSA leaves, while the original trusted root is still valid. The separate expired-anchor certification check also passed as recorded below. This first round itself did not test expiry. This is a read-only developer probe; the separate production root renewal service is now covered below.
 
 Run with PHP 8.4+ (tested on CLI PHP 8.5.11):
 
@@ -290,7 +291,7 @@ On the main development instance, normal Framework validation registered the new
 
 1. Open the public trust page while logged out. The built-in root now has **Download certificate revocation list (CRL)**. It should download a `.crl` file without login or JavaScript. The current development endpoint is [the built-in CRL](https://dev-surveys/surveys/?pdf_sealer_crl=f8a748fa81720be8b9f4c53669432ae91563f2f1478b00e3d8978d9f33fa61b8).
 2. Use the [synthetic CRL B-T PDF](interop-artifacts/crl-probe/crl-probe-BT.pdf). It uses the already trusted live root with temporary project/TSA certificates; both certificates contain the live CRL URL. Confirm unchanged certification, timestamp validation, and each leaf's revocation finding. No new root import is needed. The user reported certification accepted, recorded a request to the CRL endpoint after clicking Check Revocation, and supplied Acrobat's explicit valid-certificate result against its cached CRL signed by REDCap PDF Sealer Root CA. Displayed update times (2026/10/01 15:55:01 +02:00 to 2026/10/04 15:55:01 +02:00) match published CRL 1. This completes project-certificate CRL acceptance. Separate timestamp/TSA revocation status and the logged-out browser link/download are not yet reported. For the project certificate, use Signature Properties → Show Signer’s Certificate → select the project leaf → Revocation; use Check Revocation if offered. [Adobe describes this tab](https://www.adobe.com/devnet-docs/acrobatetk/tools/DigSigDC/Acrobat_DigSig_WorkflowGuide.pdf).
-3. Existing PID 524/TSA certificates do not gain CDPs retrospectively. To exercise normal project issuance, use the existing CC renewal workflow for a chosen built-in test project, then create a new consent PDF. Its new project certificate should carry the CRL URL; the existing TSA still lacks that extension until it is replaced by future lifecycle work. Do not reset the installation solely to complete this check.
+3. Existing PID 524/TSA certificates do not gain CDPs retrospectively. To exercise normal project issuance, use the existing CC renewal workflow for a chosen built-in test project, then create a new consent PDF. Its new project certificate should carry the CRL URL; the existing TSA still lacks that extension until hourly maintenance replaces it. Do not reset the installation solely to complete this check.
 
 Regenerate the read-only diagnostic on PHP 8.4+ if needed:
 
@@ -326,7 +327,7 @@ Existing `tests/pki_primitives.php`, `tests/pki_diagnostic.php`, `tests/timestam
 
 Run `php8.2 tests/builtin_maintenance.php` and `php tests/builtin_maintenance.php` from the module root. Both pass on PHP 8.2.34/8.5.11. The suite reuses manual renewal/enrollment fixtures, adds synthetic expired/due built-in certificates, and drives the real maintenance service and finalizer. No REDCap bootstrap, live database mutation or external HTTP request is used.
 
-Coverage includes the exact 90-day boundary and insufficient issuer window; expired TSA/project recovery; six due projects processed across bounded runs; enabled priority and retained disabled-project maintenance; fresh public keys and stable UUID/provider/history; idempotency; atomic TSA pointer/source/audit and project commit rollback; exponential retry and recovery; competing worker refusal and mutation lock ownership; preservation of pending CSR/provider changes; retired project CA with independent TSA maintenance; expired external signer and unissued-project isolation; deadline refusal; immutable diagnostic cache with changed-version detection; and the public cron entry on uninitialized PKI without a human session. Missing existing root pointers fail without resetting storage.
+Coverage includes the exact 90-day boundary and insufficient issuer window when root recovery is blocked by incoherent references; expired TSA/project recovery; six due projects processed across bounded runs; enabled priority and retained disabled-project maintenance; fresh public keys and stable UUID/provider/history; idempotency; atomic TSA pointer/source/audit and project commit rollback; exponential retry and recovery; competing worker refusal and mutation lock ownership; preservation of pending CSR/provider changes; retired project CA with independent TSA maintenance; expired external signer and unissued-project isolation; deadline refusal; immutable diagnostic cache with changed-version detection; and the public cron entry on uninitialized PKI without a human session. Missing existing root pointers fail without resetting storage.
 
 The original expired-fixture run revealed that backdating leaves before their newly minted issuer was invalid. The corrected disposable issuer has a historically valid start date. The suite also caught request-start time being too early for a newly generated TSA; production sample checks now obtain current time after generation.
 
@@ -337,3 +338,26 @@ For browser acceptance:
 3. Open **Diagnostic**. An older snapshot may warn that it lacks version evidence. Run the diagnostic, refresh, and confirm the warning clears while the saved result/time persists.
 
 Forced expiry/rotation and new-pair B-T sealing are covered by disposable tests. Do not change the live clock or shorten live certificates to trigger acceptance. Live automatic replacement itself has not been reported as browser/Acrobat verified.
+
+## Automatic same-key root renewal — 2026-10-01
+
+Run from the module root:
+
+```sh
+php8.2 -d xdebug.mode=off tests/root_renewal.php
+php -d xdebug.mode=off tests/root_renewal.php
+```
+
+Both pass on PHP 8.2.34/8.5.11 using disposable real certificates, fake transactional Framework storage and advisory-lock doubles. No live database writes, installed certificate changes or external requests are involved.
+
+- Exact 820-day boundary and a genuinely expired root/TSA recover using the existing root key, with identical DER names/public key/extensions and a new serial/ten-year validity.
+- Fresh TSA validation, active root/TSA references, provider/source references, CRL and audit commit together. Injected identity/log, each setting write, encryption, transaction-start and commit failures retain the prior pair and history.
+- Missing/corrupt CRL, exhausted counter, backward publication clock, corrupt key and inconsistent source references fail safely. Nonempty revocation entries and the CRL URL survive renewal; its number increases. Daily publication deduplicates same-key root generations.
+- Only the original root is supplied to independent OpenSSL verification of the new TSA and refreshed CRL, including a `-crl_check` chain validation.
+- Root retry/backoff recovers to an atomic pair; competing mutations are rejected; repeated renewal is a no-op. Assignment gate, timestamp choices/policy, external provider dependency and retirement remain intact.
+- Six dependent projects catch up across bounded runs with stable UUIDs. The actual finalizer produces verified B-T output both before and after a project's issuer update; a prior PDF remains verifiable.
+- Public history includes both roots. Cached diagnostic bytes/time remain unchanged and its version mismatch is detectable.
+
+Adjacent leaf maintenance, CRL, certificate serial, primitive issuance, initialization and diagnostic regression suites run on both PHP versions. This production service's CLI evidence is separate from the already accepted [Acrobat same-key experiment](#same-key-root-renewal-in-acrobat--2026-10-01).
+
+Read-only devctl inspection now confirms maintenance cron 127 is registered. The preceding leaf-only run at 2026-10-01 15:25:01 UTC reported ok, zero renewals and no failed/deferred/pending work; its first outcome was TSA/skipped, so it predates the new root phase. No manual registration is required. For a normal browser check, inspect the existing maintenance card after the next scheduled run and rerun the diagnostic if its versions changed. Existing long-lived live identities should not renew. Do not change the live clock, shorten installed certificates or reset PKI to trigger this slice. Revocation/recovery acceptance belongs to its next slice.

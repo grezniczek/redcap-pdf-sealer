@@ -60,7 +60,7 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
         }
     }
 
-    /** Framework cron: renew existing built-in leaves without a human session or project assignment. */
+    /** Framework cron: renew the existing built-in root and leaves without a human session or project assignment. */
     public function maintainBuiltinCertificates($cronInfo): string
     {
         $framework = $this->framework;

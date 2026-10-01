@@ -158,15 +158,17 @@ During sealing, actionable PKI health problems create system-scoped alarm entrie
 
 ### Automatic built-in certificate maintenance
 
-The hourly `certificate_maintenance` Framework cron renews the built-in TSA and **existing** built-in project signers when they enter the 90-day expiry window or use a previous issuing-root generation. It generates fresh keys, preserves project UUIDs and CA assignments, and retains historical identities. Normal module enable/update registers the job; Framework's **ExternalModuleValidation** job also discovers newly added crons in a development checkout. REDCap cron and this job must be enabled and running.
+The hourly `certificate_maintenance` Framework cron renews the built-in root when it has **820 days or less** remaining (one full leaf lifetime plus the 90-day renewal window). Routine root renewal retains its existing key and exact subject/extensions. A fresh TSA, active root/TSA references and refreshed CRL activate together; historical certificates remain available on the trust page. TSA and **existing** built-in project signers renew with fresh keys within 90 days of expiry or when they use a previous root generation. Project UUIDs, CA assignments and identity history are retained. Normal module enable/update registers the job; Framework's **ExternalModuleValidation** job also discovers newly added crons in a development checkout. REDCap cron and this job must be enabled and running.
 
-Each run renews the TSA if due, then starts at most five project renewals within a 60-second work budget. Already started work is allowed to finish; lock waits and generation can extend the run. Enabled projects take priority, then earliest expiry. Existing signers in temporarily disabled projects are maintained without enabling their module. The next run catches up after downtime. No certificates or assignments are created for projects without an active binding, and external certificates are never replaced with built-in identities.
+Each run handles root renewal first, then the TSA if due, then starts at most five project renewals within a 60-second work budget. Root renewal counts as two renewed certificates (root and fresh TSA). Already started work is allowed to finish; lock waits and generation can extend the run. Enabled projects take priority, then earliest expiry. Existing signers in temporarily disabled projects are maintained without enabling their module. The next run catches up after downtime. No certificates or assignments are created for projects without an active binding, and external certificates are never replaced with built-in identities.
 
 Pending enrollment/provider changes and retired CAs defer project renewal. The built-in TSA continues to be maintained independently of CA retirement because external providers may use it. Failures retain prior references, alarm, and retry after one hour, doubling to a maximum of 24 hours; a changed identity or root generation bypasses obsolete backoff. Deferred projects retry hourly. An expired identity remains unusable until replacement succeeds.
 
 **Alarms → Automatic built-in certificate maintenance** shows the last result, run time, renewal/deferred/failure counts and work awaiting another run or retry. A result over two hours old is flagged. Lifecycle audits use a system actor and public identity references; maintenance does not create a per-PDF project Logging entry. Daily expiry checks remain separate and can report a certificate whose maintenance is deferred or failing.
 
-**Root renewal and manual revocation are still future work.** Cron never resets missing/corrupt PKI. A root that is expired, unusable or has less than 91 days remaining cannot support this leaf maintenance; the worker reports failure rather than issuing a replacement already within its renewal window. Completion of automatic root maintenance is needed before built-in PKI can be considered fully maintenance free.
+**Routine built-in root renewal is automatic, including recovery after expiry/downtime.** It requires intact stored certificates, matching decryptable keys, coherent provider/source references and the existing CRL counter/entries. Renewal preserves the CRL URL and revoked serials while increasing its number. Missing/corrupt PKI is never reset. If root renewal fails, leaf replacement still requires at least 91 days of usable issuer validity.
+
+No routine root import or approval step is requested. The development Acrobat experiments accepted same-key renewal using the original trusted root; other viewers may have different trust behavior. **Manual revocation and fresh-root-key recovery after compromise remain future work.** A compromised key must not be repaired by same-key renewal. Ordinary renewal does not revoke prior certificates, rewrite old PDFs or provide long-term validation.
 
 ## Scheduled certificate expiry checks
 
@@ -178,7 +180,7 @@ Configured recipients receive one summary rather than one email per certificate.
 
 The module declares the `certificate_expiry` Framework cron with a 24-hour interval. REDCap cron must be running, and the job must be registered/enabled. After adding this cron to an existing development version, refresh its cron registration; normal module enable/update registers it. A missing result or a result older than 48 hours is visibly flagged. Scheduling depends on REDCap cron availability, so the interval is not a guaranteed wall-clock delivery time.
 
-These are public-certificate date checks, not key, chain, revocation, or remote-service validation. They neither issue nor renew certificates. Built-in TSA/project renewal is handled by the separate hourly maintenance job; a CC administrator can also manually renew a built-in project certificate. External projects require replacement through enrollment. Automatic root renewal remains future work.
+These are public-certificate date checks, not key, chain, revocation, or remote-service validation. They neither issue nor renew certificates. Built-in root/TSA/project renewal is handled by the separate hourly maintenance job; a CC administrator can also manually renew a built-in project certificate. External projects require replacement through enrollment.
 
 ## Public certificates and trust
 
@@ -198,7 +200,7 @@ Newly issued built-in project and TSA certificates include the CRL distribution 
 
 Refresh failures preserve the previous committed list and raise `CRL_PUBLICATION_FAILED` in the Alarms tab, with the normal email throttle. An absent, expired, future-dated, or corrupt list returns HTTP 503; an unknown issuing key returns 404. Anonymous downloads never trigger issuance or read private keys.
 
-This is the publication foundation. **Manual revocation controls and automatic root replacement are not yet available**, so current lists are empty. Retirement and ordinary certificate renewal do not revoke a certificate. Publication neither establishes viewer trust nor makes a PDF LTV enabled. Viewer CRL caches can delay recognition of a subsequently published revocation. See [the CRL technical reference](pki.md#built-in-crl-publication).
+This is the publication foundation. **Manual revocation controls and fresh-root-key recovery are not yet available**, so current live lists are empty. Routine same-key root renewal refreshes the existing list and preserves its entries and counter. Retirement and ordinary certificate renewal do not revoke a certificate. Publication neither establishes viewer trust nor makes a PDF LTV enabled. Viewer CRL caches can delay recognition of a subsequently published revocation. See [the CRL technical reference](pki.md#built-in-crl-publication).
 
 ## Troubleshooting
 
@@ -207,7 +209,7 @@ This is the publication foundation. **Manual revocation controls and automatic r
 | No sealing activity | Check document type, module enablement, operation assignment/order, and that the active Core/Framework installation supports finalization. |
 | PKI uninitialized | Complete one-time setup on Root CA. |
 | PKI degraded | Inspect TSA details, run the diagnostic, and check the timestamp/fallback choice. A usable root can still support B-B. |
-| PKI broken | Investigate root records, validity, encryption availability, and key/certificate consistency. No automatic root replacement or storage repair occurs. |
+| PKI broken | Investigate root records, encryption availability, key/certificate consistency and CRL state. Intact expired built-in identities can recover through hourly maintenance; missing/corrupt storage is never reset. |
 | Project certificate incomplete, expired, or unusable | Inspect the project status and failure details. Viewing the page will not renew or repair it. |
 | PDF seal failed | Use the project Logging reference to locate its corresponding system-scoped `seal_event` EM log entry. Record/event IDs are associated when supplied. |
 | B-B timestamp fallback | Check TSA health, settings, and the diagnostic. An intact B-B seal has no embedded timestamp. |
@@ -216,7 +218,7 @@ This is the publication foundation. **Manual revocation controls and automatic r
 
 ## Development and current limits
 
-Automatic root renewal, manual revocation controls, and PAdES B-LT/B-LTA are not implemented. Hourly built-in TSA/project renewal is available. Built-in CRL publication is available as described above. Plan certificate lifecycle and recovery before operational reliance; [PKI](pki.md) describes the stored material and current behavior.
+Manual revocation controls, fresh-root-key recovery after compromise, and PAdES B-LT/B-LTA are not implemented. Hourly built-in root/TSA/project renewal is available. Built-in CRL publication is available as described above. Plan certificate lifecycle and recovery before operational reliance; [PKI](pki.md) describes the stored material and current behavior.
 
 For implementation history, reproducible tests, acceptance evidence, and release packaging, see the repository's [developer documentation](https://github.com/grezniczek/redcap-pdf-sealer/tree/main/DEV_DOCS). It is intentionally excluded from installation packages; the linked development branch may be newer than your installed version. See also the [overview](../README.md) and [third-party notices](../THIRD_PARTY_NOTICES.md).
 
