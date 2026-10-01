@@ -6,6 +6,17 @@
 
 After initial setup, the module should generate, validate and deploy built-in replacements automatically through Framework cron. An administrator explicitly revokes an identity when necessary; replacement and deployment then run automatically. External CA enrollment and externally supplied certificates keep their required manual workflows. External TSA services maintain their own signing certificates.
 
+## Agreed direction and Acrobat experiment — 2026-10-01
+
+The user confirmed greenfield scope: no retrofit or compatibility migration is needed for the current development certificates.
+
+- **Root trust:** try same-key, same-subject certificate renewal with PID 524 before selecting the routine root policy. Fresh-key replacement remains necessary for compromise. The user reported that Acrobat displayed all PID 524 diagnostics as certified and timestamped using its existing root trust without importing any ZIP certificates. An isolated [expired-anchor fixture](testing.md#expired-original-root-in-acrobat--prepared-2026-10-01) is now prepared; its Acrobat result is pending. It imports an already-expired anchor and may need a timed transition test if that import is refused or inconclusive.
+- **Lifecycle choices:** expose Replace, Revoke as superseded, and Revoke due to compromise, with automatic built-in deployment following the action. Routine replacement must never use a compromise reason. TSA withdrawal needs the appropriate non-compromise revocation reason to preserve earlier tokens as described by RFC 3161; finalize the precise per-role behavior in the revocation slice.
+- **CRL service:** use a public survey GET route, for example `?pdf_sealer_crl=<issuer-key-id>`, and embed it in newly issued built-in project/TSA certificates. Prepare a full signed DER CRL per issuer through a daily cron and store it, encoded as base64 with public number/issuer/update metadata, in a module system setting. A revoke action should also trigger prompt regeneration. Requests only serve the stored signed bytes and never load private keys or mint a CRL. Clients can retain an earlier still-valid CRL, so server publication is not a guarantee of immediate viewer awareness.
+- **Scope:** external issuers publish their own revocation information. CRLs do not withdraw an external viewer's trust in a self-signed root or implement B-LT/B-LTA.
+
+The [same-key test procedure](testing.md#same-key-root-renewal-in-acrobat--2026-10-01) and [read-only probe](../tools/same_key_root_probe.php) produce a baseline, a renewed-root case with existing leaves, and a renewed-root case with fresh project/TSA leaves. CLI verification passed against only the original root; the user reported A/B/C certified and timestamped in Acrobat without importing any ZIP certificates. No live identities or configuration were replaced.
+
 ## Feasibility and trust boundaries
 
 Certificate generation and activation inside REDCap are feasible without routine administrator intervention. Root replacement can likewise be generated and activated automatically, with historical public roots retained on the trust page.
@@ -22,7 +33,7 @@ Use a dedicated, bounded Framework maintenance cron, separate from the existing 
 
 | Managed item | Automatic trigger | Deployment |
 | --- | --- | --- |
-| Built-in root | Renewal window, expiry after downtime, or explicit revocation | Generate a fresh root/TSA pair and atomically update active references |
+| Built-in root | Renewal window, expiry after downtime, or explicit revocation | Routine same-key renewal is under test; compromise requires a fresh root/TSA pair; activate references atomically |
 | Built-in TSA | Renewal window, expiry after downtime, explicit revocation, or root replacement | Generate a fresh key/certificate under the current usable root |
 | Existing built-in project signer | Renewal window, expiry, explicit revocation, or previous root generation | Generate a fresh key/certificate under the current issuer; preserve project UUID/provider |
 | External project identity/CA material | Approaching expiry or external revocation information | Report required enrollment/configuration action; do not replace with built-in credentials |
