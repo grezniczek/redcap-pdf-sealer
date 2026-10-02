@@ -32,6 +32,16 @@ final class IdentityRepository
         return new ProjectRevocationRepository($this->framework, $this->reader, $this);
     }
 
+    public function tsaRevocations(): TsaRevocationRepository
+    {
+        return new TsaRevocationRepository($this->framework, $this->reader, $this);
+    }
+
+    public function mergeRevocations(string $rootDer, array $previous): array
+    {
+        return $this->tsaRevocations()->merge($rootDer, $this->revocations()->merge($rootDer, $previous));
+    }
+
     public function providers(): ProviderRepository
     {
         return new ProviderRepository($this->framework, $this->settings);

@@ -107,7 +107,7 @@ final class PdfFinalizeService
                     $identities, $health, [$provider['timestamp_source'], ...$provider['timestamp_alternatives']], $fallback, $now, $event,
                 );
             }
-            return $projects->acceptSeal((int) $pid, $project, function () use ($path, $result, $mode, $event, $events, $context, $pid): PdfFinalizeResult {
+            $accept = function () use ($path, $result, $mode, $event, $events, $context, $pid): PdfFinalizeResult {
                 $written = file_put_contents($path, $result->pdf, LOCK_EX);
                 if ($written !== strlen($result->pdf)) {
                     return $this->failed($events, $event, $context, (int) $pid, 'OUTPUT_WRITE_FAILED', 'Could not write sealed PDF working copy');
@@ -139,7 +139,19 @@ final class PdfFinalizeService
                     'timestamp_serial' => $result->timestampSerialHex,
                     'timestamp_time' => $result->timestampTime,
                 ]);
+            };
+            return $projects->acceptSeal((int) $pid, $project, function () use ($identities, $event, $result, $accept) {
+                if ($result->profile !== 'pades-b-t' || !isset($event['timestamp_identity_id'])) { return $accept(); }
+                // Same project -> configuration lock order as revocation; no locks span TSA HTTP requests.
+                return (new \DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationLock())->withLock(function () use ($identities, $event, $accept) {
+                    $tsa = $identities->find($event['timestamp_identity_id']);
+                    if ($tsa === null || $tsa->role !== 'tsa') { throw new RuntimeException('Captured TSA unavailable'); }
+                    $identities->tsaRevocations()->assertNotRevoked($tsa);
+                    return $accept();
+                });
             });
+        } catch (\DE\RUB\PDFSealerExternalModule\Pki\TsaRevoked) {
+            return $this->failed($events, $event, $context, (int) $pid, 'TSA_CERTIFICATE_REVOKED', 'TSA certificate revoked during sealing; retry with the configured timestamp sources');
         } catch (\DE\RUB\PDFSealerExternalModule\Pki\ProjectRevoked) {
             return $this->failed($events, $event, $context, (int) $pid, 'PROJECT_CERTIFICATE_REVOKED', 'Project certificate revoked; replacement pending');
         } catch (\DE\RUB\PDFSealerExternalModule\Pki\ProviderTransitionPending) {
@@ -231,9 +243,10 @@ final class PdfFinalizeService
         int $now,
         array &$event,
     ): PdfSealResult {
+        $capturedTsaIds = [];
         $ordered = new \DE\RUB\PDFSealerExternalModule\Timestamp\OrderedTimestampProvider(
             $sourceIds,
-            function (string $sourceId, float $deadline) use ($identities, $health) {
+            function (string $sourceId, float $deadline) use ($identities, $health, &$capturedTsaIds) {
                 $timestamp = $identities->providers()->source($sourceId);
                 if ($timestamp['kind'] === 'external') {
                     return (new \DE\RUB\PDFSealerExternalModule\Timestamp\ExternalTimestampSources($this->framework))
@@ -245,6 +258,7 @@ final class PdfFinalizeService
                     $this->alarm(new PkiHealthReport(PkiHealth::Degraded, 'TSA_IDENTITY_INVALID', $timestamp['identity_id']));
                     throw new RuntimeException('TSA is unavailable');
                 }
+                $capturedTsaIds[$sourceId] = $timestamp['identity_id'];
                 return new InternalTimestampProvider(
                     new InternalTsaService($timestamp['policy_oid']),
                     $tsa, static fn(): int => time(),
@@ -260,6 +274,7 @@ final class PdfFinalizeService
         } finally {
             $event['attempted_timestamp_sources'] = json_encode($ordered->attemptedSources(), JSON_THROW_ON_ERROR);
             $event['timestamp_source'] = $ordered->selectedSource() ?? 'none';
+            if (isset($capturedTsaIds[$event['timestamp_source']])) { $event['timestamp_identity_id'] = $capturedTsaIds[$event['timestamp_source']]; }
             $event['alternative_used'] = $ordered->selectedSource() !== null && $ordered->selectedSource() !== $sourceIds[0] ? '1' : '0';
         }
     }

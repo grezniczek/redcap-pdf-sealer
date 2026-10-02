@@ -165,6 +165,9 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             || $this->framework->getProjectId() !== null) {
             throw new \RuntimeException($this->framework->tt('pki_access_denied'));
         }
+        if (in_array($action, ['preview_tsa_lifecycle', 'replace_tsa_certificate', 'revoke_tsa_certificate'], true)) {
+            return $this->manageTsaLifecycle($action, $payload);
+        }
         if (in_array($action, ['preview_project_revocation', 'revoke_project_certificate'], true)) {
             return $this->manageProjectRevocation($action, $payload);
         }
@@ -239,6 +242,44 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             return ['ok' => false, 'message' => $this->framework->tt('enrollment_provider_retired')];
         } catch (\Throwable) {
             return ['ok' => false, 'message' => $this->framework->tt($certificateAction ? 'enrollment_certificate_failed' : 'enrollment_failed')];
+        }
+    }
+
+    private function manageTsaLifecycle(string $action, mixed $payload): array
+    {
+        if (!is_array($payload) || ($action !== 'preview_tsa_lifecycle' &&
+            (!is_string($payload['review_hash'] ?? null) || preg_match('/^[a-f0-9]{64}$/D', $payload['review_hash']) !== 1))
+            || ($action === 'revoke_tsa_certificate' && !in_array($payload['reason'] ?? null, ['superseded', 'compromise'], true))) {
+            return ['ok' => false, 'message' => $this->framework->tt('pki_invalid_request')];
+        }
+        try {
+            $framework = $this->framework;
+            $protector = new SecretProtector();
+            $identities = new IdentityRepository($framework, $protector);
+            $lock = new \DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationLock();
+            $settings = new PrimarySystemSettingReader($framework);
+            $crls = new \DE\RUB\PDFSealerExternalModule\Pki\CrlRepository($framework, $settings);
+            $renewal = new \DE\RUB\PDFSealerExternalModule\Pki\TsaRenewalService($framework, $identities, $protector,
+                CertificateIssuer::forFramework($framework, 'maintenance'), new PkiHealthService($identities, $protector), $lock);
+            $publication = new \DE\RUB\PDFSealerExternalModule\Pki\CrlPublicationService($framework,
+                new \DE\RUB\PDFSealerExternalModule\Pki\PublicTrustRepository(
+                    new \DE\RUB\PDFSealerExternalModule\Pki\PrimaryLogReader($framework), $settings),
+                $identities, $protector, $crls, $lock);
+            $service = new \DE\RUB\PDFSealerExternalModule\Pki\TsaRevocationService($framework, $identities, $renewal, $publication, $crls, $lock);
+            $result = match ($action) {
+                'preview_tsa_lifecycle' => $service->preview(),
+                'replace_tsa_certificate' => $service->replace($payload['review_hash']),
+                default => $service->revoke($payload['review_hash'], $payload['reason']),
+            };
+            if ($action === 'revoke_tsa_certificate' && (!$result['crl_published'] || $result['replacement'] !== 'renewed')) {
+                try {
+                    (new AdminAlarmService($framework, new AlarmRepository($framework), new AlarmLock()))
+                        ->raise('TSA_REVOCATION_RECOVERY_PENDING', 'critical', $result['identity_id']);
+                } catch (\Throwable) { /* The committed block remains independent of email delivery. */ }
+            }
+            return ['ok' => true] + $result;
+        } catch (\Throwable) {
+            return ['ok' => false, 'message' => $this->framework->tt('tsa_lifecycle_failed')];
         }
     }
 

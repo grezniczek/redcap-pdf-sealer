@@ -109,3 +109,9 @@ If no active signer exists, the page shows **Provider change — awaiting certif
 ### Timestamp source
 
 The project status page shows the current provider's timestamp source and B-B fallback policy read-only. Only CC administrators can change them. A successful source diagnostic does not guarantee future requests will succeed. If a required timestamp fails, sealing fails; REDCap can still store or deliver the preceding unsealed PDF. Check project Logging and contact an administrator.
+
+## Built-in TSA lifecycle
+
+The installation's built-in TSA is renewed automatically. A CC administrator can also replace or revoke it; projects cannot perform that action. During pending replacement, sealing follows your provider's configured alternative TSAs and B-B fallback. A strict policy can fail sealing while REDCap still stores/delivers the preceding unsealed PDF. Check project Logging after a workflow completes.
+
+TSA revocation does not change your project's signing certificate or existing PDF bytes. Non-compromise TSA withdrawal preserves earlier tokens under RFC 3161; a compromised TSA key means tokens signed with that key can no longer be trusted. See [sealing and validation](sealing-and-validation.md#tsa-replacement-and-revocation).

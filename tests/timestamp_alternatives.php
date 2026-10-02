@@ -121,6 +121,25 @@ try {
             check(json_decode(end($failures)['attempted_timestamp_sources'], true) === [$sourceId, $second], 'Failure lost attempt order');
         }
     }
+    // A permanently blocked built-in primary uses only its explicitly configured external alternative.
+    $internalSource=$providers->source('builtin-tsa');
+    $internalIdentity=$identities->find($internalSource['identity_id']);
+    (new DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationLock())->withLock(function()use($f,$identities,$internalIdentity,$internalSource){
+        $f->query('START TRANSACTION',[]);
+        $identities->tsaRevocations()->append(null,$internalIdentity,
+            $identities->publicCertificate($internalSource['issuer_identity_id'],'root'),4,time(),$internalSource['issuer_identity_id']);
+        $f->query('COMMIT',[]);
+    });
+    HttpClient::$fail=false;
+    HttpClient::$respond=static fn(string $query):string=>(new InternalTsaService('1.2.3.4'))->respond($query,$identity,time());
+    $sources->savePolicy($providerId,'builtin-tsa',false,[$second]);
+    file_put_contents($working,$sample);$calls=HttpClient::$calls;
+    check($finalizer->finalize($working,['id'=>'seal'],$context)->isModified() && HttpClient::$calls===$calls+1,
+        'Revoked built-in primary did not reach the explicit external alternative');
+    $verifier->verify($sample,file_get_contents($working),$active->certificateDer,$tsa->certificateDer);
+    $outcomes=array_values(array_filter($f->logs,static fn($row)=>$row['message']==='seal_timestamp_outcome'));
+    check(end($outcomes)['timestamp_source']===$second && json_decode(end($outcomes)['attempted_timestamp_sources'],true)===['builtin-tsa',$second],
+        'Revoked-primary alternative lost source order');
     check(!str_contains(json_encode($f->logs), 'test-secret-password'), 'Order audit leaked secrets');
     echo "Ordered TSA policy, rollback, same request, validation, short-circuit, deadline, logging and B-T/strict/B-B finalizer checks passed.\n";
 } finally { foreach ($f->paths as $path) { if (is_file($path)) unlink($path); } }

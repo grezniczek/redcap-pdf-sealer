@@ -51,6 +51,7 @@ final class PkiHealthService
             if ($tsa === null || $tsa->role !== 'tsa') {
                 return new PkiHealthReport(PkiHealth::Degraded, 'TSA_RECORD_MISSING', $tsaId);
             }
+            $this->identities->tsaRevocations()->assertNotRevoked($tsa);
             $this->assertTsa($tsa, $root->certificateDer, $now);
         } catch (Throwable $e) {
             return new PkiHealthReport(PkiHealth::Degraded, 'TSA_IDENTITY_INVALID', $tsaId ?? null);
@@ -90,8 +91,10 @@ final class PkiHealthService
         $this->assertRootCertificate($rootDer, $now);
         $tsa = $this->identities->find($source['identity_id']);
         if ($tsa === null || $tsa->role !== 'tsa') { throw new RuntimeException('TSA unavailable'); }
+        $this->identities->tsaRevocations()->assertNotRevoked($tsa);
         $key = $this->assertTsa($tsa, $rootDer, $now);
-        return new TsaIdentity($tsa->certificateDer, $key, [$rootDer]);
+        return new TsaIdentity($tsa->certificateDer, $key, [$rootDer],
+            fn() => $this->identities->tsaRevocations()->assertNotRevoked($tsa));
     }
 
     private function assertRoot(StoredIdentity $root, int $now): void

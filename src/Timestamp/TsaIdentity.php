@@ -14,5 +14,11 @@ final readonly class TsaIdentity
         public string $certificateDer,
         public OpenSSLAsymmetricKey $privateKey,
         public array $chainDer = [],
+        private ?\Closure $revocationCheck = null,
     ) {}
+
+    public function assertNotRevoked(): void
+    {
+        if ($this->revocationCheck !== null) { ($this->revocationCheck)(); }
+    }
 }

@@ -50,7 +50,7 @@ final class CrlPublicationService
                 if ($previous !== null && $previous['this_update'] > $now) {
                     throw new RuntimeException('CRL clock moved backwards');
                 }
-                $entries = $this->identities->revocations()->merge($root['der'], $previous['entries'] ?? []);
+                $entries = $this->identities->mergeRevocations($root['der'], $previous['entries'] ?? []);
                 $changed = $entries !== ($previous['entries'] ?? []);
                 if ($previous === null && $entries !== []) { throw new RuntimeException('Revocation publication requires an intact prior CRL'); }
                 if ($pendingOnly && !$changed) { continue; }

@@ -19,7 +19,7 @@
     "enable-no-auth-logging": true,
     "enable-every-page-hooks-on-system-pages": true,
     "enable-every-page-hooks-on-login-form": true,
-    "auth-ajax-actions": ["preview_project_revocation", "revoke_project_certificate", "preview_project_renewal", "renew_project_certificate", "preview_provider_transition", "start_provider_transition", "cancel_provider_transition", "preview_ca_retirement", "set_ca_retirement", "review_project_certificate", "activate_project_certificate", "generate_project_csr", "download_project_csr", "cancel_project_csr", "save_assignment_policy", "register_ca_provider", "assign_ca_provider", "run_diagnostic", "send_test_alarm", "save_timestamp_settings",
+    "auth-ajax-actions": ["preview_tsa_lifecycle", "replace_tsa_certificate", "revoke_tsa_certificate", "preview_project_revocation", "revoke_project_certificate", "preview_project_renewal", "renew_project_certificate", "preview_provider_transition", "start_provider_transition", "cancel_provider_transition", "preview_ca_retirement", "set_ca_retirement", "review_project_certificate", "activate_project_certificate", "generate_project_csr", "download_project_csr", "cancel_project_csr", "save_assignment_policy", "register_ca_provider", "assign_ca_provider", "run_diagnostic", "send_test_alarm", "save_timestamp_settings",
         "register_timestamp_source",
         "test_timestamp_source",
         "save_provider_timestamp", "save_alert_recipients", "download_root_certificate", "download_public_root_certificate"],

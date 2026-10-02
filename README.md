@@ -31,7 +31,7 @@ A seal identifies the issuing project and organization; it does not establish th
 
 The installation also needs the required PHP extensions and bundled PHP libraries, and REDCap Core/Framework support for the PDF finalization pipeline. See the [administrator guide](docs/ADMIN.md) for the full prerequisites. The module must be enabled and its sealing operation assigned to the project's pipeline.
 
-A failed sealing operation leaves the preceding PDF available for REDCap to store or deliver. A self-issued certificate is not automatically trusted by viewers, and an embedded timestamp does not by itself provide long-term validation. Built-in CRLs are published daily through the public survey endpoint. Routine built-in renewal and confirmed project-certificate revocation with automatic replacement are implemented. TSA/root revocation, fresh-root-key compromise recovery and PAdES B-LT/B-LTA remain future work.
+A failed sealing operation leaves the preceding PDF available for REDCap to store or deliver. A self-issued certificate is not automatically trusted by viewers, and an embedded timestamp does not by itself provide long-term validation. Built-in CRLs are published daily through the public survey endpoint. Routine built-in renewal and confirmed project/TSA certificate revocation with automatic replacement are implemented. Root revocation, fresh-root-key compromise recovery and PAdES B-LT/B-LTA remain future work.
 
 ## Acknowledgment
 

@@ -195,7 +195,7 @@ $framework->initializeJavascriptModuleObject();
 foreach (['external_tsa_failed', 'external_tsa_passed', 'external_tsa_test_failed', 'external_tsa_testing', 'timestamp_order_invalid', 'diagnostic_never', 'pki_fingerprint'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
 $framework->tt_transferToJavascriptModuleObject('provider_assigned');
 $framework->tt_transferToJavascriptModuleObject('provider_retirement_counts');
-foreach (['revocation_failed', 'revocation_confirm_prompt', 'revocation_saved', 'revocation_crl_published', 'revocation_crl_pending', 'revocation_replaced', 'revocation_signer_changed', 'revocation_replacement_pending', 'revocation_already', 'renewal_failed', 'renewal_saved', 'renewal_issuer_expiry'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
+foreach (['tsa_lifecycle_failed', 'tsa_lifecycle_confirm_prompt', 'tsa_lifecycle_saved', 'tsa_lifecycle_replaced', 'tsa_lifecycle_changed', 'tsa_lifecycle_pending', 'tsa_lifecycle_replace_help', 'tsa_lifecycle_superseded_help', 'tsa_lifecycle_compromise_help', 'revocation_failed', 'revocation_confirm_prompt', 'revocation_saved', 'revocation_crl_published', 'revocation_crl_pending', 'revocation_replaced', 'revocation_signer_changed', 'revocation_replacement_pending', 'revocation_already', 'renewal_failed', 'renewal_saved', 'renewal_issuer_expiry'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
 foreach (['transition_current', 'transition_target', 'transition_saved_pending', 'transition_saved_activated', 'transition_saved_canceled'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
 ?>
 <link rel="stylesheet" href="<?= $escape($framework->getUrl('assets/admin.css')) ?>">
@@ -382,6 +382,8 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
         <p class="text-muted"><?= $escape($framework->tt('pki_tsa_help')) ?></p>
         <?php $renderCertificate('tsa'); ?>
         <hr>
+        <?php require __DIR__ . '/views/tsa-lifecycle.php'; ?>
+        <hr>
         <?php require __DIR__ . '/views/timestamp-admin.php'; ?>
     </section>
     <section class="pdf-sealer-panel" id="pki-panel-diagnostic" role="tabpanel" aria-labelledby="pki-tab-diagnostic" tabindex="0" hidden>
@@ -487,6 +489,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
 <script src="<?= $escape($framework->getUrl('assets/timestamp-admin.js')) ?>"></script>
 <script src="<?= $escape($framework->getUrl('assets/project-renewal.js')) ?>"></script>
 <script src="<?= $escape($framework->getUrl('assets/project-revocation.js')) ?>"></script>
+<script src="<?= $escape($framework->getUrl('assets/tsa-lifecycle.js')) ?>"></script>
 <script>
 (() => {
     const module = <?= $framework->getJavascriptModuleObjectName() ?>;
@@ -916,6 +919,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
     });
     window.PDFSealerProjectRenewal(module);
     window.PDFSealerProjectRevocation(module);
+    window.PDFSealerTsaLifecycle(module);
     window.PDFSealerTimestampAdmin(module, <?= json_encode($timestampPolicies, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
         <?= json_encode($sourceSummaries, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>, formatDiagnosticTime,
         <?= json_encode($framework->getUrl('pki-admin.php'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>);

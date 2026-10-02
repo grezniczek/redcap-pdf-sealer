@@ -6,9 +6,7 @@ namespace DE\RUB\PDFSealerExternalModule\Pki;
 
 use Closure;
 use DE\RUB\PDFSealerExternalModule\Alerts\{AdminAlarmService, AlarmLock};
-use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\{Certificate, SignedDataVerifier};
-use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Timestamp\{Client, Config};
-use DE\RUB\PDFSealerExternalModule\Timestamp\{InternalTimestampProvider, InternalTsaService, PolicyOidAsn1, TsaIdentity};
+use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate;
 use RuntimeException;
 use Throwable;
 
@@ -76,9 +74,14 @@ final class BuiltinMaintenanceService
                             fn(): string => $publication->run(max($now, time()), true)['published'] > 0 ? 'published' : 'skipped');
                     } else { ++$result['remaining']; }
                     $source = $this->identities->providers()->source(ProviderRepository::BUILTIN_TSA);
-                    if ($this->readyToRetry($result, 'tsa', $source['identity_id'], $now)) {
+                    $tsaIdentity = $this->identities->find($source['identity_id']);
+                    if ($tsaIdentity === null) { throw new RuntimeException('TSA unavailable'); }
+                    $tsaRevocation = $this->identities->tsaRevocations()->find($tsaIdentity);
+                    $tsaRevokedAt = $tsaRevocation === null ? null : (int) $tsaRevocation['revoked_at'];
+                    if ($this->readyToRetry($result, 'tsa', $source['identity_id'], $now, $tsaRevokedAt)) {
                         $this->attempt($result, 'tsa', $source['identity_id'], null, $now,
-                            fn(): string => $this->renewTsa($now));
+                            fn(): string => (new TsaRenewalService($this->framework, $this->identities, $this->protector,
+                                $this->issuer, $this->health, $this->configurationLock))->renewAutomatically($now), $tsaRevokedAt);
                     } else { ++$result['remaining']; }
                     $enabled = array_fill_keys(array_map('intval', $this->framework->getProjectsWithModuleEnabled()), true);
                     $provider = $this->identities->providers()->provider(ProviderRepository::BUILTIN_CA);
@@ -164,63 +167,6 @@ final class BuiltinMaintenanceService
             if ($status === 'renewed') { $result['renewed'] += $role === 'root' ? 2 : 1; }
         }
         $result['items'][] = ['role' => $role, 'pid' => $pid, 'status' => $status];
-    }
-
-    private function renewTsa(int $now): string
-    {
-        return $this->configurationLock->withLock(function () use ($now): string {
-            $now = max($now, time());
-            $providers = $this->identities->providers();
-            $source = $providers->source(ProviderRepository::BUILTIN_TSA);
-            $rootId = $this->identities->activeId('root');
-            if ($source['identity_id'] !== $this->identities->activeId('tsa')
-                || $providers->provider(ProviderRepository::BUILTIN_CA)['issuer_identity_id'] !== $rootId) {
-                throw new RuntimeException('Built-in references disagree');
-            }
-            $tsaDer = $this->identities->publicCertificate($source['identity_id'], 'tsa');
-            $fields = (new Certificate())->fields($tsaDer);
-            if (!LeafRenewalPolicy::due($fields['not_after'], $source['issuer_identity_id'], $rootId, $now)) { return 'skipped'; }
-            if ($this->health->inspectIssuance($rootId, $now)->status !== PkiHealth::Ready) {
-                throw new RuntimeException('Root is unavailable for TSA renewal');
-            }
-            $root = $this->identities->find($rootId);
-            $rootFields = (new Certificate())->fields($root->certificateDer);
-            LeafRenewalPolicy::assertIssuerWindow($rootFields['not_after'], $now);
-            $oldIssuer = (new Certificate())->fields($this->identities->publicCertificate($source['issuer_identity_id'], 'root'));
-            $this->health->captureTimestamp($source, max($fields['not_before'], $oldIssuer['not_before']));
-            $organization = openssl_x509_parse(Certificate::derToPem($root->certificateDer))['subject']['O'] ?? null;
-            if (!is_string($organization) || $organization === '') { throw new RuntimeException('Root organization missing'); }
-            $generated = $this->issuer->createTsa($organization, $root->asGeneratedIdentity($this->protector));
-            $provider = new InternalTimestampProvider(new InternalTsaService($source['policy_oid']),
-                new TsaIdentity($generated->certificateDer, $generated->privateKey(), [$root->certificateDer]),
-                static fn(): int => max($now, time()));
-            $client = new Client(new Config('http://localhost.invalid/tsa'), new PolicyOidAsn1($source['policy_oid']));
-            $request = $client->buildRequest(random_bytes(32));
-            $sampleNow = max($now, time());
-            $token = $client->parseResponse($provider->respond($request->der, $sampleNow), $request, $sampleNow);
-            if ((new SignedDataVerifier(requireSigningCertificate: true))->verify($token) !== $generated->certificateDer) {
-                throw new RuntimeException('Replacement TSA sample failed');
-            }
-            if ($this->framework->query('START TRANSACTION', []) === false) { throw new RuntimeException('TSA transaction failed'); }
-            try {
-                $id = $this->identities->append('tsa', $generated);
-                $this->identities->activate('tsa', $id);
-                $updated = $source; $updated['identity_id'] = $id; $updated['issuer_identity_id'] = $rootId;
-                $this->framework->setSystemSetting('tsa_source_' . ProviderRepository::BUILTIN_TSA, json_encode($updated, JSON_THROW_ON_ERROR));
-                $this->health->captureTimestamp($updated, max($now, time())); // Includes encrypted-key round trip before activation commits.
-                $audit = $this->framework->log('tsa_certificate_renewal', [
-                    'project_id' => null, 'record' => '', 'actor' => 'system:cron', 'reason' => 'automatic',
-                    'previous_identity_id' => $source['identity_id'], 'identity_id' => $id, 'issuer_identity_id' => $rootId,
-                    'previous_certificate_sha256' => hash('sha256', $tsaDer), 'certificate_sha256' => hash('sha256', $generated->certificateDer),
-                ]);
-                if ((!is_int($audit) && !ctype_digit((string) $audit)) || (int) $audit < 1) { throw new RuntimeException('TSA audit failed'); }
-                if ($this->framework->query('COMMIT', []) === false) { throw new RuntimeException('TSA commit failed'); }
-                return 'renewed';
-            } catch (Throwable $e) {
-                $this->framework->query('ROLLBACK', []);
-                throw $e;
-            }
-        });
     }
 
     public static function load(PrimarySystemSettingReader $settings): ?array

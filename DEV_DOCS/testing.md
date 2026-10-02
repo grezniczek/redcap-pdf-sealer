@@ -384,3 +384,21 @@ Use a **disposable built-in test project** with PDF Sealer enabled and its final
 7. Refresh the CC page and check for normal GET/AJAX behavior. The accepted form clears its project/reason; failed or stale review requires a new review. No certificate download/import or manual replacement approval is needed.
 
 Failure recovery, disabled/retired/pending isolation and races are covered by disposable tests. Do not corrupt live keys/settings or manipulate live clocks to reproduce them. Browser/Acrobat acceptance of this slice has not yet been reported.
+
+## Built-in TSA lifecycle — 2026-10-02
+
+Automated verification uses disposable real RSA/certificate/timestamp/CRL data and fake transactional primary persistence/locks. It never revokes live material or changes the database. Run **php tests/tsa_revocation.php** and **php8.2 tests/tsa_revocation.php**; adjacent suites are project_revocation, builtin_maintenance, root_renewal, timestamp_alternatives and pki_lifecycle_prerequisites.
+
+Coverage includes public/no-decryption review, malformed/stale/replayed requests, ordinary replacement without revocation, block transaction/audit rollback, superseded/compromise CRL entries, prompt publication, independent recovery failures, fresh-key/history/policy preservation, damaged-key and new-block backoff recovery, strict/B-B sealing, token post-signing blocks, actual PDF acceptance interleavings, merged project/TSA CRLs during root renewal, and CC-only authenticated AJAX. OpenSSL checks the old TSA as revoked and the replacement as valid against the same CRL; unchanged historical token bytes still verify cryptographically. That check does not establish historical trusted validation. The ordered-source suite also verifies a revoked built-in primary uses its explicitly configured external alternative.
+
+### Browser acceptance — pending
+
+This changes the shared built-in TSA for all providers selecting it. Use the sole development instance with a built-in timestamp test project (PID 524 is suitable if still configured that way).
+
+1. Open **TSA → Replace or revoke built-in TSA certificate**, review the subject/fingerprint, choose **Replace without revoking**, and confirm. Check that a fresh TSA is reported active and refresh shows a new fingerprint. Canceling the confirmation must do nothing; refreshing must not repeat the action.
+2. Run CC diagnostics and create an eConsent PDF with that fresh TSA. Confirm certification, no modification and the embedded timestamp in Acrobat. Keep this PDF as the pre-revocation sample.
+3. Review the current TSA again, select **Revoke as superseded**, and confirm. Check separate success messages for the permanent local block, published CRL and fresh active replacement. Refresh and verify a different TSA fingerprint, unchanged provider timestamp settings, and healthy diagnostics.
+4. Create another eConsent PDF and confirm certification/no modification/timestamp in Acrobat. The original trusted root remains the issuing key; no new root trust import should be necessary.
+5. The public CRL should now include the exact superseded TSA serial with reason 4 and an increased counter. Acrobat may keep an older CRL until its cache refreshes. After receiving the new list, validation of the earlier sample's timestamp should follow RFC 3161 non-compromise semantics. Record what Acrobat actually reports; a signature's byte-integrity result alone is not timestamp/revocation acceptance.
+
+The **Key compromise** branch is covered by disposable automated tests. Do not use it merely to test routine replacement on the shared TSA: it withdraws trust in all tokens from that key. No browser acceptance or live mutation has been performed as part of implementation.

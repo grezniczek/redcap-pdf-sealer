@@ -45,7 +45,12 @@ final readonly class RootRenewalService
                 throw new RuntimeException('Root renewal requires coherent built-in references');
             }
             $tsaFields = (new Certificate())->fields($this->identities->publicCertificate($source['identity_id'], 'tsa'));
-            $this->health->captureTimestamp($source, max($tsaFields['not_before'], $fields['not_before']));
+            $oldTsa = $this->identities->find($source['identity_id']);
+            if ($oldTsa === null) { throw new RuntimeException('TSA unavailable'); }
+            // A revoked leaf must not require its old private key for fresh-key recovery.
+            if ($this->identities->tsaRevocations()->find($oldTsa) === null) {
+                $this->health->captureTimestamp($source, max($tsaFields['not_before'], $fields['not_before']));
+            }
             $root = $this->identities->find($rootId);
             if ($root === null || $root->role !== 'root' || $root->certificateDer !== $rootDer) {
                 throw new RuntimeException('Root record is inconsistent');
@@ -68,7 +73,7 @@ final readonly class RootRenewalService
             if ((new SignedDataVerifier(requireSigningCertificate: true))->verify($token) !== $tsa->certificateDer) {
                 throw new RuntimeException('Renewed root/TSA sample failed');
             }
-            $crl = (new CrlIssuer())->issue($renewed, $previousCrl['number'] + 1, max($now, time()), $this->identities->revocations()->merge($rootDer, $previousCrl['entries']));
+            $crl = (new CrlIssuer())->issue($renewed, $previousCrl['number'] + 1, max($now, time()), $this->identities->mergeRevocations($rootDer, $previousCrl['entries']));
             if ($this->framework->query('START TRANSACTION', []) === false) { throw new RuntimeException('Root renewal transaction failed'); }
             try {
                 $newRootId = $this->identities->append('root', $renewed);

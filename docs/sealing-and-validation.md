@@ -59,3 +59,7 @@ The internal timestamp source stores its policy OID; there is currently no UI co
 DSS reported the expected Baseline B/T profiles and valid structure/cryptography for the selected acceptance fixtures. Its overall `INDETERMINATE/NO_CERTIFICATE_CHAIN_FOUND` result reflected the untrusted disposable root; signer-to-root and TSA-to-root certificate material was present. Do not generalize that explanation to an arbitrary file without inspecting its diagnostic data.
 
 For certificate distribution, use the installation's public root page and an independently verified fingerprint. For a failed seal or unexpected viewer result, retain the original saved/downloaded PDF and give your administrator the project Logging reference when available. Operational troubleshooting is in the [administrator guide](ADMIN.md).
+
+## TSA replacement and revocation
+
+Routine TSA replacement does not revoke the previous certificate or alter existing PDFs. If the built-in TSA is revoked as **superseded**, RFC 3161 allows trust in tokens issued before the revocation time to remain, subject to other validation requirements. If revoked for **key compromise**, all tokens signed with that key can no longer be trusted, even though their bytes and cryptographic signatures remain intact. A fresh TSA restores timestamping for new seals; it cannot repair earlier compromised evidence. Viewer CRL caching can delay recognition. See [the PKI reference](pki.md#built-in-tsa-revocation) and [RFC 3161 §4](https://www.rfc-editor.org/rfc/rfc3161.html#section-4).

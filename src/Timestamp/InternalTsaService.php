@@ -41,6 +41,7 @@ final class InternalTsaService
             return $this->status(2, $e->failureBit);
         }
 
+        $identity->assertNotRevoked();
         $this->assertIdentity($identity, $now);
         $serial = $this->serial();
         $time = gmdate('YmdHis', $now) . 'Z';
@@ -53,7 +54,9 @@ final class InternalTsaService
             . $request['nonceDer'],
         );
 
-        return $this->asn1->encodeSequence($this->statusInfo(0) . $this->token($tstInfo, $identity));
+        $response = $this->asn1->encodeSequence($this->statusInfo(0) . $this->token($tstInfo, $identity));
+        $identity->assertNotRevoked();
+        return $response;
     }
 
     /** @return array{imprintDer: string, nonceDer: string} */

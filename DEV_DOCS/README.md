@@ -14,7 +14,7 @@ Start here for implementation, testing, acceptance evidence, and release mainten
 | Document | Purpose |
 | --- | --- |
 | [Implementation status](implementation_status.md) | Current summary followed by chronological implementation and verification notes |
-| [Automatic built-in PKI maintenance](builtin_pki_lifecycle_plan.md) | Implemented cron-based root/TSA/project renewal, project revocation/recovery and planned TSA/root revocation, viewer-trust boundaries and implementation slices |
+| [Automatic built-in PKI maintenance](builtin_pki_lifecycle_plan.md) | Implemented cron-based root/TSA/project renewal, project/TSA revocation/recovery and planned root revocation, viewer-trust boundaries and implementation slices |
 | [Providers and certificate lifecycle](provider_lifecycle_design.md) | Planned CA providers, local key/CSR enrollment, CC-only timestamp policies and fallbacks, and lifecycle implementation sequence |
 | [Testing](testing.md) | Commands and prerequisites formerly mixed into the root README |
 | [Fixture coverage](pdf_fixture_coverage.md) | Automated PDF matrix and coverage boundaries |
