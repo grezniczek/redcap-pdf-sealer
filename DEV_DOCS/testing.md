@@ -371,7 +371,9 @@ Coverage includes no-decryption public review, invalid/stale/replayed payloads, 
 
 The finalizer race uses a deterministic query hook to commit revocation after identity acquisition and before acceptance; the result fails with `PROJECT_CERTIFICATE_REVOKED` and the original bytes remain. A competing revocation cannot enter while acceptance owns the project lock. These are defined working-copy acceptance checks, not a live multi-connection stress test or a guarantee that subsequent Core storage/delivery is canceled.
 
-### Browser and Acrobat procedure — pending
+### Browser and Acrobat acceptance — passed
+
+On **2026-10-03**, the user reported that the pending built-in project revocation browser and Acrobat tests were completed in **PID 534** and passed. This is user-reported manual acceptance; the procedure is retained for future regression checks. Optional compromise and failure-recovery cases remain covered by the disposable automated suite unless separately reported.
 
 Use a **disposable built-in test project** with PDF Sealer enabled and its finalization pipeline assigned. Revocation is permanent for the selected certificate and may affect validation of PDFs previously sealed with it.
 
@@ -383,7 +385,7 @@ Use a **disposable built-in test project** with PDF Sealer enabled and its final
 6. If desired, repeat **Key compromise** on the new disposable signer, then make another consent. Expect another new key/fingerprint and successful future sealing. Old document bytes remain unchanged; a compromised signer's historical validation is not repaired.
 7. Refresh the CC page and check for normal GET/AJAX behavior. The accepted form clears its project/reason; failed or stale review requires a new review. No certificate download/import or manual replacement approval is needed.
 
-Failure recovery, disabled/retired/pending isolation and races are covered by disposable tests. Do not corrupt live keys/settings or manipulate live clocks to reproduce them. Browser/Acrobat acceptance of this slice has not yet been reported.
+Failure recovery, disabled/retired/pending isolation and races are covered by disposable tests. Do not corrupt live keys/settings or manipulate live clocks to reproduce them. The reported PID 534 result completes the pending browser/Acrobat acceptance for this slice.
 
 ## Built-in TSA lifecycle — 2026-10-02
 
@@ -391,7 +393,9 @@ Automated verification uses disposable real RSA/certificate/timestamp/CRL data a
 
 Coverage includes public/no-decryption review, malformed/stale/replayed requests, ordinary replacement without revocation, block transaction/audit rollback, superseded/compromise CRL entries, prompt publication, independent recovery failures, fresh-key/history/policy preservation, damaged-key and new-block backoff recovery, strict/B-B sealing, token post-signing blocks, actual PDF acceptance interleavings, merged project/TSA CRLs during root renewal, and CC-only authenticated AJAX. OpenSSL checks the old TSA as revoked and the replacement as valid against the same CRL; unchanged historical token bytes still verify cryptographically. That check does not establish historical trusted validation. The ordered-source suite also verifies a revoked built-in primary uses its explicitly configured external alternative.
 
-### Browser acceptance — pending
+### Browser and Acrobat acceptance — passed
+
+On **2026-10-03**, the user reported that the pending built-in TSA lifecycle browser and Acrobat tests were completed in **PID 534** and passed, alongside project revocation acceptance. The procedure is retained for regression checks; the shared-TSA compromise branch remains disposable automated coverage.
 
 This changes the shared built-in TSA for all providers selecting it. Use the sole development instance with a built-in timestamp test project (PID 524 is suitable if still configured that way).
 
@@ -401,4 +405,4 @@ This changes the shared built-in TSA for all providers selecting it. Use the sol
 4. Create another eConsent PDF and confirm certification/no modification/timestamp in Acrobat. The original trusted root remains the issuing key; no new root trust import should be necessary.
 5. The public CRL should now include the exact superseded TSA serial with reason 4 and an increased counter. Acrobat may keep an older CRL until its cache refreshes. After receiving the new list, validation of the earlier sample's timestamp should follow RFC 3161 non-compromise semantics. Record what Acrobat actually reports; a signature's byte-integrity result alone is not timestamp/revocation acceptance.
 
-The **Key compromise** branch is covered by disposable automated tests. Do not use it merely to test routine replacement on the shared TSA: it withdraws trust in all tokens from that key. No browser acceptance or live mutation has been performed as part of implementation.
+The **Key compromise** branch is covered by disposable automated tests. Do not use it merely to test routine replacement on the shared TSA: it withdraws trust in all tokens from that key. Automated implementation/testing made no live mutations; the subsequent user-performed browser/Acrobat acceptance is recorded above.
