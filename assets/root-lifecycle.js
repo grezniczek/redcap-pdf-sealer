@@ -73,7 +73,7 @@ window.PDFSealerRootLifecycle = module => {
                 draggable: true,
                 closeButton: 'cancel',
                 focusAfterClose: launcher,
-                pageLabelTemplate: module.tt('root_lifecycle_steps'),
+                pageLabelTemplate: false,
                 state: {reason: 'renew', acknowledged: false, invalid: false, completed: false},
                 buttons: ['cancel',
                     {id: 'back', label: module.tt('root_lifecycle_back'), intent: 'secondary'},
@@ -83,7 +83,7 @@ window.PDFSealerRootLifecycle = module => {
                     {id: 'review', subtitle: module.tt('root_lifecycle_review'), body(ctx) {
                         ctx.buttons.hide('back'); ctx.buttons.hide('confirm'); ctx.buttons.show('advance');
                         if (!preview.revoked && !ctx.state.invalid) ctx.buttons.enable('advance');
-                        const body = element('div', '');
+                        const body = element('div', 'pdf-sealer-dialog-body');
                         body.append(certificateDetails(preview), element('p', 'small text-muted',
                             module.tt('root_lifecycle_dependents', preview.known_dependent_certificates)));
                         if (preview.revoked) body.append(element('p', 'alert alert-warning', module.tt('root_lifecycle_already')));
@@ -110,9 +110,9 @@ window.PDFSealerRootLifecycle = module => {
                     {id: 'confirmation', subtitle: module.tt('root_lifecycle_confirm'), body(ctx) {
                         ctx.buttons.hide('advance'); ctx.buttons.show('back'); ctx.buttons.show('confirm');
                         if (!ctx.state.invalid) ctx.buttons.enable('confirm');
-                        const body = element('div', '');
+                        const body = element('div', 'pdf-sealer-dialog-body');
                         const reason = ctx.state.reason;
-                        body.append(element('p', 'fw-bold', module.tt('root_lifecycle_' + reason)), certificateDetails(preview),
+                        body.append(element('h4', 'fw-bold', module.tt('root_lifecycle_' + reason)), certificateDetails(preview),
                             element('p', 'alert ' + (reason === 'renew' ? 'alert-info' : 'alert-warning'),
                                 module.tt('root_lifecycle_' + reason + '_help')));
                         if (reason === 'compromise') {
@@ -127,7 +127,7 @@ window.PDFSealerRootLifecycle = module => {
                                 if (check.checked && !busy && !ctx.state.invalid) ctx.buttons.enable('confirm');
                                 else ctx.buttons.disable('confirm');
                             });
-                            row.append(check, label); body.append(row);
+                            row.append(check, label); body.append(($('<div class="red"></div>').append(row))[0]);
                             ctx.buttons.disable('confirm');
                         }
                         ctx.buttons.update('confirm', {intent: reason === 'renew' ? 'primary' : 'danger'});

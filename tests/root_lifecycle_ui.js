@@ -82,7 +82,7 @@ const choose = (fixture, reason) => {
     let f = fixture(); let run = await f.launch();
     assert.equal(f.dialog.options.draggable, true);
     assert.deepEqual(Array.from(f.dialog.options.buttons, b => typeof b === 'string' ? b : b.id), ['cancel', 'back', 'advance', 'confirm']);
-    assert.equal(f.dialog.options.pageLabelTemplate, 'root_lifecycle_steps');
+    assert.equal(f.dialog.options.pageLabelTemplate, false);
     assert.equal(f.dialog.controls.advance.hidden, false);
     assert.equal(f.dialog.controls.back.hidden, true); assert.equal(f.dialog.controls.confirm.hidden, true);
     await f.dialog.confirm(); assert.equal(f.calls.length, 1, 'Confirm on review must not execute');
@@ -148,5 +148,5 @@ const choose = (fixture, reason) => {
 
     f = fixture({dialogAvailable: false}); run = await f.launch(); await run.completion;
     assert.equal(f.calls.length, 0); assert.equal(f.message.textContent, 'root_lifecycle_dialog_unavailable');
-    console.log('Root CA UI: step indicator, Next/Back state, two-step confirmation, compromise gate, cancellation, revoked/stale state, busy guard and reload receipts passed.');
+    console.log('Root CA UI: hidden page numbers, Next/Back state, two-step confirmation, compromise gate, cancellation, revoked/stale state, busy guard and reload receipts passed.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

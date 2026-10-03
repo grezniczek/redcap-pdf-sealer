@@ -448,7 +448,7 @@ Run **node tests/root_lifecycle_ui.js** with Node 18+ (development only; no pack
 
 Browser checks for this refactor remain pending:
 
-1. Verify the compact **Administrative workflows** section and link, movable dialog, certificate subject line breaks, radio descriptions, fixed workflow title/page subtitles and native step indicator. Page one has Cancel/Next; page two has Cancel/Back/Confirm.
+1. Verify the compact **Administrative workflows** section and link, movable dialog, certificate subject line breaks, radio descriptions, fixed workflow title/page subtitles and no page numbers. Page one has Cancel/Next; page two has Cancel/Back/Confirm.
 2. Cancel on each page and use X/Escape; no certificate change should occur. Selecting **Next** on the review page must only advance to confirmation. **Back** must preserve the selected action without mutating certificates.
 3. Select compromise and reach confirmation: final Confirm must stay disabled until the checkbox is checked, and disable again when unchecked. Go Back and Next: the action is retained, but compromise acknowledgment must be checked again. Cancel this check; no live compromise is needed.
 4. If an early renewal is wanted on the disposable development PKI, confirm **Renew without revoking (same key)**. The page should reload to current root/TSA details and a result message. Prior trust/revocation matrices do not need repeating solely for this layout change.

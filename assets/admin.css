@@ -31,3 +31,4 @@
     .pdf-sealer-certificate dd { margin-bottom: 10px; }
 }
 .pdf-sealer-status { max-width: 850px; }
+.pdf-sealer-dialog-body { font-size: 13px; line-height: 1.35; }
