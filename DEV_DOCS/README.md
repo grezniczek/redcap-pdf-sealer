@@ -15,6 +15,7 @@ Start here for implementation, testing, acceptance evidence, and release mainten
 | Document | Purpose |
 | --- | --- |
 | [Implementation status](implementation_status.md) | Current summary followed by chronological implementation and verification notes |
+| [Core-owned PDF finalization change plan](core_pdf_finalization_change_plan.md) | Agreed refactor: Core coordinator and execution-plan management, Framework operation discovery/dispatch, reserved terminal actions, and PDF Sealer adaptation |
 | [Automatic built-in PKI maintenance](builtin_pki_lifecycle_plan.md) | Implemented cron-based root/TSA/project renewal, root/project/TSA revocation/recovery, viewer-trust boundaries and implementation slices |
 | [Providers and certificate lifecycle](provider_lifecycle_design.md) | Planned CA providers, local key/CSR enrollment, CC-only timestamp policies and fallbacks, and lifecycle implementation sequence |
 | [Testing](testing.md) | Commands and prerequisites formerly mixed into the root README |
