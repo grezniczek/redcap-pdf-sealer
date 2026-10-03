@@ -63,7 +63,7 @@ final class ExternalCertificateValidator
                 throw new RuntimeException('External signing certificate path validation failed');
             }
         } finally { foreach ($paths as $path) { if (is_string($path)) @unlink($path); } }
-        return ['subject' => $parsed['name'], 'issuer' => $issuer['name'], 'fingerprint' => hash('sha256',$der),
+        return ['subject' => $parsed['name'], 'issuer' => $issuer['name'], 'fingerprint' => hash('sha256',$der), 'thumbprint' => hash('sha1', $der),
             'valid_from' => $parsed['validFrom_time_t'], 'valid_until' => $parsed['validTo_time_t'],
             'serial' => strtoupper($parsed['serialNumberHex']), 'chain_length' => count($chain)];
     }

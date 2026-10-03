@@ -30,7 +30,7 @@ final class PublicTrustRepository
         return $id;
     }
 
-    /** @return list<array{id: string, der: string, fingerprint: string, subject: string, valid_from: int, valid_until: int}> */
+    /** @return list<array{id: string, der: string, fingerprint: string, thumbprint: string, subject: string, valid_from: int, valid_until: int}> */
     public function roots(): array
     {
         $result = $this->reader->query(
@@ -72,6 +72,7 @@ final class PublicTrustRepository
                 'id' => $id,
                 'der' => $der,
                 'fingerprint' => $fingerprint,
+                'thumbprint' => hash('sha1', $der),
                 'subject' => $details['name'],
                 'valid_from' => $details['validFrom_time_t'],
                 'valid_until' => $details['validTo_time_t'],

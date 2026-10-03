@@ -92,6 +92,7 @@ final readonly class TsaRevocationService
         $view = ['identity_id' => $identity->id, 'issuer_identity_id' => $source['issuer_identity_id'],
             'revoked' => $this->identities->tsaRevocations()->find($identity) !== null,
             'certificate' => ['subject' => $details['name'], 'fingerprint' => hash('sha256', $identity->certificateDer),
+                'thumbprint' => hash('sha1', $identity->certificateDer),
                 'valid_from' => $details['validFrom_time_t'], 'valid_until' => $details['validTo_time_t']]];
         return $view + ['review_hash' => hash('sha256', json_encode($view, JSON_THROW_ON_ERROR))];
     }

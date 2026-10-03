@@ -64,7 +64,19 @@ try {
     $sources->provider($sourceId)->respond($probe->buildRequest('test')->der, time());
     $diagnostic = $sources->diagnose($sourceId);
     check($diagnostic['ok'] && $diagnostic['signer_sha256'] === hash('sha256',$tsa->certificateDer), 'Diagnostic failed to verify signer');
+    check($diagnostic['signer_sha1'] === openssl_x509_fingerprint(Certificate::derToPem($tsa->certificateDer), 'sha1'),
+        'External TSA Windows thumbprint mismatch');
     check($sources->snapshot($sourceId) === $diagnostic, 'Diagnostic not persisted');
+    $observationSetting = 'tsa_diagnostic_' . $sourceId;
+    $legacyObservation = $diagnostic; unset($legacyObservation['signer_sha1']);
+    $f->settings[$observationSetting] = json_encode($legacyObservation);
+    check($sources->snapshot($sourceId) === $legacyObservation, 'Existing cached diagnostic became unreadable');
+    foreach ([str_repeat('a', 39), str_repeat('g', 40), null] as $invalidThumbprint) {
+        $invalid = $diagnostic; $invalid['signer_sha1'] = $invalidThumbprint;
+        $f->settings[$observationSetting] = json_encode($invalid);
+        rejects(fn() => $sources->snapshot($sourceId));
+    }
+    $f->settings[$observationSetting] = json_encode($diagnostic);
     $inventory = (new ExpiryInventory($f,$logs,$settings))->collect();
     check(isset($inventory[hash('sha256',$tsaRoot->certificateDer)]), 'External TSA trust root omitted from expiry scan');
     $active = $projects->getOrIssue(104);

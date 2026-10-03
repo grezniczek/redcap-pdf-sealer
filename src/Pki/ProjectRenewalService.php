@@ -129,6 +129,7 @@ final class ProjectRenewalService
             'identity_id' => $binding->identityId, 'issuer_identity_id' => $provider['issuer_identity_id'],
             'issuer_fingerprint' => hash('sha256', $issuerDer), 'issuer_valid_until' => $issuerDetails['validTo_time_t'],
             'certificate' => ['subject' => $details['name'], 'fingerprint' => hash('sha256', $identity->certificateDer),
+                'thumbprint' => hash('sha1', $identity->certificateDer),
                 'valid_from' => $details['validFrom_time_t'], 'valid_until' => $details['validTo_time_t']]];
         return $view + ['review_hash' => hash('sha256', json_encode($view, JSON_THROW_ON_ERROR))];
     }

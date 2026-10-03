@@ -37,6 +37,7 @@ window.PDFSealerProjectRenewal = module => {
             document.getElementById('renewal-valid-from').textContent = utc(result.certificate.valid_from);
             document.getElementById('renewal-valid-until').textContent = utc(result.certificate.valid_until);
             document.getElementById('renewal-fingerprint').textContent = result.certificate.fingerprint;
+            document.getElementById('renewal-thumbprint').textContent = result.certificate.thumbprint;
             document.getElementById('renewal-issuer-expiry').textContent = module.tt('renewal_issuer_expiry', utc(result.issuer_valid_until));
             document.getElementById('renewal-expired').hidden = result.certificate.valid_until >= Date.now() / 1000;
             preview = result;

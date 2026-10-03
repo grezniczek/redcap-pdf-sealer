@@ -238,7 +238,7 @@ The link above the tabs opens the public certificate page at the configured surv
 
 The page and its downloads use the survey endpoint; they do not require public API access or a `NOAUTH` URL parameter. The module's every-page hook settings permit this specific anonymous endpoint. No login-page link is injected; use standard REDCap configuration if you want to advertise it there.
 
-Distribute trust instructions through your institution's established channels. Recipients should verify the root fingerprint against an independently trusted source before trusting it. Downloading the root alone does not configure trust. See [validation findings](sealing-and-validation.md).
+Distribute trust instructions through your institution's established channels. Recipients should verify the root fingerprint against an independently trusted source before trusting it. Downloading the root alone does not configure trust. On Windows, choose the **DER (.cer)** download and compare **Details → Thumbprint** with the page's **Windows thumbprint (SHA-1)**, ignoring letter case and spaces. The SHA-256 fingerprint is also shown. See [validation findings](sealing-and-validation.md).
 
 ### Built-in certificate revocation lists
 

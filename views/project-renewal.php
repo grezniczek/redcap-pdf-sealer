@@ -19,6 +19,7 @@
                 <dt><?= $escape($framework->tt('trust_valid_from')) ?></dt><dd id="renewal-valid-from"></dd>
                 <dt><?= $escape($framework->tt('pki_valid_until')) ?></dt><dd id="renewal-valid-until"></dd>
                 <dt><?= $escape($framework->tt('pki_fingerprint')) ?></dt><dd><code class="pdf-sealer-fingerprint" id="renewal-fingerprint"></code></dd>
+                <dt><?= $escape($framework->tt('pki_thumbprint')) ?></dt><dd><code class="pdf-sealer-fingerprint" id="renewal-thumbprint"></code></dd>
             </dl>
             <p id="renewal-issuer-expiry" class="small text-muted"></p>
             <p id="renewal-expired" class="alert alert-warning" hidden><?= $escape($framework->tt('renewal_expired')) ?></p>

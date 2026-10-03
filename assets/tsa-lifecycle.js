@@ -35,6 +35,7 @@ window.PDFSealerTsaLifecycle = module => {
             if (!result?.ok) throw new Error('TSA review failed');
             document.getElementById('tsa-lifecycle-subject').textContent = result.certificate.subject.replace(/(?<!\\)(?=\/[A-Za-z0-9.]+=)/g, '\n').trim();
             document.getElementById('tsa-lifecycle-fingerprint').textContent = result.certificate.fingerprint;
+            document.getElementById('tsa-lifecycle-thumbprint').textContent = result.certificate.thumbprint;
             document.getElementById('tsa-lifecycle-already').hidden = !result.revoked;
             [...action.options].forEach(option => { option.disabled = result.revoked && option.value !== 'replace'; });
             action.value = 'replace';

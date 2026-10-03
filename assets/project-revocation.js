@@ -35,6 +35,7 @@ window.PDFSealerProjectRevocation = module => {
             if (!result?.ok) throw new Error('Revocation review failed');
             document.getElementById('revocation-subject').textContent = result.certificate.subject.replace(/(?<!\\)(?=\/[A-Za-z0-9.]+=)/g, '\n').trim();
             document.getElementById('revocation-fingerprint').textContent = result.certificate.fingerprint;
+            document.getElementById('revocation-thumbprint').textContent = result.certificate.thumbprint;
             document.getElementById('revocation-already').hidden = !result.revoked;
             choice.hidden = result.revoked;
             reason.value = 'superseded';

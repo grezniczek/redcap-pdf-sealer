@@ -10,6 +10,7 @@
             <dl class="pdf-sealer-certificate">
                 <dt><?= $escape($framework->tt('pki_subject')) ?></dt><dd id="tsa-lifecycle-subject" style="white-space: pre-line"></dd>
                 <dt><?= $escape($framework->tt('pki_fingerprint')) ?></dt><dd><code class="pdf-sealer-fingerprint" id="tsa-lifecycle-fingerprint"></code></dd>
+                <dt><?= $escape($framework->tt('pki_thumbprint')) ?></dt><dd><code class="pdf-sealer-fingerprint" id="tsa-lifecycle-thumbprint"></code></dd>
             </dl>
             <p id="tsa-lifecycle-already" class="alert alert-warning" hidden><?= $escape($framework->tt('tsa_lifecycle_already')) ?></p>
             <label for="tsa-lifecycle-action"><?= $escape($framework->tt('tsa_lifecycle_action')) ?></label>

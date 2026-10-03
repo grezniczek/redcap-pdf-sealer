@@ -36,6 +36,7 @@ window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime, pageUrl
             observation.textContent = snapshot
                 ? text(snapshot.ok ? 'external_tsa_passed' : 'external_tsa_test_failed') + ' — ' + formatTime(new Date(snapshot.checked_at * 1000))
                     + (snapshot.ok ? '\n' + text('pki_fingerprint') + ': ' + snapshot.signer_sha256 : '')
+                    + (snapshot.ok && snapshot.signer_sha1 ? '\n' + text('pki_thumbprint') + ': ' + snapshot.signer_sha1 : '')
                 : text('diagnostic_never');
             observation.style.overflowWrap = 'anywhere';
             observation.style.whiteSpace = 'pre-line';

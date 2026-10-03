@@ -69,3 +69,9 @@ Routine TSA replacement does not revoke the previous certificate or alter existi
 Explicit built-in root revocation blocks the old issuing key and deploys a fresh root/TSA, followed by bounded project replacement. Same-key routine renewal retains the existing trust key; revocation recovery introduces a new one. Verify and distribute its fingerprint through your institution before trusting the new root in Acrobat or another viewer.
 
 The public certificate page marks all old same-key root versions as revoked. Known project/TSA leaves are added to the old key's CRL, but a root CRL cannot withdraw installed trust-anchor policy or enumerate unknown certificates forged with a compromised key. Administrators must separately withdraw compromised old root trust from viewer stores. Recovery does not repair earlier compromised evidence, rewrite old PDFs, or add B-LT/B-LTA evidence. See [the root lifecycle controls](ADMIN.md#renew-or-revoke-the-built-in-root-ca) and [technical semantics](pki.md#built-in-root-revocation).
+
+## Windows certificate thumbprints
+
+Certificate details on the project, CC and public trust pages show both the **SHA-256 fingerprint** and **Windows thumbprint (SHA-1)**. They hash the same complete DER certificate using different algorithms, so their values differ. On Windows, use the DER (.cer) download and compare the latter against the certificate dialog's **Details → Thumbprint**, ignoring spaces and letter case. [Microsoft's certificate-dialog instructions](https://learn.microsoft.com/en-us/troubleshoot/windows-server/remote/remote-desktop-listener-certificate-configurations) identify this as the SHA-1 hash.
+
+This display identifier does not change certificate signatures, PDF/timestamp algorithms or the module's SHA-256 certificate identifiers. Trust still requires checking the certificate against an independently trusted institutional source.

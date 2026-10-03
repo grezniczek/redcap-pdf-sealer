@@ -17,6 +17,7 @@
             <dl class="pdf-sealer-certificate">
                 <dt><?= $escape($framework->tt('pki_subject')) ?></dt><dd id="revocation-subject" style="white-space: pre-line"></dd>
                 <dt><?= $escape($framework->tt('pki_fingerprint')) ?></dt><dd><code class="pdf-sealer-fingerprint" id="revocation-fingerprint"></code></dd>
+                <dt><?= $escape($framework->tt('pki_thumbprint')) ?></dt><dd><code class="pdf-sealer-fingerprint" id="revocation-thumbprint"></code></dd>
             </dl>
             <p id="revocation-already" class="alert alert-warning" hidden><?= $escape($framework->tt('revocation_already')) ?></p>
             <div id="revocation-choice">

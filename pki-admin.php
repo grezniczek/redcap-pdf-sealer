@@ -170,7 +170,8 @@ foreach (['root', 'tsa'] as $role) {
         $identity = $id === null ? null : $identities->find($id);
         $details = $identity === null ? false : openssl_x509_parse(Certificate::derToPem($identity->certificateDer));
         if (is_array($details)) {
-            $certificates[$role] = ['details' => $details, 'fingerprint' => hash('sha256', $identity->certificateDer)];
+            $certificates[$role] = ['details' => $details, 'fingerprint' => hash('sha256', $identity->certificateDer),
+                'thumbprint' => hash('sha1', $identity->certificateDer)];
         }
     } catch (Throwable) { /* The tab will show an explicit unavailable state. */ }
 }
@@ -187,12 +188,13 @@ $renderCertificate = static function (string $role) use ($certificates, $framewo
         <dt><?= $escape($framework->tt('trust_valid_from')) ?></dt><dd><?= $escape(gmdate('Y-m-d H:i:s \U\T\C', $details['validFrom_time_t'] ?? 0)) ?></dd>
         <dt><?= $escape($framework->tt('pki_valid_until')) ?></dt><dd><?= $escape(gmdate('Y-m-d H:i:s \U\T\C', $details['validTo_time_t'] ?? 0)) ?></dd>
         <dt><?= $escape($framework->tt('pki_fingerprint')) ?></dt><dd><code class="pdf-sealer-fingerprint"><?= $escape($certificate['fingerprint']) ?></code></dd>
+        <dt><?= $escape($framework->tt('pki_thumbprint')) ?></dt><dd><code class="pdf-sealer-fingerprint"><?= $escape($certificate['thumbprint']) ?></code></dd>
     </dl>
     <?php
 };
 require_once APP_PATH_DOCROOT . 'ControlCenter/header.php';
 $framework->initializeJavascriptModuleObject();
-foreach (['external_tsa_failed', 'external_tsa_passed', 'external_tsa_test_failed', 'external_tsa_testing', 'timestamp_order_invalid', 'diagnostic_never', 'pki_fingerprint'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
+foreach (['external_tsa_failed', 'external_tsa_passed', 'external_tsa_test_failed', 'external_tsa_testing', 'timestamp_order_invalid', 'diagnostic_never', 'pki_fingerprint', 'pki_thumbprint'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
 $framework->tt_transferToJavascriptModuleObject('provider_assigned');
 $framework->tt_transferToJavascriptModuleObject('provider_retirement_counts');
 foreach (['root_lifecycle_failed', 'root_lifecycle_confirm_prompt', 'root_lifecycle_saved', 'root_lifecycle_renewed', 'root_lifecycle_replaced', 'root_lifecycle_pending', 'root_lifecycle_trust', 'root_lifecycle_projects_done', 'root_lifecycle_projects_pending', 'root_lifecycle_renew_help', 'root_lifecycle_superseded_help', 'root_lifecycle_compromise_help', 'root_lifecycle_dependents', 'tsa_lifecycle_failed', 'tsa_lifecycle_confirm_prompt', 'tsa_lifecycle_saved', 'tsa_lifecycle_replaced', 'tsa_lifecycle_changed', 'tsa_lifecycle_pending', 'tsa_lifecycle_replace_help', 'tsa_lifecycle_superseded_help', 'tsa_lifecycle_compromise_help', 'revocation_failed', 'revocation_confirm_prompt', 'revocation_saved', 'revocation_crl_published', 'revocation_crl_pending', 'revocation_replaced', 'revocation_signer_changed', 'revocation_replacement_pending', 'revocation_already', 'renewal_failed', 'renewal_saved', 'renewal_issuer_expiry'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
@@ -279,6 +281,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
                         <dl class="pdf-sealer-certificate">
                             <dt><?= $escape($framework->tt($cert['trust_anchor'] ? 'provider_anchor' : 'provider_intermediate')) ?></dt><dd><?= $module::certificateSubjectHtml($cert['subject']) ?></dd>
                             <dt><?= $escape($framework->tt('pki_fingerprint')) ?></dt><dd><code class="pdf-sealer-fingerprint"><?= $escape($cert['fingerprint']) ?></code></dd>
+                            <dt><?= $escape($framework->tt('pki_thumbprint')) ?></dt><dd><code class="pdf-sealer-fingerprint"><?= $escape($cert['thumbprint']) ?></code></dd>
                             <dt><?= $escape($framework->tt('pki_valid_until')) ?></dt><dd><?= $escape(gmdate('Y-m-d H:i:s \U\T\C', $cert['valid_until'])) ?></dd>
                         </dl>
                     <?php endforeach; ?>

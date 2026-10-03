@@ -10,6 +10,7 @@
             <dl class="pdf-sealer-certificate">
                 <dt><?= $escape($framework->tt('pki_subject')) ?></dt><dd id="root-lifecycle-subject" style="white-space: pre-line"></dd>
                 <dt><?= $escape($framework->tt('pki_fingerprint')) ?></dt><dd><code class="pdf-sealer-fingerprint" id="root-lifecycle-fingerprint"></code></dd>
+                <dt><?= $escape($framework->tt('pki_thumbprint')) ?></dt><dd><code class="pdf-sealer-fingerprint" id="root-lifecycle-thumbprint"></code></dd>
             </dl>
             <p id="root-lifecycle-dependents" class="small text-muted"></p>
             <p id="root-lifecycle-already" class="alert alert-warning" hidden><?= $escape($framework->tt('root_lifecycle_already')) ?></p>

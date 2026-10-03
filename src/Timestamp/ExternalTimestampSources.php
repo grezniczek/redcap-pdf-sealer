@@ -137,9 +137,13 @@ final class ExternalTimestampSources
         $json = $this->settings->get('tsa_diagnostic_' . $id);
         if ($json === null) { return null; }
         $data = is_string($json) ? json_decode($json, true, 8, JSON_THROW_ON_ERROR) : null;
-        if (!is_array($data) || count($data) !== 4 || !is_int($data['checked_at'] ?? null) || !is_bool($data['ok'] ?? null)
+        $hasThumbprint = is_array($data) && array_key_exists('signer_sha1', $data);
+        if (!is_array($data) || count($data) !== ($hasThumbprint ? 5 : 4) || !is_int($data['checked_at'] ?? null) || !is_bool($data['ok'] ?? null)
             || !array_key_exists('signer_sha256', $data) || !array_key_exists('valid_until', $data)
             || ($data['ok'] && (!is_string($data['signer_sha256']) || preg_match('/^[a-f0-9]{64}$/D', $data['signer_sha256']) !== 1 || !is_int($data['valid_until'])))
+            || ($hasThumbprint && ($data['ok']
+                ? (!is_string($data['signer_sha1']) || preg_match('/^[a-f0-9]{40}$/D', $data['signer_sha1']) !== 1)
+                : $data['signer_sha1'] !== null))
             || (!$data['ok'] && ($data['signer_sha256'] !== null || $data['valid_until'] !== null))) { throw new RuntimeException('Invalid TSA observation'); }
         return $data;
     }
@@ -148,7 +152,7 @@ final class ExternalTimestampSources
     public function diagnose(string $id): array
     {
         $this->get($id);
-        $result = ['checked_at' => time(), 'ok' => false, 'signer_sha256' => null, 'valid_until' => null];
+        $result = ['checked_at' => time(), 'ok' => false, 'signer_sha256' => null, 'signer_sha1' => null, 'valid_until' => null];
         try {
             $provider = $this->provider($id);
             $asn1 = new PolicyOidAsn1($provider->policyOid());
@@ -161,6 +165,7 @@ final class ExternalTimestampSources
             if (!is_int($details['validTo_time_t'] ?? null)) { throw new RuntimeException('Missing signer validity'); }
             $result['ok'] = true;
             $result['signer_sha256'] = hash('sha256', $der);
+            $result['signer_sha1'] = hash('sha1', $der);
             $result['valid_until'] = $details['validTo_time_t'];
         } catch (Throwable) { /* Persist only a generic failure; remote text may contain secrets. */ }
         $result['checked_at'] = time();

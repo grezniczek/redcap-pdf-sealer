@@ -236,7 +236,7 @@ final class ProviderRepository
                     || !is_int($details['validFrom_time_t'] ?? null) || !is_int($details['validTo_time_t'] ?? null)) {
                     throw new RuntimeException('Invalid public CA certificate');
                 }
-                $certificates[] = ['id' => $record['sha256'], 'der' => $der, 'fingerprint' => $record['sha256'],
+                $certificates[] = ['id' => $record['sha256'], 'der' => $der, 'fingerprint' => $record['sha256'], 'thumbprint' => hash('sha1', $der),
                     'subject' => $details['name'], 'valid_from' => $details['validFrom_time_t'],
                     'valid_until' => $details['validTo_time_t'], 'provider_id' => $id, 'provider_name' => $provider['name'],
                     'trust_anchor' => $index === count($provider['chain']) - 1, 'retired' => $this->isRetired($id)];

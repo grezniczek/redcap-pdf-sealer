@@ -413,7 +413,9 @@ Run **php8.2 tests/root_revocation.php** and **php tests/root_revocation.php**. 
 
 Coverage includes public review without key decryption, manual early same-key renewal, stale/replayed/malformed and CC authorization checks, both revocation reasons, block transaction/audit rollback, fresh root/TSA/CRL activation rollback, complete historical known-leaf CRLs and retained counters, independent OpenSSL rejection of old leaves and acceptance under the fresh trusted root, actual B-T finalization, five-project batches/disabled catch-up, damaged old keys and missing old CRL, preserved UUID/provider/policy/pending/retirement state, new-block retry reset, external CA/TSA key aliases, public revoked history and malformed/duplicate metadata, and deterministic finalizer/acceptance interleavings.
 
-### Browser and Acrobat acceptance — pending
+### Browser and Acrobat acceptance — passed
+
+On **2026-10-03**, the user reported that all browser/Acrobat root lifecycle checks passed in **PID 534, record 4 after revocation as Superseded**. This is user-reported acceptance; no PDF was supplied for independent analysis. The following procedure is retained for regression checks. CA compromise, injected failures and batch stress remain disposable automated coverage.
 
 This action affects the shared built-in issuing key and all dependent projects. Use the sole development instance and retain pre-change samples; PID 534 is suitable if it still uses the built-in CA/TSA. **Use Superseded for this acceptance, not CA key compromise.** Compromise is covered by disposable tests and deliberately withdraws trust in earlier evidence. The shared root change can affect previously created development PDFs.
 

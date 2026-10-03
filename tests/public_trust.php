@@ -63,6 +63,10 @@ try {
     check(str_contains($roots[0]['subject'], 'Current Institution')
         && $roots[0]['valid_from'] < $roots[0]['valid_until'], 'Public metadata is invalid');
 
+    check($roots[0]['thumbprint'] === openssl_x509_fingerprint(
+        DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate::derToPem($second->certificateDer), 'sha1'),
+        'Windows thumbprint differs from OpenSSL certificate fingerprint');
+
     $blocks = [['log_id' => '3', 'identity_id' => $firstId,
         'issuer_key_id' => DE\RUB\PDFSealerExternalModule\Pki\CrlIssuer::keyId($first->certificateDer),
         'certificate_sha256' => hash('sha256', $first->certificateDer), 'revoked_at' => (string) time(), 'reason' => '2']];

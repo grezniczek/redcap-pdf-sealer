@@ -163,6 +163,7 @@ final class ProjectIdentityService
             $status['certificate'] = [
                 'subject' => $details['name'],
                 'fingerprint' => hash('sha256', $identity->certificateDer),
+                'thumbprint' => hash('sha1', $identity->certificateDer),
                 'valid_from' => $details['validFrom_time_t'],
                 'valid_until' => $details['validTo_time_t'],
             ];

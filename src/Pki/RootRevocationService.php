@@ -92,6 +92,7 @@ final readonly class RootRevocationService
         $view = ['identity_id' => $id, 'issuer_key_id' => CrlIssuer::keyId($der),
             'revoked' => $this->identities->rootRevocations()->find($der) !== null,
             'certificate' => ['subject' => $details['name'], 'fingerprint' => hash('sha256', $der),
+                'thumbprint' => hash('sha1', $der),
                 'valid_from' => $details['validFrom_time_t'], 'valid_until' => $details['validTo_time_t']]];
         // Counts are informational, not a reason to make an issuing-key block impossible on a busy installation.
         return $view + ['known_dependent_certificates' => count($this->identities->rootRevocations()->dependents($der)),

@@ -35,6 +35,7 @@ window.PDFSealerRootLifecycle = module => {
             if (!result?.ok) throw new Error('Root CA review failed');
             document.getElementById('root-lifecycle-subject').textContent = result.certificate.subject.replace(/(?<!\\)(?=\/[A-Za-z0-9.]+=)/g, '\n').trim();
             document.getElementById('root-lifecycle-fingerprint').textContent = result.certificate.fingerprint;
+            document.getElementById('root-lifecycle-thumbprint').textContent = result.certificate.thumbprint;
             document.getElementById('root-lifecycle-already').hidden = !result.revoked;
             [...action.options].forEach(option => { option.disabled = result.revoked; });
             confirm.disabled = result.revoked;

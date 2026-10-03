@@ -104,6 +104,7 @@ header('Cache-Control: no-store');
                     <dl>
                         <dt><?= $escape($framework->tt('pki_subject')) ?></dt><dd><?= $module::certificateSubjectHtml($root['subject']) ?></dd>
                         <dt><?= $escape($framework->tt('pki_fingerprint')) ?></dt><dd><code><?= $escape($root['fingerprint']) ?></code></dd>
+                        <dt><?= $escape($framework->tt('pki_thumbprint')) ?></dt><dd><code><?= $escape($root['thumbprint']) ?></code></dd>
                         <dt><?= $escape($framework->tt('trust_valid_from')) ?></dt><dd><?= $escape(gmdate('Y-m-d H:i:s \U\T\C', $root['valid_from'])) ?></dd>
                         <dt><?= $escape($framework->tt('trust_valid_until')) ?></dt><dd><?= $escape(gmdate('Y-m-d H:i:s \U\T\C', $root['valid_until'])) ?></dd>
                     </dl>

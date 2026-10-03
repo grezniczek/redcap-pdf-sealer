@@ -149,6 +149,8 @@ if ($enrollmentAvailable) { $framework->initializeJavascriptModuleObject(); }
                 <dd><?= $escape(gmdate('Y-m-d H:i:s \U\T\C', $certificate['valid_until'])) ?></dd>
                 <dt><?= $escape($framework->tt('pki_fingerprint')) ?></dt>
                 <dd><code class="pdf-sealer-fingerprint"><?= $escape($certificate['fingerprint']) ?></code></dd>
+                <dt><?= $escape($framework->tt('pki_thumbprint')) ?></dt>
+                <dd><code class="pdf-sealer-fingerprint"><?= $escape($certificate['thumbprint']) ?></code></dd>
             <?php endif; ?>
         </dl>
         <p class="small text-muted mb-0"><?= $escape($framework->tt('project_status_read_only')) ?></p>
@@ -183,6 +185,7 @@ if ($enrollmentAvailable) { $framework->initializeJavascriptModuleObject(); }
                             <dt><?= $escape($framework->tt('pki_subject')) ?></dt><dd id="certificate-review-subject" style="white-space:pre-line"></dd>
                             <dt><?= $escape($framework->tt('enrollment_certificate_issuer')) ?></dt><dd id="certificate-review-issuer" style="white-space:pre-line"></dd>
                             <dt><?= $escape($framework->tt('pki_fingerprint')) ?></dt><dd><code id="certificate-review-fingerprint" class="pdf-sealer-fingerprint"></code></dd>
+                            <dt><?= $escape($framework->tt('pki_thumbprint')) ?></dt><dd><code id="certificate-review-thumbprint" class="pdf-sealer-fingerprint"></code></dd>
                             <dt><?= $escape($framework->tt('trust_valid_from')) ?></dt><dd id="certificate-review-from"></dd>
                             <dt><?= $escape($framework->tt('trust_valid_until')) ?></dt><dd id="certificate-review-until"></dd>
                         </dl>
@@ -281,6 +284,7 @@ if ($enrollmentAvailable) { $framework->initializeJavascriptModuleObject(); }
                     document.getElementById('certificate-review-' + field).textContent = cert[field].replace(/(?<!\\)(?=\/[A-Za-z0-9.]+=)/g, '\n');
                 });
                 document.getElementById('certificate-review-fingerprint').textContent = cert.fingerprint;
+                document.getElementById('certificate-review-thumbprint').textContent = cert.thumbprint;
                 document.getElementById('certificate-review-from').textContent = new Date(cert.valid_from * 1000).toISOString().replace('T',' ').replace('.000Z',' UTC');
                 document.getElementById('certificate-review-until').textContent = new Date(cert.valid_until * 1000).toISOString().replace('T',' ').replace('.000Z',' UTC');
                 certificateReview.hidden = false;
