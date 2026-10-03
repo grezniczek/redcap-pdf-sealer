@@ -166,7 +166,11 @@ final class ProjectIdentityService
                 'valid_from' => $details['validFrom_time_t'],
                 'valid_until' => $details['validTo_time_t'],
             ];
-            if ($this->identities->revocations()->find($identity) !== null) {
+            $issuerRevoked = false;
+            foreach ($this->issuerChain($identity) as $der) {
+                if ($this->identities->rootRevocations()->find($der) !== null) { $issuerRevoked = true; }
+            }
+            if ($issuerRevoked || $this->identities->revocations()->find($identity) !== null) {
                 $status['state'] = 'revoked';
                 return $status;
             }
@@ -193,7 +197,10 @@ final class ProjectIdentityService
     {
         return $this->lock->withLock($pid, function () use ($identity, $accept): mixed {
             $this->identities->revocations()->assertNotRevoked($identity);
-            return $accept();
+            return $this->configurationLock->withLock(function () use ($identity, $accept): mixed {
+                $this->identities->rootRevocations()->assertChain($this->issuerChain($identity));
+                return $accept();
+            });
         });
     }
 
@@ -214,7 +221,10 @@ final class ProjectIdentityService
         if ($identity->role !== 'project' || $identity->projectUuid !== $uuid || $identity->providerId !== $providerId) {
             throw new RuntimeException('Project identity binding mismatch');
         }
-        if (!$allowRevoked) { $this->identities->revocations()->assertNotRevoked($identity); }
+        if (!$allowRevoked) {
+            $this->identities->revocations()->assertNotRevoked($identity);
+            $this->identities->rootRevocations()->assertChain($this->issuerChain($identity));
+        }
         $provider = $this->identities->providers()->provider($providerId);
         if ($provider['kind'] === 'external') {
             $this->identities->externalValidator()->validate($identity->certificateDer, $identity->issuerChain);

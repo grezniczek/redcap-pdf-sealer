@@ -105,7 +105,7 @@ final class CrlIssuer
                 || ltrim($serial, '0') !== $serial || isset($seen[$serial])
                 || !is_int($entry['revoked_at'] ?? null) || $entry['revoked_at'] < 1
                 || $entry['revoked_at'] > $record['this_update']
-                || !in_array($entry['reason'] ?? null, [1, 4, 5], true)) {
+                || !in_array($entry['reason'] ?? null, [1, 2, 4, 5], true)) {
                 throw new RuntimeException('Invalid CRL revocation entry');
             }
             $seen[$serial] = true;

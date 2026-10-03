@@ -37,9 +37,39 @@ final class IdentityRepository
         return new TsaRevocationRepository($this->framework, $this->reader, $this);
     }
 
+    public function rootRevocations(): RootRevocationRepository
+    {
+        return new RootRevocationRepository($this->framework, $this->reader, $this);
+    }
+
+    /** Public inventory for complete issuer-wide CRLs; never selects encrypted keys. */
+    public function publicCertificates(string $role): array
+    {
+        $this->assertRole($role);
+        $result = $this->reader->query('SELECT identity_id, certificate_der_b64, certificate_sha256 '
+            . 'WHERE message = ? AND identity_role = ? AND ISNULL(project_id) ORDER BY log_id', ['pki_identity', $role]);
+        if ($result === false) { throw new RuntimeException('Public identity inventory failed'); }
+        $certificates = []; $seen = [];
+        while ($row = $result->fetch_assoc()) {
+            $id = $row['identity_id'] ?? null;
+            if (!is_string($id) || preg_match('/^[0-9a-f]{32}$/D', $id) !== 1 || isset($seen[$id])
+                || !is_string($row['certificate_der_b64'] ?? null) || !is_string($row['certificate_sha256'] ?? null)) {
+                throw new RuntimeException('Invalid public identity inventory');
+            }
+            $der = base64_decode($row['certificate_der_b64'], true);
+            if ($der === false || !hash_equals($row['certificate_sha256'], hash('sha256', $der))) {
+                throw new RuntimeException('Public inventory certificate mismatch');
+            }
+            $seen[$id] = true;
+            $certificates[] = ['id' => $id, 'der' => $der, 'fingerprint' => $row['certificate_sha256']];
+        }
+        return $certificates;
+    }
+
     public function mergeRevocations(string $rootDer, array $previous): array
     {
-        return $this->tsaRevocations()->merge($rootDer, $this->revocations()->merge($rootDer, $previous));
+        return $this->rootRevocations()->merge($rootDer,
+            $this->tsaRevocations()->merge($rootDer, $this->revocations()->merge($rootDer, $previous)));
     }
 
     public function providers(): ProviderRepository

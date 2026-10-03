@@ -98,13 +98,14 @@ final class PdfFinalizeService
             $event['certificate_sha256'] = hash('sha256', $project->certificateDer);
             $key = $project->privateKey($protector);
             $now = self::requestTime();
+            $timestampChain = [];
             if ($mode === 'none') {
                 $sealed = $this->builder->seal($source, $project->certificateDer, $key, $issuerChain, $now);
                 $result = new PdfSealResult($sealed, 'pades-b-b');
             } else {
                 $result = $this->sealWithFallback(
                     $source, $project->certificateDer, $key, $issuerChain,
-                    $identities, $health, [$provider['timestamp_source'], ...$provider['timestamp_alternatives']], $fallback, $now, $event,
+                    $identities, $health, [$provider['timestamp_source'], ...$provider['timestamp_alternatives']], $fallback, $now, $event, $timestampChain,
                 );
             }
             $accept = function () use ($path, $result, $mode, $event, $events, $context, $pid): PdfFinalizeResult {
@@ -140,16 +141,19 @@ final class PdfFinalizeService
                     'timestamp_time' => $result->timestampTime,
                 ]);
             };
-            return $projects->acceptSeal((int) $pid, $project, function () use ($identities, $event, $result, $accept) {
-                if ($result->profile !== 'pades-b-t' || !isset($event['timestamp_identity_id'])) { return $accept(); }
-                // Same project -> configuration lock order as revocation; no locks span TSA HTTP requests.
-                return (new \DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationLock())->withLock(function () use ($identities, $event, $accept) {
-                    $tsa = $identities->find($event['timestamp_identity_id']);
-                    if ($tsa === null || $tsa->role !== 'tsa') { throw new RuntimeException('Captured TSA unavailable'); }
-                    $identities->tsaRevocations()->assertNotRevoked($tsa);
-                    return $accept();
-                });
+            return $projects->acceptSeal((int) $pid, $project, function () use ($identities, $event, $result, $accept, $timestampChain) {
+                if ($result->profile !== 'pades-b-t') { return $accept(); }
+                $identities->rootRevocations()->assertChain($timestampChain);
+                if (!isset($event['timestamp_identity_id'])) { return $accept(); }
+                // ProjectIdentityService holds project -> configuration locks through acceptance.
+                $tsa = $identities->find($event['timestamp_identity_id']);
+                if ($tsa === null || $tsa->role !== 'tsa') { throw new RuntimeException('Captured TSA unavailable'); }
+                $identities->rootRevocations()->assertNotRevoked($identities->publicCertificate($event['timestamp_issuer_identity_id'], 'root'));
+                $identities->tsaRevocations()->assertNotRevoked($tsa);
+                return $accept();
             });
+        } catch (\DE\RUB\PDFSealerExternalModule\Pki\RootRevoked) {
+            return $this->failed($events, $event, $context, (int) $pid, 'ROOT_CA_REVOKED', 'Built-in CA issuing key revoked; replacement pending');
         } catch (\DE\RUB\PDFSealerExternalModule\Pki\TsaRevoked) {
             return $this->failed($events, $event, $context, (int) $pid, 'TSA_CERTIFICATE_REVOKED', 'TSA certificate revoked during sealing; retry with the configured timestamp sources');
         } catch (\DE\RUB\PDFSealerExternalModule\Pki\ProjectRevoked) {
@@ -242,13 +246,15 @@ final class PdfFinalizeService
         bool $fallback,
         int $now,
         array &$event,
+        array &$timestampChain,
     ): PdfSealResult {
-        $capturedTsaIds = [];
+        $capturedTsaIds = []; $capturedIssuers = []; $capturedChains = [];
         $ordered = new \DE\RUB\PDFSealerExternalModule\Timestamp\OrderedTimestampProvider(
             $sourceIds,
-            function (string $sourceId, float $deadline) use ($identities, $health, &$capturedTsaIds) {
+            function (string $sourceId, float $deadline) use ($identities, $health, &$capturedTsaIds, &$capturedIssuers, &$capturedChains) {
                 $timestamp = $identities->providers()->source($sourceId);
                 if ($timestamp['kind'] === 'external') {
+                    $capturedChains[$sourceId] = array_map([\DE\RUB\PDFSealerExternalModule\Pki\ProviderRepository::class, 'certificateDer'], $timestamp['chain']);
                     return (new \DE\RUB\PDFSealerExternalModule\Timestamp\ExternalTimestampSources($this->framework))
                         ->provider($sourceId, $deadline);
                 }
@@ -259,6 +265,7 @@ final class PdfFinalizeService
                     throw new RuntimeException('TSA is unavailable');
                 }
                 $capturedTsaIds[$sourceId] = $timestamp['identity_id'];
+                $capturedIssuers[$sourceId] = $timestamp['issuer_identity_id'];
                 return new InternalTimestampProvider(
                     new InternalTsaService($timestamp['policy_oid']),
                     $tsa, static fn(): int => time(),
@@ -274,7 +281,11 @@ final class PdfFinalizeService
         } finally {
             $event['attempted_timestamp_sources'] = json_encode($ordered->attemptedSources(), JSON_THROW_ON_ERROR);
             $event['timestamp_source'] = $ordered->selectedSource() ?? 'none';
-            if (isset($capturedTsaIds[$event['timestamp_source']])) { $event['timestamp_identity_id'] = $capturedTsaIds[$event['timestamp_source']]; }
+            if (isset($capturedTsaIds[$event['timestamp_source']])) {
+                $event['timestamp_identity_id'] = $capturedTsaIds[$event['timestamp_source']];
+                $event['timestamp_issuer_identity_id'] = $capturedIssuers[$event['timestamp_source']];
+            }
+            $timestampChain = $capturedChains[$event['timestamp_source']] ?? [];
             $event['alternative_used'] = $ordered->selectedSource() !== null && $ordered->selectedSource() !== $sourceIds[0] ? '1' : '0';
         }
     }

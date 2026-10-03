@@ -56,10 +56,12 @@ final class BuiltinMaintenanceService
                     }
                     $result['status'] = 'uninitialized';
                 } else {
-                    if ($this->readyToRetry($result, 'root', $rootId, $now)) {
+                    $rootBlock = $this->identities->rootRevocations()->find($this->identities->publicCertificate($rootId, 'root'));
+                    $rootRevokedAt = $rootBlock === null ? null : (int) $rootBlock['revoked_at'];
+                    if ($this->readyToRetry($result, 'root', $rootId, $now, $rootRevokedAt)) {
                         $rootRenewal = new RootRenewalService($this->framework, $this->identities, $this->protector,
                             $this->issuer, $this->health, new CrlRepository($this->framework, $this->settings), $this->configurationLock);
-                        $this->attempt($result, 'root', $rootId, null, $now, fn(): string => $rootRenewal->renewIfDue($now));
+                        $this->attempt($result, 'root', $rootId, null, $now, fn(): string => $rootRenewal->renewIfDue($now), $rootRevokedAt);
                         $currentRootId = $this->identities->activeId('root');
                         if ($currentRootId !== $rootId) { $result['retries'] = []; }
                         $result['root_identity_id'] = $currentRootId;
@@ -96,7 +98,8 @@ final class BuiltinMaintenanceService
                         }
                         $currentKeys['project-' . $pid] = true;
                         $expires = (new Certificate())->fields($identity->certificateDer)['not_after'];
-                        $revocation = $this->identities->revocations()->find($identity);
+                        $revocation = $this->identities->revocations()->find($identity)
+                            ?? $this->identities->rootRevocations()->find($this->identities->publicCertificate($identity->issuerId, 'root'));
                         if ($revocation === null && !LeafRenewalPolicy::due($expires, $identity->issuerId, $provider['issuer_identity_id'], $now)) {
                             unset($result['retries']['project-' . $pid]);
                             continue;

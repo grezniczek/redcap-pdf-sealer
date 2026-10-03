@@ -36,7 +36,8 @@ final readonly class TsaRenewalService
             if ($expectedIdentityId !== null && $source['identity_id'] !== $expectedIdentityId) { throw new RuntimeException('TSA review is stale'); }
             $oldTsa = $this->identities->find($source['identity_id']);
             if ($oldTsa === null || $oldTsa->role !== 'tsa') { throw new RuntimeException('TSA unavailable'); }
-            $revoked = $this->identities->tsaRevocations()->find($oldTsa) !== null;
+            $revoked = $this->identities->tsaRevocations()->find($oldTsa) !== null
+                || $this->identities->rootRevocations()->find($this->identities->publicCertificate($source['issuer_identity_id'], 'root')) !== null;
             $tsaDer = $oldTsa->certificateDer;
             $fields = (new Certificate())->fields($tsaDer);
             if ($expectedIdentityId === null && !$revoked && !LeafRenewalPolicy::due($fields['not_after'], $source['issuer_identity_id'], $rootId, $now)) { return 'skipped'; }

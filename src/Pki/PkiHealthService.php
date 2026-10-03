@@ -94,7 +94,10 @@ final class PkiHealthService
         $this->identities->tsaRevocations()->assertNotRevoked($tsa);
         $key = $this->assertTsa($tsa, $rootDer, $now);
         return new TsaIdentity($tsa->certificateDer, $key, [$rootDer],
-            fn() => $this->identities->tsaRevocations()->assertNotRevoked($tsa));
+            function () use ($tsa, $rootDer): void {
+                $this->identities->rootRevocations()->assertNotRevoked($rootDer);
+                $this->identities->tsaRevocations()->assertNotRevoked($tsa);
+            });
     }
 
     private function assertRoot(StoredIdentity $root, int $now): void
@@ -104,8 +107,9 @@ final class PkiHealthService
         unset($key);
     }
 
-    public function assertRootCertificate(string $der, int $now): void
+    public function assertRootCertificate(string $der, int $now, bool $allowRevoked = false): void
     {
+        if (!$allowRevoked) { $this->identities->rootRevocations()->assertNotRevoked($der); }
         $this->certificate->assertValidAt($der, $now);
         if (!$this->certificate->isCertificateAuthority($der)) {
             throw new RuntimeException('Root certificate is not a CA');

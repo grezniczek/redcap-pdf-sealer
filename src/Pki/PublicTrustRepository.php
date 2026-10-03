@@ -77,6 +77,25 @@ final class PublicTrustRepository
                 'valid_until' => $details['validTo_time_t'],
             ];
         }
+        $blocks = $this->reader->query('SELECT log_id, identity_id, issuer_key_id, certificate_sha256, revoked_at, reason '
+            . 'WHERE message = ? AND ISNULL(project_id)', [RootRevocationRepository::MESSAGE]);
+        if ($blocks === false) { throw new RuntimeException('Public root revocation read failed'); }
+        $byId = array_column($roots, 'der', 'id'); $byKey = [];
+        while ($row = $blocks->fetch_assoc()) {
+            $der = $byId[$row['identity_id'] ?? ''] ?? null;
+            if ($der === null) { throw new RuntimeException('Revoked public root unavailable'); }
+            RootRevocationRepository::validate($row, $der);
+            $keyId = CrlIssuer::keyId($der);
+            if (isset($byKey[$keyId])) { throw new RuntimeException('Duplicate public root revocation'); }
+            $byKey[$keyId] = $row;
+        }
+        foreach ($roots as &$root) {
+            $block = $byKey[CrlIssuer::keyId($root['der'])] ?? null;
+            $root['revoked'] = $block !== null;
+            $root['revoked_at'] = $block === null ? null : (int) $block['revoked_at'];
+            $root['revocation_reason'] = $block === null ? null : (int) $block['reason'];
+        }
+        unset($root);
         return $roots;
     }
 }

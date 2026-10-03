@@ -30,6 +30,7 @@ final class ExternalTimestampProvider implements TimestampProvider
         private readonly string $trustedCaPem,
         callable $transport,
         private readonly string $policyOid = '',
+        private readonly ?Closure $revocationCheck = null,
     ) {
         if (strlen($policyOid) > 256) { throw new RuntimeException('Timestamp policy OID is too long'); }
         $this->asn1 = new PolicyOidAsn1($policyOid);
@@ -40,6 +41,7 @@ final class ExternalTimestampProvider implements TimestampProvider
 
     public function respond(string $requestDer, int $now): string
     {
+        if ($this->revocationCheck !== null) { ($this->revocationCheck)(); }
         $request = $this->request($requestDer);
         // Revalidate current CA validity/path before contacting a remote service.
         $chain = (new CaChainValidator($this->framework))->validate($this->trustedCaPem);
@@ -54,6 +56,7 @@ final class ExternalTimestampProvider implements TimestampProvider
         $token = $client->parseResponse($response, $request, $now);
         $signer = $verifier->verify($token);
         $this->assertTrustedSigner($signer, $chain);
+        if ($this->revocationCheck !== null) { ($this->revocationCheck)(); }
         return $response;
     }
 

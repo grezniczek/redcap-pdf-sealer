@@ -105,6 +105,9 @@ final class ExternalTimestampSources
     public function provider(string $id, ?float $deadline = null): ExternalTimestampProvider
     {
         $source = $this->get($id);
+        $chain = array_map([ProviderRepository::class, 'certificateDer'], $source['chain']);
+        $blocks = (new \DE\RUB\PDFSealerExternalModule\Pki\IdentityRepository($this->framework, new SecretProtector()))->rootRevocations();
+        $blocks->assertChain($chain);
         $auth = $source['credentials'] === null ? ['', '']
             : json_decode((new SecretProtector())->decrypt($source['credentials']), true, 4, JSON_THROW_ON_ERROR);
         if (!is_array($auth) || !array_is_list($auth) || count($auth) !== 2 || !is_string($auth[0]) || !is_string($auth[1])) {
@@ -112,7 +115,8 @@ final class ExternalTimestampSources
         }
         $pem = implode('', array_map(static fn(array $cert): string => Certificate::derToPem(ProviderRepository::certificateDer($cert)), $source['chain']));
         return new ExternalTimestampProvider($this->framework, $pem,
-            new HttpsTimestampTransport($source['endpoint'], $auth[0], $auth[1], $deadline), $source['policy_oid']);
+            new HttpsTimestampTransport($source['endpoint'], $auth[0], $auth[1], $deadline), $source['policy_oid'],
+            static fn() => $blocks->assertChain($chain));
     }
 
     /** No endpoint, credentials or untrusted service messages are returned to the browser. */

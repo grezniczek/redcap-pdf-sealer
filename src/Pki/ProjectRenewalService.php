@@ -54,7 +54,8 @@ final class ProjectRenewalService
             }
             $view = $this->snapshot($pid, false, $now);
             $identity = $this->identities->find($view['identity_id']);
-            $revoked = $this->identities->revocations()->find($identity) !== null;
+            $revoked = $this->identities->revocations()->find($identity) !== null
+                || $this->identities->rootRevocations()->find($this->projects->issuerCertificate($identity)) !== null;
             if (!$revoked && !LeafRenewalPolicy::due($view['certificate']['valid_until'], $identity->issuerId, $view['issuer_identity_id'], $now)) {
                 return 'skipped';
             }

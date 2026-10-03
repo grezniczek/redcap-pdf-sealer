@@ -64,6 +64,23 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
     public function maintainBuiltinCertificates($cronInfo): string
     {
         $framework = $this->framework;
+        $alarms = new AdminAlarmService($framework, new AlarmRepository($framework), new AlarmLock());
+        try {
+            $result = $this->builtinMaintenanceService()->run();
+        } catch (\Throwable) {
+            try { $alarms->raise('BUILTIN_MAINTENANCE_FAILED', 'critical'); } catch (\Throwable) {}
+            throw new \RuntimeException('PDF Sealer maintenance failed; inspect the CC Alarms tab');
+        }
+        if ($result['status'] === 'failed') {
+            throw new \RuntimeException('PDF Sealer maintenance failed; inspect the CC Alarms tab');
+        }
+        return 'PDF Sealer maintenance: ' . $result['status'] . '; renewed: ' . $result['renewed']
+            . '; deferred: ' . $result['deferred'] . '; remaining: ' . $result['remaining'];
+    }
+
+    private function builtinMaintenanceService(): \DE\RUB\PDFSealerExternalModule\Pki\BuiltinMaintenanceService
+    {
+        $framework = $this->framework;
         $settings = new PrimarySystemSettingReader($framework);
         $protector = new SecretProtector();
         $identities = new IdentityRepository($framework, $protector);
@@ -82,20 +99,9 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             $framework, $bindings, $identities, $enrollment, $projects, $health, $projectLock, $configurationLock,
         );
         $alarms = new AdminAlarmService($framework, new AlarmRepository($framework), new AlarmLock());
-        try {
-            $result = (new \DE\RUB\PDFSealerExternalModule\Pki\BuiltinMaintenanceService(
-                $framework, $identities, $bindings, $protector, $issuer, $health, $renewal,
-                $configurationLock, new AlarmLock(), $alarms, $settings,
-            ))->run();
-        } catch (\Throwable) {
-            try { $alarms->raise('BUILTIN_MAINTENANCE_FAILED', 'critical'); } catch (\Throwable) {}
-            throw new \RuntimeException('PDF Sealer maintenance failed; inspect the CC Alarms tab');
-        }
-        if ($result['status'] === 'failed') {
-            throw new \RuntimeException('PDF Sealer maintenance failed; inspect the CC Alarms tab');
-        }
-        return 'PDF Sealer maintenance: ' . $result['status'] . '; renewed: ' . $result['renewed']
-            . '; deferred: ' . $result['deferred'] . '; remaining: ' . $result['remaining'];
+        return new \DE\RUB\PDFSealerExternalModule\Pki\BuiltinMaintenanceService(
+            $framework, $identities, $bindings, $protector, $issuer, $health, $renewal,
+            $configurationLock, new AlarmLock(), $alarms, $settings);
     }
 
     public static function publicTrustUrl(): string
@@ -164,6 +170,9 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             || $project_id !== null
             || $this->framework->getProjectId() !== null) {
             throw new \RuntimeException($this->framework->tt('pki_access_denied'));
+        }
+        if (in_array($action, ['preview_root_lifecycle', 'renew_root_certificate', 'revoke_root_certificate'], true)) {
+            return $this->manageRootLifecycle($action, $payload);
         }
         if (in_array($action, ['preview_tsa_lifecycle', 'replace_tsa_certificate', 'revoke_tsa_certificate'], true)) {
             return $this->manageTsaLifecycle($action, $payload);
@@ -242,6 +251,46 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             return ['ok' => false, 'message' => $this->framework->tt('enrollment_provider_retired')];
         } catch (\Throwable) {
             return ['ok' => false, 'message' => $this->framework->tt($certificateAction ? 'enrollment_certificate_failed' : 'enrollment_failed')];
+        }
+    }
+
+    private function manageRootLifecycle(string $action, mixed $payload): array
+    {
+        if (!is_array($payload) || ($action !== 'preview_root_lifecycle' &&
+            (!is_string($payload['review_hash'] ?? null) || preg_match('/^[a-f0-9]{64}$/D', $payload['review_hash']) !== 1))
+            || ($action === 'revoke_root_certificate' && !in_array($payload['reason'] ?? null, ['superseded', 'compromise'], true))) {
+            return ['ok' => false, 'message' => $this->framework->tt('pki_invalid_request')];
+        }
+        try {
+            $framework = $this->framework; $protector = new SecretProtector();
+            $identities = new IdentityRepository($framework, $protector);
+            $settings = new PrimarySystemSettingReader($framework);
+            $lock = new \DE\RUB\PDFSealerExternalModule\Pki\PkiInitializationLock();
+            $health = new PkiHealthService($identities, $protector);
+            $crls = new \DE\RUB\PDFSealerExternalModule\Pki\CrlRepository($framework, $settings);
+            $renewal = new \DE\RUB\PDFSealerExternalModule\Pki\RootRenewalService($framework, $identities, $protector,
+                CertificateIssuer::forFramework($framework, 'maintenance'), $health, $crls, $lock);
+            $publication = new \DE\RUB\PDFSealerExternalModule\Pki\CrlPublicationService($framework,
+                new \DE\RUB\PDFSealerExternalModule\Pki\PublicTrustRepository(
+                    new \DE\RUB\PDFSealerExternalModule\Pki\PrimaryLogReader($framework), $settings),
+                $identities, $protector, $crls, $lock);
+            $service = new \DE\RUB\PDFSealerExternalModule\Pki\RootRevocationService($framework, $identities, $renewal,
+                $publication, $crls, $this->builtinMaintenanceService(), $health, $lock);
+            $result = match ($action) {
+                'preview_root_lifecycle' => $service->preview(),
+                'renew_root_certificate' => $service->renew($payload['review_hash']),
+                default => $service->revoke($payload['review_hash'], $payload['reason']),
+            };
+            if ($action === 'revoke_root_certificate' && (!$result['crl_published'] || $result['replacement'] !== 'renewed'
+                || $result['maintenance_status'] !== 'ok')) {
+                try {
+                    (new AdminAlarmService($framework, new AlarmRepository($framework), new AlarmLock()))
+                        ->raise('ROOT_REVOCATION_RECOVERY_PENDING', 'critical', $result['identity_id']);
+                } catch (\Throwable) { /* The permanent issuer block remains independent of email delivery. */ }
+            }
+            return ['ok' => true] + $result;
+        } catch (\Throwable) {
+            return ['ok' => false, 'message' => $this->framework->tt('root_lifecycle_failed')];
         }
     }
 

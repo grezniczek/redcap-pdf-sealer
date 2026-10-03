@@ -41,10 +41,12 @@ try {
         ['identity_id' => $firstId, 'certificate_der_b64' => base64_encode($first->certificateDer),
             'certificate_sha256' => hash('sha256', $first->certificateDer)],
     ];
+    $blocks = [];
     $settings = ['active_root_identity_id' => $secondId];
-    $reader = new PrimaryLogReader((object) [], static function (string $sql, array $params) use (&$rows): FakeResult {
+    $reader = new PrimaryLogReader((object) [], static function (string $sql, array $params) use (&$rows, &$blocks): FakeResult {
         check(str_contains($sql, 'ISNULL(project_id)') && !str_contains($sql, 'private_key_ciphertext'),
             'Public query did not exclude private key fields or project records');
+        if ($params === ['root_certificate_revocation']) { return new FakeResult($blocks); }
         check($params === ['pki_identity', 'root'], 'Public query selected the wrong identity role');
         return new FakeResult($rows);
     });
@@ -60,6 +62,23 @@ try {
         'Public root bytes changed');
     check(str_contains($roots[0]['subject'], 'Current Institution')
         && $roots[0]['valid_from'] < $roots[0]['valid_until'], 'Public metadata is invalid');
+
+    $blocks = [['log_id' => '3', 'identity_id' => $firstId,
+        'issuer_key_id' => DE\RUB\PDFSealerExternalModule\Pki\CrlIssuer::keyId($first->certificateDer),
+        'certificate_sha256' => hash('sha256', $first->certificateDer), 'revoked_at' => (string) time(), 'reason' => '2']];
+    $roots = $repository->roots();
+    check(!$roots[0]['revoked'] && $roots[1]['revoked'] && $roots[1]['revocation_reason'] === 2, 'Public revoked status incorrect');
+    $validBlock = $blocks[0];
+    foreach (['reason' => '1', 'certificate_sha256' => str_repeat('0', 64), 'revoked_at' => '0'] as $key => $value) {
+        $blocks[0][$key] = $value;
+        try { $repository->roots(); throw new LogicException('Malformed public block accepted'); }
+        catch (RuntimeException) { /* Reject corrupt public revocation metadata. */ }
+        $blocks[0] = $validBlock;
+    }
+    $blocks[] = $validBlock;
+    try { $repository->roots(); throw new LogicException('Duplicate public block accepted'); }
+    catch (RuntimeException) { /* Ambiguous key-wide blocks fail closed. */ }
+    $blocks = [];
 
     $rows[0]['certificate_sha256'] = str_repeat('0', 64);
     try {

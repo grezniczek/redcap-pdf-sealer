@@ -21,7 +21,27 @@ Install and enable the module using REDCap's normal External Modules administrat
 4. Download the public root in PEM or DER if needed. The public-certificate link above the tabs provides the distribution page.
 5. Configure timestamping and alarm recipients, then run the diagnostic self-test.
 
-Choose the organization carefully: the page does not provide a rename or certificate-replacement workflow. An existing broken PKI requires investigation rather than reinitialization. See [storage and lifecycle limitations](pki.md).
+Choose the organization carefully: the page does not provide an organization rename workflow. An existing broken PKI requires investigation rather than reinitialization. See [storage and lifecycle limitations](pki.md).
+
+## Renew or revoke the built-in Root CA
+
+On **Root CA → Renew or revoke built-in Root CA**, review the subject, SHA-256 fingerprint and known dependent certificate count, choose an action and confirm. Canceling the confirmation makes no change; a stale review is rejected.
+
+| Action | Effect |
+| --- | --- |
+| Renew without revoking (same key) | Performs an early ordinary renewal, preserves the issuing key and CRL URL, and activates a fresh TSA. Earlier certificates remain unrevoked. |
+| Revoke issuing key as superseded | Permanently blocks every root certificate version using that key and its dependent signers; publishes superseded (4) for known project/TSA leaves. |
+| Revoke for CA key compromise | Applies the same permanent block and publishes cACompromise (2) for known leaves. This is a response to compromise, not routine renewal. |
+
+Both revocation actions automatically create a **fresh root key and TSA**. Root/TSA identities, provider/source references and the new key's initial CRL activate together. The old block commits first and survives failed publication or recovery. A damaged old private key or unavailable old CRL cannot prevent new-key deployment. Old CRL counters are never reset. Failed publication/recovery raises an alarm and cron retries; the confirmation reports each outcome separately.
+
+The module immediately starts bounded replacement of existing built-in project signers; hourly maintenance resumes remaining work. UUIDs, CA assignments, timestamp policies and history are preserved. Retired CAs and pending enrollments/provider changes still defer project replacement. External assignments are never substituted locally. Any external CA or TSA configuration containing the blocked built-in key is also unusable until explicitly reconfigured through its normal external workflow.
+
+**Distribute and verify the new root fingerprint before installing its trust in viewers.** A correctly sealed PDF using the new key may be reported as untrusted until this is done. All same-key versions of the old root are marked revoked on the public certificate page and retained for historical inspection. For compromise, withdraw trust in the old key from external viewer stores through your institution's process. The module cannot update those stores.
+
+The old key's CRL lists known stored project/TSA certificates, preserving earlier explicit leaf revocation reasons and times. It does not list the self-signed root as a means of withdrawing anchor trust and cannot enumerate certificates an attacker forged with a compromised key. CRL publication cannot guarantee rejection of every compromised-root chain in viewers. Prior PDF bytes are unchanged; historical trust decisions remain the verifier's responsibility. See [root revocation semantics](pki.md#built-in-root-revocation) and [RFC 5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-6.1.1).
+
+Until replacement succeeds, a dependent sealing operation fails with **ROOT_CA_REVOKED**, even if B-B fallback is allowed. REDCap can still store or deliver the preceding unsealed PDF. Root block commit is serialized with PDF working-copy acceptance; an already accepted PDF may continue through Core storage/delivery.
 
 ## TSA: timestamp settings
 
@@ -49,7 +69,7 @@ On **TSA → Replace or revoke built-in TSA certificate**, review the current su
 | Revoke as superseded | Permanently blocks the previous key and publishes reason superseded (4). RFC 3161 preserves trust in tokens generated before its revocation time, subject to the verifier's other checks. |
 | Revoke for key compromise | Permanently blocks the previous key and publishes reason keyCompromise (1). All tokens signed with that key can no longer be trusted, including earlier tokens. |
 
-These controls affect the installation's built-in TSA, including every CA provider that selects it. They do not revoke project signing certificates or change any provider's primary/alternative sources, policy OID or B-B fallback. External TSAs follow their operator's lifecycle process. Root revocation remains future work.
+These controls affect the installation's built-in TSA, including every CA provider that selects it. They do not revoke project signing certificates or change any provider's primary/alternative sources, policy OID or B-B fallback. External TSAs follow their operator's lifecycle process. Root revocation has separate controls on the Root CA tab.
 
 Revocation commits the local block before independently attempting CRL publication and fresh-key replacement. Neither failure undoes the block. Confirmation reports publication and replacement separately; pending recovery raises an alarm and hourly maintenance retries. A revoked old private key is never needed for recovery. Review/revoke remains possible if the old key is damaged or its certificate has expired. Ordinary replacement requires the existing key's provenance checks; use revocation when a permanent block is intended.
 
@@ -176,7 +196,7 @@ During sealing, actionable PKI health problems create system-scoped alarm entrie
 
 ### Revoke the current built-in project certificate
 
-On **CA providers → Revoke built-in project certificate**, select a project and review its current subject and fingerprint. Choose **Superseded** or **Key compromise**, then confirm the irreversible action. Use normal renewal for ordinary replacement: renewal leaves the previous certificate unrevoked. This control addresses the current built-in project signer; external certificates follow their issuer's process. The TSA tab provides its own replacement/revocation controls; root revocation is not yet available.
+On **CA providers → Revoke built-in project certificate**, select a project and review its current subject and fingerprint. Choose **Superseded** or **Key compromise**, then confirm the irreversible action. Use normal renewal for ordinary replacement: renewal leaves the previous certificate unrevoked. This control addresses the current built-in project signer; external certificates follow their issuer's process. The TSA tab provides its own replacement/revocation controls; root revocation has separate controls on the Root CA tab.
 
 Confirmation first commits a durable local block and public lifecycle audit. It then attempts CRL publication and fresh-key replacement in separate transactions. The result reports these outcomes separately. Publication or replacement failure never undoes the block. The new signer retains the UUID/provider and history; no private key is exported. A damaged revoked project key is not needed for recovery.
 
@@ -198,7 +218,7 @@ Pending enrollment/provider changes and retired CAs defer project renewal. The b
 
 **Routine built-in root renewal is automatic, including recovery after expiry/downtime.** It requires intact stored certificates, matching decryptable keys, coherent provider/source references and the existing CRL counter/entries. Renewal preserves the CRL URL and revoked serials while increasing its number. Missing/corrupt PKI is never reset. If root renewal fails, leaf replacement still requires at least 91 days of usable issuer validity.
 
-No routine root import or approval step is requested. The development Acrobat experiments accepted same-key renewal using the original trusted root; other viewers may have different trust behavior. **Root revocation and fresh-root-key recovery after compromise remain future work.** Built-in project/TSA certificate revocation and automatic replacement are available. A compromised key must not be repaired by same-key renewal. Ordinary renewal does not revoke prior certificates, rewrite old PDFs or provide long-term validation.
+No routine root import or approval step is requested. The development Acrobat experiments accepted same-key renewal using the original trusted root; other viewers may have different trust behavior. **Confirmed root revocation automatically deploys a fresh root key and TSA, then replaces dependent built-in project signers in bounded batches.** A new key requires external viewer trust distribution; see [root lifecycle controls](#renew-or-revoke-the-built-in-root-ca). Built-in project/TSA certificate revocation and automatic replacement are available. A compromised key must not be repaired by same-key renewal. Ordinary renewal does not revoke prior certificates, rewrite old PDFs or provide long-term validation.
 
 ## Scheduled certificate expiry checks
 
@@ -230,7 +250,7 @@ Newly issued built-in project and TSA certificates include the CRL distribution 
 
 Refresh failures preserve the previous committed list and raise `CRL_PUBLICATION_FAILED` in the Alarms tab, with the normal email throttle. An absent, expired, future-dated, or corrupt list returns HTTP 503; an unknown issuing key returns 404. Anonymous downloads never trigger issuance or read private keys.
 
-This is the publication foundation. **Confirmed built-in project revocation is available** and attempts prompt publication. Hourly maintenance and daily refresh retry unpublished project/TSA entries; root revocation and fresh-root-key recovery remain future work. Routine same-key root renewal refreshes the existing list and preserves its entries and counter. Retirement and ordinary certificate renewal do not revoke a certificate. Publication neither establishes viewer trust nor makes a PDF LTV enabled. Viewer CRL caches can delay recognition of a subsequently published revocation. See [the CRL technical reference](pki.md#built-in-crl-publication).
+This is the publication foundation. **Confirmed built-in project revocation is available** and attempts prompt publication. Hourly maintenance and daily refresh retry unpublished project/TSA entries and complete known-leaf lists for revoked root keys. Failed old-key publication does not prevent fresh-key recovery. Routine same-key root renewal refreshes the existing list and preserves its entries and counter. Retirement and ordinary certificate renewal do not revoke a certificate. Publication neither establishes viewer trust nor makes a PDF LTV enabled. Viewer CRL caches can delay recognition of a subsequently published revocation. See [the CRL technical reference](pki.md#built-in-crl-publication).
 
 ## Troubleshooting
 
@@ -248,7 +268,7 @@ This is the publication foundation. **Confirmed built-in project revocation is a
 
 ## Development and current limits
 
-Root revocation, fresh-root-key recovery after compromise, and PAdES B-LT/B-LTA are not implemented. Confirmed built-in project/TSA revocation with automatic replacement is available. Hourly built-in root/TSA/project renewal is available. Built-in CRL publication is available as described above. Plan certificate lifecycle and recovery before operational reliance; [PKI](pki.md) describes the stored material and current behavior.
+PAdES B-LT/B-LTA are not implemented. Confirmed root revocation and automatic fresh-root-key recovery are available; installing or withdrawing viewer trust remains an institutional task. Confirmed built-in project/TSA revocation with automatic replacement is available. Hourly built-in root/TSA/project renewal is available. Built-in CRL publication is available as described above. Plan certificate lifecycle and recovery before operational reliance; [PKI](pki.md) describes the stored material and current behavior.
 
 For implementation history, reproducible tests, acceptance evidence, and release packaging, see the repository's [developer documentation](https://github.com/grezniczek/redcap-pdf-sealer/tree/main/DEV_DOCS). It is intentionally excluded from installation packages; the linked development branch may be newer than your installed version. See also the [overview](../README.md) and [third-party notices](../THIRD_PARTY_NOTICES.md).
 

@@ -31,7 +31,21 @@ try {
         }
         unset($root);
     }
-    $roots = array_merge($roots, $providers->publicCertificates());
+    $revokedKeys = [];
+    foreach ($roots as $root) {
+        if ($root['revoked']) { $revokedKeys[\DE\RUB\PDFSealerExternalModule\Pki\CrlIssuer::keyId($root['der'])] = $root; }
+    }
+    $externalCertificates = $providers->publicCertificates();
+    foreach ($externalCertificates as &$certificate) {
+        $block = $revokedKeys[\DE\RUB\PDFSealerExternalModule\Pki\CrlIssuer::keyId($certificate['der'])] ?? null;
+        if ($block !== null) {
+            $certificate['revoked'] = true;
+            $certificate['revoked_at'] = $block['revoked_at'];
+            $certificate['revocation_reason'] = $block['revocation_reason'];
+        }
+    }
+    unset($certificate);
+    $roots = array_merge($roots, $externalCertificates);
     $activeId = $repository->activeRootId();
 } catch (Throwable $e) {
     $unavailable = true;
@@ -85,6 +99,7 @@ header('Cache-Control: no-store');
             <?php foreach ($displayRoots as $root): ?>
                 <section class="certificate">
                     <h2><?= $escape(isset($root['provider_name']) ? $root['provider_name'] . ' — ' . $framework->tt($root['trust_anchor'] ? 'provider_anchor' : 'provider_intermediate') : $framework->tt($root['id'] === $activeId ? 'trust_current_root' : 'trust_other_roots')) ?></h2>
+                    <?php if ($root['revoked'] ?? false): ?><p class="notice"><?= $escape($framework->tt($root['revocation_reason'] === 2 ? 'root_revoked_compromise_public' : 'root_revoked_superseded_public')) ?></p><?php endif; ?>
                     <?php if ($root['retired'] ?? false): ?><p class="notice"><?= $escape($framework->tt('provider_retired_public')) ?></p><?php endif; ?>
                     <dl>
                         <dt><?= $escape($framework->tt('pki_subject')) ?></dt><dd><?= $module::certificateSubjectHtml($root['subject']) ?></dd>

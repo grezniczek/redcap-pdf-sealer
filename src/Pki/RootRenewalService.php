@@ -10,7 +10,7 @@ use DE\RUB\PDFSealerExternalModule\Timestamp\{InternalTimestampProvider, Interna
 use RuntimeException;
 use Throwable;
 
-/** Routine same-key renewal only; key compromise requires a separate revocation/replacement operation. */
+/** Same-key routine renewal; an explicit issuing-key block triggers fresh-key root/TSA recovery. */
 final readonly class RootRenewalService
 {
     public const WINDOW = CertificateIssuer::LEAF_DAYS * 86400 + LeafRenewalPolicy::WINDOW;
@@ -25,18 +25,20 @@ final readonly class RootRenewalService
         private PkiInitializationLock $lock,
     ) {}
 
-    public function renewIfDue(int $now): string
+    public function renewIfDue(int $now, ?string $expectedRootId = null): string
     {
-        return $this->lock->withLock(function () use ($now): string {
+        return $this->lock->withLock(function () use ($now, $expectedRootId): string {
             $now = max($now, time());
             $rootId = $this->identities->activeId('root');
             if ($rootId === null) { throw new RuntimeException('Root reference missing'); }
             $rootDer = $this->identities->publicCertificate($rootId, 'root');
+            if ($expectedRootId !== null && $rootId !== $expectedRootId) { throw new RuntimeException('Root review is stale'); }
+            $revocation = $this->identities->rootRevocations()->find($rootDer);
             $fields = (new Certificate())->fields($rootDer);
             if ($fields['not_before'] > $now) { throw new RuntimeException('Root is not yet valid'); }
             // Expiration is recoverable; certificate corruption, mismatched keys and future validity are not.
-            $this->health->assertRootCertificate($rootDer, min($now, $fields['not_after'] - 1));
-            if (!self::due($fields['not_after'], $now)) { return 'skipped'; }
+            $this->health->assertRootCertificate($rootDer, min($now, $fields['not_after'] - 1), $revocation !== null);
+            if ($expectedRootId === null && $revocation === null && !self::due($fields['not_after'], $now)) { return 'skipped'; }
             $providers = $this->identities->providers();
             $provider = $providers->provider(ProviderRepository::BUILTIN_CA);
             $source = $providers->source(ProviderRepository::BUILTIN_TSA);
@@ -44,22 +46,28 @@ final readonly class RootRenewalService
                 || $source['identity_id'] !== $this->identities->activeId('tsa')) {
                 throw new RuntimeException('Root renewal requires coherent built-in references');
             }
-            $tsaFields = (new Certificate())->fields($this->identities->publicCertificate($source['identity_id'], 'tsa'));
-            $oldTsa = $this->identities->find($source['identity_id']);
-            if ($oldTsa === null) { throw new RuntimeException('TSA unavailable'); }
-            // A revoked leaf must not require its old private key for fresh-key recovery.
-            if ($this->identities->tsaRevocations()->find($oldTsa) === null) {
-                $this->health->captureTimestamp($source, max($tsaFields['not_before'], $fields['not_before']));
+            $root = null;
+            if ($revocation === null) {
+                $tsaFields = (new Certificate())->fields($this->identities->publicCertificate($source['identity_id'], 'tsa'));
+                $oldTsa = $this->identities->find($source['identity_id']);
+                if ($oldTsa === null) { throw new RuntimeException('TSA unavailable'); }
+                if ($this->identities->tsaRevocations()->find($oldTsa) === null) {
+                    $this->health->captureTimestamp($source, max($tsaFields['not_before'], $fields['not_before']));
+                }
+                $root = $this->identities->find($rootId);
+                if ($root === null || $root->role !== 'root' || $root->certificateDer !== $rootDer) {
+                    throw new RuntimeException('Root record is inconsistent');
+                }
             }
-            $root = $this->identities->find($rootId);
-            if ($root === null || $root->role !== 'root' || $root->certificateDer !== $rootDer) {
-                throw new RuntimeException('Root record is inconsistent');
-            }
-            $previousCrl = $this->crls->load($rootDer);
-            if ($previousCrl === null || $previousCrl['number'] === PHP_INT_MAX || $previousCrl['this_update'] > $now) {
+            $previousCrl = $revocation === null ? $this->crls->load($rootDer) : null;
+            if ($revocation === null && ($previousCrl === null || $previousCrl['number'] === PHP_INT_MAX || $previousCrl['this_update'] > $now)) {
                 throw new RuntimeException('Root renewal requires an intact CRL counter and ledger');
             }
-            $renewed = $this->issuer->renewRoot($root->asGeneratedIdentity($this->protector));
+            $oldOrganization = openssl_x509_parse(Certificate::derToPem($rootDer))['subject']['O'] ?? null;
+            if (!is_string($oldOrganization) || $oldOrganization === '') { throw new RuntimeException('Root organization missing'); }
+            // Recovery creates a new trust anchor without accessing the revoked root/TSA private keys or old CRL.
+            $renewed = $revocation === null ? $this->issuer->renewRoot($root->asGeneratedIdentity($this->protector))
+                : $this->issuer->createRoot($oldOrganization);
             $organization = openssl_x509_parse(Certificate::derToPem($renewed->certificateDer))['subject']['O'] ?? null;
             if (!is_string($organization) || $organization === '') { throw new RuntimeException('Root organization missing'); }
             $tsa = $this->issuer->createTsa($organization, $renewed);
@@ -73,7 +81,8 @@ final readonly class RootRenewalService
             if ((new SignedDataVerifier(requireSigningCertificate: true))->verify($token) !== $tsa->certificateDer) {
                 throw new RuntimeException('Renewed root/TSA sample failed');
             }
-            $crl = (new CrlIssuer())->issue($renewed, $previousCrl['number'] + 1, max($now, time()), $this->identities->mergeRevocations($rootDer, $previousCrl['entries']));
+            $crl = (new CrlIssuer())->issue($renewed, $revocation === null ? $previousCrl['number'] + 1 : 1, max($now, time()),
+                $revocation === null ? $this->identities->mergeRevocations($rootDer, $previousCrl['entries']) : []);
             if ($this->framework->query('START TRANSACTION', []) === false) { throw new RuntimeException('Root renewal transaction failed'); }
             try {
                 $newRootId = $this->identities->append('root', $renewed);
@@ -94,8 +103,9 @@ final readonly class RootRenewalService
                 }
                 $this->health->captureTimestamp($updatedSource, max($now, time()));
                 $audit = $this->framework->log('root_certificate_renewal', [
-                    'project_id' => null, 'record' => '', 'actor' => 'system:cron',
-                    'reason' => $fields['not_after'] <= $now ? 'expired' : 'renewal_window',
+                    'project_id' => null, 'record' => '', 'actor' => $expectedRootId === null ? 'system:cron' : $this->framework->getUser()->getUsername(),
+                    'reason' => $revocation !== null ? 'revocation_recovery' : ($expectedRootId !== null ? 'manual'
+                        : ($fields['not_after'] <= $now ? 'expired' : 'renewal_window')),
                     'previous_identity_id' => $rootId, 'identity_id' => $newRootId,
                     'previous_tsa_identity_id' => $source['identity_id'], 'tsa_identity_id' => $newTsaId,
                     'previous_certificate_sha256' => hash('sha256', $rootDer),

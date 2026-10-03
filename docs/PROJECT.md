@@ -115,3 +115,9 @@ The project status page shows the current provider's timestamp source and B-B fa
 The installation's built-in TSA is renewed automatically. A CC administrator can also replace or revoke it; projects cannot perform that action. During pending replacement, sealing follows your provider's configured alternative TSAs and B-B fallback. A strict policy can fail sealing while REDCap still stores/delivers the preceding unsealed PDF. Check project Logging after a workflow completes.
 
 TSA revocation does not change your project's signing certificate or existing PDF bytes. Non-compromise TSA withdrawal preserves earlier tokens under RFC 3161; a compromised TSA key means tokens signed with that key can no longer be trusted. See [sealing and validation](sealing-and-validation.md#tsa-replacement-and-revocation).
+
+## When your issuing CA is revoked
+
+An administrator can revoke the built-in CA's issuing key. Your old signer becomes unusable immediately; automatic maintenance replaces eligible built-in signers while preserving the project UUID and provider assignment. Pending enrollment/provider changes or a retired provider can delay replacement. Refresh the project status and contact your administrator if recovery remains pending. Externally assigned projects retain their external enrollment requirements.
+
+A fresh root key requires new viewer trust distribution through your institution. An intact new seal may be reported as untrusted until the recipient trusts that root. Revocation and recovery do not change archived PDF bytes or retroactively seal an earlier unsealed archive. A failed seal can still leave REDCap's preceding PDF available for storage/delivery; review project Logging.

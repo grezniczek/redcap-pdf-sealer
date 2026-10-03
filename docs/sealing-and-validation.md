@@ -63,3 +63,9 @@ For certificate distribution, use the installation's public root page and an ind
 ## TSA replacement and revocation
 
 Routine TSA replacement does not revoke the previous certificate or alter existing PDFs. If the built-in TSA is revoked as **superseded**, RFC 3161 allows trust in tokens issued before the revocation time to remain, subject to other validation requirements. If revoked for **key compromise**, all tokens signed with that key can no longer be trusted, even though their bytes and cryptographic signatures remain intact. A fresh TSA restores timestamping for new seals; it cannot repair earlier compromised evidence. Viewer CRL caching can delay recognition. See [the PKI reference](pki.md#built-in-tsa-revocation) and [RFC 3161 §4](https://www.rfc-editor.org/rfc/rfc3161.html#section-4).
+
+## Trust after root-key revocation
+
+Explicit built-in root revocation blocks the old issuing key and deploys a fresh root/TSA, followed by bounded project replacement. Same-key routine renewal retains the existing trust key; revocation recovery introduces a new one. Verify and distribute its fingerprint through your institution before trusting the new root in Acrobat or another viewer.
+
+The public certificate page marks all old same-key root versions as revoked. Known project/TSA leaves are added to the old key's CRL, but a root CRL cannot withdraw installed trust-anchor policy or enumerate unknown certificates forged with a compromised key. Administrators must separately withdraw compromised old root trust from viewer stores. Recovery does not repair earlier compromised evidence, rewrite old PDFs, or add B-LT/B-LTA evidence. See [the root lifecycle controls](ADMIN.md#renew-or-revoke-the-built-in-root-ca) and [technical semantics](pki.md#built-in-root-revocation).
