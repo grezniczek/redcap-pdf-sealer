@@ -21,6 +21,7 @@ if ($pid === null || \ExternalModules\ExternalModules::getUsername() === null
 }
 
 $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+$sealingSupport = \DE\RUB\PDFSealerExternalModule\Pdf\SealingSupport::inspect();
 $pipeline = ProjectPipelineStatus::inspect((int) $pid, $module->PREFIX);
 $protector = new SecretProtector();
 $identities = new IdentityRepository($framework, $protector);
@@ -96,6 +97,7 @@ if ($enrollmentAvailable) { $framework->initializeJavascriptModuleObject(); }
     <p class="pdf-sealer-brand text-muted"><em><?= $escape($framework->tt('pki_brand')) ?></em></p>
     <h4 class="mb-2"><i class="fas fa-file-signature" aria-hidden="true"></i> <?= $escape($framework->tt('project_status_page_title')) ?></h4>
     <p><?= $escape($framework->tt('project_status_intro')) ?></p>
+    <?php require __DIR__ . '/views/sealing-support.php'; ?>
     <div class="pdf-sealer-summary">
         <div class="pdf-sealer-card pdf-sealer-health-<?= $escape($pipelineTone) ?>">
             <div class="small text-muted"><?= $escape($framework->tt('project_status_pipeline')) ?></div>
@@ -118,7 +120,7 @@ if ($enrollmentAvailable) { $framework->initializeJavascriptModuleObject(); }
             <p><strong><?= $escape($framework->tt('project_status_positions')) ?>:</strong>
                 <?= $escape(implode(', ', $pipeline['positions'])) ?></p>
         <?php endif; ?>
-        <p class="small text-muted mb-0"><?= $escape($framework->tt('project_status_pipeline_help')) ?></p>
+        <?php if ($sealingSupport['supported']): ?><p class="small text-muted mb-0"><?= $escape($framework->tt('project_status_pipeline_help')) ?></p><?php endif; ?>
     </section>
     <section class="pdf-sealer-panel pdf-sealer-section" aria-labelledby="pdf-sealer-project-pki">
         <h5 id="pdf-sealer-project-pki"><i class="fas fa-shield-alt" aria-hidden="true"></i> <?= $escape($framework->tt('pki_status')) ?></h5>

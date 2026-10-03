@@ -15,7 +15,7 @@ final class ProjectPipelineStatus
     {
         $status = ['state' => 'unavailable', 'positions' => []];
         try {
-            if (!class_exists(PdfFinalize::class)
+            if (!SealingSupport::inspect()['supported']
                 || !method_exists(PdfFinalize::class, 'isProjectExecutionPlanStorageAvailable')
                 || !method_exists(PdfFinalize::class, 'getProjectConfigurationState')
                 || !PdfFinalize::isProjectExecutionPlanStorageAvailable()) {

@@ -6,6 +6,8 @@ The seal identifies the issuing project and organization. It does not establish 
 
 ## Getting started
 
+**If the status page says PDF sealing is unavailable on this installation**, REDCap Core or the EM Framework lacks the required PDF finalization support. Certificate management remains available, but generated PDFs will not be sealed by this module. Ask your administrator about enabling the required support before expecting sealed eConsent PDFs.
+
 Your REDCap administrator must initialize the built-in PKI or assign an external CA and complete project certificate enrollment before sealing can work. The module must also be enabled in your project and its **Apply a cryptographic document seal** operation assigned in the project's **External Modules PDF finalization settings**.
 
 **Enabling the module alone does not activate sealing.** Ask someone with access to those settings to assign the operation once, after any operations intended to change the PDF. A successful seal ends the pipeline. An earlier successful terminal operation can prevent sealing from being reached.

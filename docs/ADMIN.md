@@ -7,11 +7,17 @@ PDF Sealer maintains an installation-specific certificate authority and timestam
 This is a reference implementation progressing toward v1. It requires:
 
 - **PHP 8.4 or later in the PHP 8 series is recommended**, with OpenSSL, hash, JSON, PCRE, and zlib support. The minimum is PHP 8.2. PHP 8.4+ uses random 128-bit certificate serials; PHP 8.2/8.3 uses reserved EM log IDs as integer serials. The runtime running each issuance determines its serial format, so check both web and cron PHP versions. See [serial allocation and recovery](pki.md#certificate-serials).
-- REDCap Core and an External Module Framework that implement the PDF finalization pipeline and `redcap_module_pdf_finalize`. The module declares Framework version 16, but that number alone does not establish availability of these features in a particular checkout or release.
+- **For PDF sealing:** REDCap Core and an External Module Framework that implement the PDF finalization pipeline and `redcap_module_pdf_finalize`. The module declares Framework version 16, but that number alone does not establish availability of these features in a particular checkout or release. Missing PDF finalization support does not prevent installing the module or managing certificates.
 - A complete module distribution, including `libraries/`, the module-owned `autoload.php`, and third-party licenses. Dependencies are already bundled with isolated namespaces; installation does not require Composer.
 - Working REDCap encryption, database storage, and temporary-file support. REDCap email delivery is needed if alarm emails are configured.
 
 Install and enable the module using REDCap's normal External Modules administration. The production sealing path uses PHP libraries and OpenSSL; it does not require qpdf, Poppler, or the OpenSSL command-line program. Those are development validation tools.
+
+### Installations without PDF finalization support
+
+The required Core/Framework additions are not yet released. PDF Sealer checks for both components' features rather than assuming support from a version number. If either is missing, **Certificates & sealing** in the Control Center and **PDF Sealer status** in projects display **PDF sealing is unavailable on this installation**, identify the missing component(s), and explain that certificate management remains available.
+
+You can initialize and manage the PKI on such an installation, but PDF Sealer cannot seal generated PDFs. Passing PKI diagnostics or having a usable certificate does not establish PDF finalization support. When both features are present, project pipeline assignment and PKI readiness must still be checked separately. See [development readiness](https://github.com/grezniczek/redcap-pdf-sealer/blob/main/DEV_DOCS/release_readiness.md) for integration details.
 
 ## Initialize the installation
 
@@ -98,7 +104,7 @@ The **Diagnostic** tab continues to test the built-in CA/TSA independently of pr
 ## Enable sealing in projects
 
 1. Enable PDF Sealer in the project.
-2. In that project's **External Modules PDF finalization settings**, assign **Apply a cryptographic document seal** once. Place it after operations that should alter the PDF; successful sealing is terminal.
+2. Confirm that the management/status pages do not report missing PDF finalization support. In that project's **External Modules PDF finalization settings**, assign **Apply a cryptographic document seal** once. Place it after operations that should alter the PDF; successful sealing is terminal.
 3. Review **PDF Sealer status** for assignment warnings and instance PKI readiness. An earlier terminal operation or duplicate assignment needs review.
 4. Complete an appropriate test eConsent workflow. The project certificate is issued lazily when sealing is first used.
 5. Check the saved PDF and the project's **Logging** outcome. A passing diagnostic or an assigned operation alone does not demonstrate that the project's workflow reached sealing.

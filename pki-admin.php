@@ -23,6 +23,7 @@ if (!$framework->isSuperUser() || $framework->getProjectId() !== null) {
 }
 
 $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+$sealingSupport = \DE\RUB\PDFSealerExternalModule\Pdf\SealingSupport::inspect();
 $protector = new SecretProtector();
 $identities = new IdentityRepository($framework, $protector);
 $health = new PkiHealthService($identities, $protector);
@@ -205,6 +206,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
     <p class="pdf-sealer-brand text-muted"><em><?= $escape($framework->tt('pki_brand')) ?></em></p>
     <h4 class="mb-2"><i class="fas fa-file-signature" aria-hidden="true"></i> <?= $escape($framework->tt('pki_page_title')) ?></h4>
     <p><?= $escape($framework->tt('pki_page_intro')) ?></p>
+    <?php require __DIR__ . '/views/sealing-support.php'; ?>
     <?php if ($error !== null): ?><div class="alert alert-danger" role="alert"><?= $escape($error) ?></div><?php endif; ?>
     <?php if ($success): ?><div class="alert alert-success" role="status"><?= $escape($framework->tt('pki_init_success')) ?></div><?php endif; ?>
     <div class="pdf-sealer-summary">

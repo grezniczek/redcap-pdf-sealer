@@ -4,9 +4,15 @@
 
 The module's candidate package passes the reviewed dependency, notice, namespace isolation, runtime syntax and package-content gates after repairing a dependency-build omission. The previously accepted legacy ESS compatibility change is now reproducible and correctly disclosed; no runtime library PHP changed in this slice.
 
-**Public release coordination remains open:** identify the supported REDCap Core and EM Framework releases providing PDF finalization and the bounded HTTP helper before claiming compatibility with a normally installed REDCap version. The inspected installation runs dedicated development branches. No release was tagged, published or installed by this review; no Core/Framework or live database/PKI state was changed.
+**Installation policy:** the module intentionally remains installable for certificate management when PDF finalization support is absent. The required Core/Framework additions are not in released versions yet. Sealing requires both feature markers described below; missing support is reported on the project status and CC management pages. A published version number alone must not be presented as proof of sealing support. The bounded HTTP helper remains a separate external TSA requirement. The inspected installation runs dedicated development branches. No release was tagged, published or installed by this review; no Core/Framework or live database/PKI state was changed.
 
-## Evidence checked in this slice
+## Feature-presence notices — 2026-10-03
+
+The shared **SealingSupport** check requires both the Core constant **Vanderbilt\REDCap\Classes\Settings\ProjectSettingKeys::EXTERNAL_MODULES_PDF_FINALIZE_EXECUTION_PLAN** and the Framework class **ExternalModules\PdfFinalize**. It does not write configuration, block installation or disable certificate management. Both management and project status pages identify missing components; the project pipeline inspector avoids reading configuration when either marker is absent. Assignment, Framework storage availability and PKI health remain separate checks.
+
+The isolated support/notice tests pass on PHP 8.2.34 and 8.5.11 for neither marker, Core only, Framework only and both. They render the shared notice and confirm that no warning is shown when both markers are present. No new browser acceptance is claimed. The candidate evidence below predates these runtime/view changes and must be regenerated for a final release.
+
+## Evidence checked in the preceding packaging slice
 
 | Gate | Result and scope |
 | --- | --- |
@@ -55,8 +61,8 @@ Both integration worktrees were clean during inspection. Their presence on these
 
 Before a public v1 distribution:
 
-1. Establish the supported released Core/Framework versions or an explicitly supported coordinated deployment. Then set any justified compatibility floor and state the exact prerequisites; do not invent a REDCap minimum version now.
+1. Document the two installation modes: certificate management without PDF finalization support, and sealing with both feature markers. State integration prerequisites without inventing a REDCap minimum version or blocking certificate-only installations. Published Core/Framework feature availability remains to be recorded when released.
 2. Choose the final public version/tag and build its exact committed archive. Preserve the development-only **pdf_sealer_v9.9.9** checkout convention.
-3. Perform a clean installation smoke test of that archive on the intended supported stack: enablement, initialization, cron registration, project operation assignment, diagnostics, one sealed eConsent and public certificate/CRL access. The current instance's acceptance is valuable but does not prove a new installation consumes the package correctly.
+3. Perform clean installation smoke tests of that archive in both modes. Without finalization support, check enablement, initialization, cron registration, certificate/CRL access and the notices on both pages. On a sealing-capable stack, also check project operation assignment, diagnostics and one sealed eConsent. The current instance's acceptance is valuable but does not prove a new installation consumes the package correctly.
 
 The following remain explicit scope decisions rather than missing capabilities silently claimed by v1: B-LT/B-LTA and OCSP; CA-provider UI redesign; external TSA source editing/removal and public TSA-chain downloads; the Core footer-link proposal; and XML/PMT pipeline transfer in Core/Framework. XML/PMT currently requires explicit pipeline reassignment, as documented. The user has deferred these changes; revisit a specific item only if it is selected for the v1 scope.

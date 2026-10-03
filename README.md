@@ -29,7 +29,7 @@ A seal identifies the issuing project and organization; it does not establish th
 
 **PHP 8.4 or later in the PHP 8 series is recommended.** The minimum is PHP 8.2. PHP 8.4+ supports random 128-bit certificate serials; PHP 8.2/8.3 uses integer serials reserved through the EM Framework. See [certificate serials and recovery](docs/pki.md#certificate-serials).
 
-The installation also needs the required PHP extensions and bundled PHP libraries, and REDCap Core/Framework support for the PDF finalization pipeline. See the [administrator guide](docs/ADMIN.md) for the full prerequisites. The module must be enabled and its sealing operation assigned to the project's pipeline.
+The installation also needs the required PHP extensions and bundled PHP libraries. Certificate management is available even when REDCap Core or the EM Framework lacks PDF finalization support; the management and project status pages then display a warning identifying the missing support. **PDF sealing requires both Core and Framework support**, module enablement, and assignment of its sealing operation to the project's pipeline. See the [administrator guide](docs/ADMIN.md) for the full prerequisites.
 
 A failed sealing operation leaves the preceding PDF available for REDCap to store or deliver. A self-issued certificate is not automatically trusted by viewers, and an embedded timestamp does not by itself provide long-term validation. Built-in CRLs are published daily through the public survey endpoint. Routine built-in renewal and confirmed root/project/TSA revocation with automatic recovery are implemented. Root revocation deploys a fresh issuing key, which requires separate viewer trust distribution. PAdES B-LT/B-LTA remain future work.
 
