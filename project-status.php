@@ -112,7 +112,7 @@ if ($enrollmentAvailable) { $framework->initializeJavascriptModuleObject(); }
             <strong><?= $escape($framework->tt('project_identity_summary_' . $identity['state'])) ?></strong>
         </div>
     </div>
-    <p class="pdf-sealer-trust-link"><a href="<?= $escape($module::publicTrustUrl()) ?>" target="_blank" rel="noopener"><i class="fas fa-external-link-alt" aria-hidden="true"></i> <?= $escape($framework->tt('project_trust_link_name')) ?></a></p>
+    <p class="pdf-sealer-trust-link"><a href="<?= $escape($module::publicTrustUrl()) ?>" target="_blank" rel="noopener"><i class="fas fa-external-link-alt" aria-hidden="true"></i> <?= $framework->tt('project_trust_link_name') ?></a></p>
     <section class="pdf-sealer-panel pdf-sealer-section" aria-labelledby="pdf-sealer-project-pipeline">
         <h5 id="pdf-sealer-project-pipeline"><i class="fas fa-stream" aria-hidden="true"></i> <?= $escape($framework->tt('project_status_pipeline')) ?></h5>
         <p><?= $escape($framework->tt('project_pipeline_' . $pipeline['state'])) ?></p>

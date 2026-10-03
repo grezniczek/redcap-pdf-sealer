@@ -69,7 +69,7 @@ header('Cache-Control: no-store');
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?= $escape($framework->tt('trust_page_title')) ?></title>
+    <title><?= $framework->tt('trust_page_title') ?></title>
     <style>
         body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font: 16px/1.5 system-ui, sans-serif; color: #222; }
         h1, h2 { line-height: 1.25; }
@@ -84,7 +84,7 @@ header('Cache-Control: no-store');
 </head>
 <body>
     <main>
-        <h1><?= $escape($framework->tt('trust_page_title')) ?></h1>
+        <h1><?= $framework->tt('trust_page_title') ?></h1>
         <p><?= $escape($framework->tt('trust_intro')) ?></p>
         <p class="notice"><?= $escape($framework->tt('trust_validation_note')) ?></p>
         <?php if ($unavailable): ?>
