@@ -428,7 +428,7 @@ On **2026-10-03**, the user reported that all browser/Acrobat root lifecycle che
 
 This action affects the shared built-in issuing key and all dependent projects. Use the sole development instance and retain pre-change samples; PID 534 is suitable if it still uses the built-in CA/TSA. **Use Superseded for this acceptance, not CA key compromise.** Compromise is covered by disposable tests and deliberately withdraws trust in earlier evidence. The shared root change can affect previously created development PDFs.
 
-1. Note the current root/TSA/project fingerprints, UUID and provider timestamp choices. Retain one eConsent PDF. On **Root CA → Renew or revoke built-in Root CA**, review and cancel confirmation once; nothing should change.
+1. Note the current root/TSA/project fingerprints, UUID and provider timestamp choices. Retain one eConsent PDF. On **Root CA → Administrative workflows → Renew or revoke built-in Root CA**, review and cancel confirmation once; nothing should change.
 2. Optionally confirm **Renew without revoking (same key)**. Refresh: the root certificate fingerprint and TSA should change but the root key/CRL URL stay the same. Diagnostics should pass. This is ordinary early renewal; no old serial is newly revoked. The existing same-key Acrobat experiments already establish their recorded scope; repeating that matrix is unnecessary.
 3. Review the now-current root, select **Revoke issuing key as superseded**, and confirm. Check separate messages for the permanent block, old-key CRL publication, fresh root/TSA and bounded project recovery. Refresh must not resubmit. A pending message means the block was accepted; inspect **Alarms → Automatic built-in certificate maintenance**, rather than immediately revoking another root.
 4. On the public certificate page, the fresh root should be current and all old same-key versions clearly revoked. Download the fresh root via the normal public action. Verify its fingerprint independently against the CC review. Its CRL URL differs from the old key's URL. The old complete CRL should have an increased counter and known old project/TSA serials, preserving earlier explicit leaf entries.
@@ -441,3 +441,16 @@ The module cannot withdraw old root trust from Acrobat. For an actual compromise
 ## Windows thumbprint displays — accepted 2026-10-03
 
 The user reported that the browser spot-check of the new Windows thumbprint displays passed. The stored public root's DER yields SHA-256 **37a3266ff662dce32e6a9742aaebbdfae8dd349e15723683e0b0968a9de0df1f** and SHA-1 **56550b178fa44afe7672e854d465f06d5bf86254**, matching the reported Windows certificate dialog. Read-only devctl inspection verified the public certificate bytes; no private keys or downloaded PDF bytes were inspected. OpenSSL comparisons, saved external TSA observation compatibility and PHP 8.2/8.5 syntax checks passed during implementation. No further browser check is pending for this display slice.
+
+## Root CA administration wizard — 2026-10-03
+
+Run **node tests/root_lifecycle_ui.js** with Node 18+ (development only; no packages required). Disposable DOM/rcDialog doubles exercise the real Root CA asset: review-to-confirm without mutation, unchecked/checked compromise, renewal/superseded endpoint payloads and review hash, cancellation, an already revoked root, failed-request invalidation, in-flight duplicate/close prevention, missing wizard support and one-shot text-only reload receipts, including pending CRL/recovery. This checks client control flow rather than rcDialog rendering, drag behavior or a real browser. The existing Root CA regression fixture now backdates its disposable root by one day using the existing certificate-validity helper, avoiding same-second renewal failures without changing production issuance. The complete Root CA regression and administrator AJAX suites pass on PHP 8.2.34/8.5.11; Node UI control-flow, PHP/view syntax, language/translation-transfer consistency and diff checks pass.
+
+Browser checks for this refactor remain pending:
+
+1. Verify the compact **Administrative workflows** section and link, movable dialog, certificate subject line breaks, radio descriptions and both page titles.
+2. Cancel on each page and use X/Escape; no certificate change should occur. Selecting **Confirm** on the review page must only advance to confirmation.
+3. Select compromise and reach confirmation: final Confirm must stay disabled until the checkbox is checked, and disable again when unchecked. Cancel this check; no live compromise is needed.
+4. If an early renewal is wanted on the disposable development PKI, confirm **Renew without revoking (same key)**. The page should reload to current root/TSA details and a result message. Prior trust/revocation matrices do not need repeating solely for this layout change.
+
+No live renewal or revocation was performed while implementing or testing this refactor. The previously verified candidate predates these UI changes and must be regenerated after the planned UI/UX rounds.

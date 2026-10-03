@@ -31,7 +31,9 @@ Choose the organization carefully: the page does not provide an organization ren
 
 ## Renew or revoke the built-in Root CA
 
-On **Root CA → Renew or revoke built-in Root CA**, review the subject, SHA-256 fingerprint and known dependent certificate count, choose an action and confirm. Canceling the confirmation makes no change; a stale review is rejected.
+On **Root CA → Administrative workflows**, select **Renew or revoke built-in Root CA** to open a movable dialog. Review the current subject, fingerprints and known dependent certificate count, then choose an action using the radio buttons. **Confirm** advances to the confirmation page; its **Confirm** executes the action. For CA key compromise, the permanent-block acknowledgment checkbox must be checked first. **Cancel** closes the dialog without applying an action; a stale review is rejected.
+
+An accepted action automatically reloads the page and displays its outcome, including any pending CRL publication or recovery. An interrupted or rejected request cannot be retried using the same review: close the dialog, refresh and review again, since the action may already have changed saved state.
 
 | Action | Effect |
 | --- | --- |

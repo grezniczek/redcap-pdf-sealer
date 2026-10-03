@@ -13,9 +13,15 @@ use DE\RUB\PDFSealerExternalModule\Pdf\PdfFinalizeService;
 
 require __DIR__.'/project_renewal.php';
 require __DIR__.'/support/pdf_seal_checks.php';
+require __DIR__.'/support/certificate_validity.php';
 if(!defined('APP_PATH_SURVEY_FULL'))define('APP_PATH_SURVEY_FULL','https://redcap.example/surveys/');
 $rootIssuer=new CertificateIssuer([$f,'createTempFile'],[\PDFSealerTests\CertificateSerials::class,'reserve'],APP_PATH_SURVEY_FULL);
-$baseRoot=$rootIssuer->createRoot('Root Revocation Test');$baseTsa=$rootIssuer->createTsa('Root Revocation Test',$baseRoot);
+$baseRoot=$rootIssuer->createRoot('Root Revocation Test');
+// Renewal must extend validity even when this fast runtime reaches it in the same second.
+$baseValidity=(new Certificate())->fields($baseRoot->certificateDer);
+$baseRoot=new GeneratedIdentity(maintenanceCertificate($baseRoot->certificateDer,$baseRoot->privateKey(),
+    $baseValidity['not_before']-86400,$baseValidity['not_after']-86400),$baseRoot->privateKeyPem());
+$baseTsa=$rootIssuer->createTsa('Root Revocation Test',$baseRoot);
 $projects=new ProjectIdentityService($bindings,$identities,$protector,$rootIssuer,$health,$projectLock,$configLock);
 $projectRenewal=new ProjectRenewalService($framework,$bindings,$identities,$enrollment,$projects,$health,$projectLock,$configLock);
 $crls=new CrlRepository($framework,$settings);$public=new PublicTrustRepository($logs,$settings);
