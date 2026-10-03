@@ -42,7 +42,14 @@
             ],
             "copyright": "2011-2026 Nicola Asuni - Tecnick.com LTD",
             "license_sha256": "62d185a30d936a2eed968dfade4a88357edc5d7d4eadfc578cfa4ef18daab8ba",
-            "modified": true
+            "modified": true,
+            "functional_modifications": [
+                {
+                    "file": "src/Cms/SignedDataVerifier.php",
+                    "modified_on": "2026-09-28",
+                    "description": "`Cms\\SignedDataVerifier` has an opt-in `allowLegacyEssSha1` parameter. It accepts SHA-1 only for the RFC 3161 ESSCertID certificate identifier, without enabling SHA-1 content digests or signature algorithms. PDF Sealer uses it for external TSA tokens."
+                }
+            ]
         }
     }
 }

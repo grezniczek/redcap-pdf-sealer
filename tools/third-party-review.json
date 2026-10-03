@@ -22,5 +22,32 @@
         "licenses/GPL-3.0.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
     },
     "modified_on": "2026-09-27",
-    "bundled_tree_sha256": "3592437629a5151bad65c5c22137625b99c3e7bcf84c0f5404cefca3f24bb4b8"
+    "bundled_tree_sha256": "cd46e29e7a8787f13e5b205b23f071ca979a1c203c7c178e0865c05519a0abb4",
+    "functional_patches": {
+        "tecnickcom/tc-lib-pdf-sign/src/Cms/SignedDataVerifier.php": {
+            "modified_on": "2026-09-28",
+            "description": "`Cms\\SignedDataVerifier` has an opt-in `allowLegacyEssSha1` parameter. It accepts SHA-1 only for the RFC 3161 ESSCertID certificate identifier, without enabling SHA-1 content digests or signature algorithms. PDF Sealer uses it for external TSA tokens.",
+            "input_sha256": "03fdad8e29a8095612dd5201234c7616a44cd6a28177505b729deab59dfdb736",
+            "output_sha256": "6b74c66c945d396553b9059a4b1bcb4f64568128ff7932a55319a51343364871",
+            "replacements": [
+                {
+                    "before": " * PHP namespaces and references prefixed for dependency isolation.\n",
+                    "after": " * PHP namespaces and references prefixed for dependency isolation.\n * On 2026-09-28: optional legacy ESSCertID SHA-1 acceptance without enabling\n * SHA-1 message digests or signature algorithms.\n"
+                },
+                {
+                    "before": "     *                        section 2.4.2 requires it there.\n",
+                    "after": "     *                        section 2.4.2 requires it there.\n     * @param bool $allowLegacyEssSha1 Accept SHA-1 only as the certificate hash\n     *                        in the RFC 3161 SigningCertificate v1 attribute.\n"
+                },
+                {
+                    "before": "        private readonly bool $requireSigningCertificate = false,\n",
+                    "after": "        private readonly bool $requireSigningCertificate = false,\n        private readonly bool $allowLegacyEssSha1 = false,\n"
+                },
+                {
+                    "before": "        if ($legacy && !$this->allowSha1) {",
+                    "after": "        if ($legacy && !$this->allowSha1 && !$this->allowLegacyEssSha1) {"
+                }
+            ],
+            "reviewed_on": "2026-10-03"
+        }
+    }
 }

@@ -39,6 +39,6 @@ PDF Sealer uses the libraries below under LGPL-3.0-or-later. Their original lice
 
 ## Distribution scope
 
-The libraries' PHP namespaces and references are prefixed with `DE\RUB\PDFSealerExternalModule\Dependencies\` to isolate them from other REDCap modules. Modified source files carry dated notices; package-level modification records describe the changes and omitted upstream installation metadata. No intentional functional changes were made.
+The libraries' PHP namespaces and references are prefixed with `DE\RUB\PDFSealerExternalModule\Dependencies\` to isolate them from other REDCap modules. Modified source files carry dated notices; package-level modification records describe the changes and omitted upstream installation metadata. The signing library also includes a reviewed opt-in legacy ESSCertID SHA-1 compatibility change for external TSA tokens; content digests and signature algorithms remain restricted. See that package's modification record.
 
 Composer is used only during development to obtain pinned upstream source. No Composer autoloader, runtime, manifests, or lockfile is included in the module distribution. PHP and its extensions, REDCap, the External Module Framework, and development validation tools such as qpdf and Poppler are host dependencies, not bundled components. No third-party browser library is bundled.

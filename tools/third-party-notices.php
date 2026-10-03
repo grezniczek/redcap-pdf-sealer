@@ -39,7 +39,8 @@ try {
         if ($package['reference'] !== $review['packages'][$name]['reference']
             || $package['reference'] !== $lock[$name]['source']['reference']
             || $package['version'] !== $lock[$name]['version'] || $package['license'] !== $lock[$name]['license']
-            || !$package['modified']) {
+            || !$package['modified']
+            || ($package['functional_modifications'] ?? []) !== PDFSealerBuild\functionalModifications($review['functional_patches'] ?? [], $name)) {
             throw new RuntimeException("Unexpected bundled package metadata: $name");
         }
         if (hash('sha256', PDFSealerBuild\read($directory . '/LICENSE')) !== $package['license_sha256']) {
@@ -69,7 +70,7 @@ try {
         $license = implode(' OR ', $package['license']);
         $notice .= "## $name\n\n- Version: {$package['version']}\n- Upstream: [$name]({$package['upstream']})\n- Source revision: `{$package['reference']}`\n- License: $license\n- Author: $authors\n- Copyright: {$package['copyright']}\n- Original license: [$path/LICENSE]($path/LICENSE)\n- Bundled copy: modified; see [$path/MODIFICATIONS.md]($path/MODIFICATIONS.md).\n\n";
     }
-    $notice .= "## Distribution scope\n\nThe libraries' PHP namespaces and references are prefixed with `" . PDFSealerBuild\PREFIX . "` to isolate them from other REDCap modules. Modified source files carry dated notices; package-level modification records describe the changes and omitted upstream installation metadata. No intentional functional changes were made.\n\nComposer is used only during development to obtain pinned upstream source. No Composer autoloader, runtime, manifests, or lockfile is included in the module distribution. PHP and its extensions, REDCap, the External Module Framework, and development validation tools such as qpdf and Poppler are host dependencies, not bundled components. No third-party browser library is bundled.\n";
+    $notice .= "## Distribution scope\n\nThe libraries' PHP namespaces and references are prefixed with `" . PDFSealerBuild\PREFIX . "` to isolate them from other REDCap modules. Modified source files carry dated notices; package-level modification records describe the changes and omitted upstream installation metadata. The signing library also includes a reviewed opt-in legacy ESSCertID SHA-1 compatibility change for external TSA tokens; content digests and signature algorithms remain restricted. See that package's modification record.\n\nComposer is used only during development to obtain pinned upstream source. No Composer autoloader, runtime, manifests, or lockfile is included in the module distribution. PHP and its extensions, REDCap, the External Module Framework, and development validation tools such as qpdf and Poppler are host dependencies, not bundled components. No third-party browser library is bundled.\n";
     if ($write) {
         if (file_put_contents($root . '/THIRD_PARTY_NOTICES.md', $notice) === false) {
             throw new RuntimeException('Could not write THIRD_PARTY_NOTICES.md');

@@ -7,7 +7,8 @@ Start here for implementation, testing, acceptance evidence, and release mainten
 1. [Current status and implementation history](implementation_status.md): begin with its current summary; older milestone sections record the work at that time.
 2. [Development and testing](testing.md): local setup, standalone suites, disposable fixtures, and live-test boundaries.
 3. [Fixture coverage](pdf_fixture_coverage.md), [Core pipeline and stored-PDF acceptance](pdf_pipeline_acceptance.md), and [Acrobat/DSS acceptance](pdf_interop_acceptance.md): what has actually been verified and what those results do not establish.
-4. [Dependency notices and release packaging](release_licensing.md): rebuild prefixed dependencies, regenerate notices, build a complete package, and check its contents.
+4. [v1 readiness review](release_readiness.md): current package gates, candidate provenance and outstanding integration/release decisions.
+5. [Dependency notices and release packaging](release_licensing.md): rebuild prefixed dependencies, regenerate notices, build a complete package, and check its contents.
 
 ## Current working references
 
@@ -21,6 +22,7 @@ Start here for implementation, testing, acceptance evidence, and release mainten
 | [Pipeline acceptance](pdf_pipeline_acceptance.md) | Real dispatch harness and stored/downloaded-byte evidence |
 | [Interop acceptance](pdf_interop_acceptance.md) | Six selected B-B/B-T PDFs, report correlation, and recorded trust limitations |
 | [Manual validation procedure](pdf_manual_validation.md) | How to collect evidence when a new interoperability check is needed |
+| [v1 readiness review](release_readiness.md) | Verified candidate package, repaired dependency-build omission and remaining release coordination |
 | [Release licensing](release_licensing.md) | Dependency review, license notices, and packaging procedure |
 
 The selected interoperability round is complete. The manual procedure is available for future changes; it is not a request to repeat already accepted checks. Generated PDFs, public test certificates, and validator reports under `interop-artifacts/` are Git-ignored and must stay out of release packages.

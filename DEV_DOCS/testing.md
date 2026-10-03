@@ -26,6 +26,9 @@ php tests/project_renewal.php
 php tests/project_revocation.php
 php tests/builtin_maintenance.php
 php tests/root_renewal.php
+php tests/tsa_revocation.php
+php tests/root_revocation.php
+php tests/timestamp_alternatives.php
 php tests/admin_alarms.php
 php tests/expiry_monitor.php
 php tests/pki_admin_ajax.php
@@ -428,3 +431,7 @@ This action affects the shared built-in issuing key and all dependent projects. 
 7. Report the PID/record and messages/outcomes. Old sample bytes stay unchanged. Viewer historical trust/revocation decisions and caches are separate from future sealing acceptance; do not infer acceptance of compromise recovery or LTV from the result.
 
 The module cannot withdraw old root trust from Acrobat. For an actual compromise, remove trust in every version of that issuing key through the institutional process, as well as distributing the fresh root. The CRL lists known stored leaves, not unknown forged certificates or a self-signed root serial intended to withdraw anchor policy. No live failure injection, clock changes or key corruption is needed for browser acceptance.
+
+## Windows thumbprint displays — accepted 2026-10-03
+
+The user reported that the browser spot-check of the new Windows thumbprint displays passed. The stored public root's DER yields SHA-256 **37a3266ff662dce32e6a9742aaebbdfae8dd349e15723683e0b0968a9de0df1f** and SHA-1 **56550b178fa44afe7672e854d465f06d5bf86254**, matching the reported Windows certificate dialog. Read-only devctl inspection verified the public certificate bytes; no private keys or downloaded PDF bytes were inspected. OpenSSL comparisons, saved external TSA observation compatibility and PHP 8.2/8.5 syntax checks passed during implementation. No further browser check is pending for this display slice.

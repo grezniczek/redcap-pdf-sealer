@@ -83,6 +83,37 @@ function prefixSource(string $source, string $date): string
     return substr_replace($output, $notice, 5, 0);
 }
 
+/** Apply one audited change to the exact prefixed input, without fuzzy patch matching. */
+function applyFunctionalPatch(string $source, array $patch): string
+{
+    if (!hash_equals($patch['input_sha256'], hash('sha256', $source))) {
+        throw new RuntimeException('Functional patch input differs from the reviewed source');
+    }
+    foreach ($patch['replacements'] as $replacement) {
+        if ($replacement['before'] === '' || substr_count($source, $replacement['before']) !== 1) {
+            throw new RuntimeException('Functional patch context is not unique');
+        }
+        $source = str_replace($replacement['before'], $replacement['after'], $source);
+    }
+    if (!hash_equals($patch['output_sha256'], hash('sha256', $source))) {
+        throw new RuntimeException('Functional patch output differs from the reviewed change');
+    }
+    return $source;
+}
+
+/** Public change records shared by the bundle generator and release notices checker. */
+function functionalModifications(array $patches, string $package): array
+{
+    $changes = [];
+    foreach ($patches as $path => $patch) {
+        if (str_starts_with($path, $package . '/')) {
+            $changes[] = ['file' => substr($path, strlen($package) + 1),
+                'modified_on' => $patch['modified_on'], 'description' => $patch['description']];
+        }
+    }
+    return $changes;
+}
+
 /** Return a complete reproducible bundle only after verifying all input packages. */
 function build(string $root): array
 {
@@ -98,6 +129,8 @@ function build(string $root): array
         throw new RuntimeException('Locked, installed, and reviewed package sets differ');
     }
     $output = [];
+    $patches = $review['functional_patches'] ?? [];
+    $appliedPatches = [];
     $manifest = ['namespace_prefix' => PREFIX, 'modified_on' => $review['modified_on'], 'packages' => []];
     foreach ($packages as $name => $package) {
         $audit = $review['packages'][$name];
@@ -114,22 +147,34 @@ function build(string $root): array
         }
         foreach ($input as $path => $bytes) {
             if (str_starts_with($path, 'src/') && str_ends_with($path, '.php')) {
-                $output["$name/$path"] = prefixSource($bytes, $review['modified_on']);
+                $source = prefixSource($bytes, $review['modified_on']);
+                if (isset($patches["$name/$path"])) {
+                    $source = applyFunctionalPatch($source, $patches["$name/$path"]);
+                    $appliedPatches[] = "$name/$path";
+                }
+                $output["$name/$path"] = $source;
             } elseif (in_array($path, ['LICENSE', 'VERSION', 'SECURITY.md'], true)) {
                 $output["$name/$path"] = $bytes;
             } elseif (!in_array($path, ['composer.json', 'README.md'], true)) {
                 throw new RuntimeException("Unreviewed package file: $name/$path");
             }
         }
+        $functional = functionalModifications($patches, $name);
+        $functionalNotice = $functional === [] ? '- No intentional changes to library functionality.'
+            : implode("\n", array_map(static fn(array $change): string => '- ' . $change['description'], $functional));
         $url = preg_replace('/\.git$/', '', $package['source']['url']);
-        $output["$name/MODIFICATIONS.md"] = "# Modifications\n\nThis is a modified copy of `$name` version {$package['version']}.\n\nModified by the PDF Sealer project on {$review['modified_on']}.\n\nChanges from upstream:\n\n- PHP namespaces and references (including PHPDoc types) are prefixed with `" . PREFIX . "` to prevent collisions with other REDCap modules.\n- Each changed PHP file carries a dated modification notice. Original copyright and license notices are retained.\n- Composer metadata and the upstream installation README are omitted from this distribution. Runtime PHP source, VERSION, LICENSE, and SECURITY.md are retained. Loading is provided by PDF Sealer's own autoloader.\n- No intentional changes to library functionality.\n\nThe library remains licensed under LGPL-3.0-or-later. See [LICENSE](LICENSE) and the accompanying [GPLv3 text](../../../licenses/GPL-3.0.txt).\n\nUpstream: [$name]($url)\n\nSource revision: `{$package['source']['reference']}`\n";
+        $output["$name/MODIFICATIONS.md"] = "# Modifications\n\nThis is a modified copy of `$name` version {$package['version']}.\n\nModified by the PDF Sealer project on {$review['modified_on']}.\n\nChanges from upstream:\n\n- PHP namespaces and references (including PHPDoc types) are prefixed with `" . PREFIX . "` to prevent collisions with other REDCap modules.\n- Each changed PHP file carries a dated modification notice. Original copyright and license notices are retained.\n- Composer metadata and the upstream installation README are omitted from this distribution. Runtime PHP source, VERSION, LICENSE, and SECURITY.md are retained. Loading is provided by PDF Sealer's own autoloader.\n$functionalNotice\n\nThe library remains licensed under LGPL-3.0-or-later. See [LICENSE](LICENSE) and the accompanying [GPLv3 text](../../../licenses/GPL-3.0.txt).\n\nUpstream: [$name]($url)\n\nSource revision: `{$package['source']['reference']}`\n";
         $manifest['packages'][$name] = [
             'version' => $package['version'], 'reference' => $package['source']['reference'],
             'upstream' => $url, 'license' => $package['license'],
             'authors' => array_column($metadata['authors'], 'name'), 'copyright' => $audit['copyright'],
             'license_sha256' => hash('sha256', $input['LICENSE']), 'modified' => true,
         ];
+        if ($functional !== []) { $manifest['packages'][$name]['functional_modifications'] = $functional; }
     }
+    $expectedPatches = array_keys($patches);
+    sort($expectedPatches); sort($appliedPatches);
+    if ($expectedPatches !== $appliedPatches) { throw new RuntimeException('Functional patch target was not built'); }
     $output['manifest.json'] = json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n";
     ksort($output, SORT_STRING);
     return $output;
