@@ -28,7 +28,7 @@ The module remains installable for certificate management on installations witho
 
 The project pipeline inspector retains its existing storage/method checks and avoids querying configuration without both markers. Assignment and PKI health remain separate; the project page suppresses pipeline assignment instructions when the features are absent. Packaged guides and release-readiness policy describe this distinction.
 
-The isolated four-case support/notice matrix and existing pipeline status suite pass on PHP 8.2.34 and 8.5.11. Tests render the actual shared view, verify missing-component messages and confirm no warning on supported installations. No Core/Framework edits or live database/PKI changes were made. New browser acceptance remains unreported.
+The isolated four-case support/notice matrix and existing pipeline status suite pass on PHP 8.2.34 and 8.5.11. Tests render the actual shared view, verify missing-component messages and confirm no warning on supported installations. No Core/Framework edits or live database/PKI changes were made during implementation. On 2026-10-03, the user reported that tests on sealing-capable and non-capable installations looked good, completing manual acceptance of the support-notice slice. Final release archive installation remains a separate gate.
 
 ## v1 package readiness review — 2026-10-03
 

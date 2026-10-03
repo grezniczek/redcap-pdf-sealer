@@ -10,7 +10,7 @@ The module's candidate package passes the reviewed dependency, notice, namespace
 
 The shared **SealingSupport** check requires both the Core constant **Vanderbilt\REDCap\Classes\Settings\ProjectSettingKeys::EXTERNAL_MODULES_PDF_FINALIZE_EXECUTION_PLAN** and the Framework class **ExternalModules\PdfFinalize**. It does not write configuration, block installation or disable certificate management. Both management and project status pages identify missing components; the project pipeline inspector avoids reading configuration when either marker is absent. Assignment, Framework storage availability and PKI health remain separate checks.
 
-The isolated support/notice tests pass on PHP 8.2.34 and 8.5.11 for neither marker, Core only, Framework only and both. They render the shared notice and confirm that no warning is shown when both markers are present. No new browser acceptance is claimed. The candidate evidence below predates these runtime/view changes and must be regenerated for a final release.
+The isolated support/notice tests pass on PHP 8.2.34 and 8.5.11 for neither marker, Core only, Framework only and both. They render the shared notice and confirm that no warning is shown when both markers are present. On 2026-10-03, the user reported successful tests on both sealing-capable and non-capable installations, completing manual acceptance of these support notices. This does not establish installation of the final release archive. The candidate evidence below predates these runtime/view changes and must be regenerated for a final release.
 
 ## Evidence checked in the preceding packaging slice
 
