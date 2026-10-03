@@ -73,11 +73,16 @@ window.PDFSealerRootLifecycle = module => {
                 draggable: true,
                 closeButton: 'cancel',
                 focusAfterClose: launcher,
-                pageLabelTemplate: false,
+                pageLabelTemplate: module.tt('root_lifecycle_steps'),
                 state: {reason: 'renew', acknowledged: false, invalid: false, completed: false},
-                buttons: ['cancel', {id: 'confirm', label: module.tt('root_lifecycle_confirm_button'), intent: 'primary'}],
+                buttons: ['cancel',
+                    {id: 'back', label: module.tt('root_lifecycle_back'), intent: 'secondary'},
+                    {id: 'advance', label: module.tt('root_lifecycle_next'), intent: 'primary'},
+                    {id: 'confirm', label: module.tt('root_lifecycle_confirm_button'), intent: 'primary'}],
                 pages: [
-                    {id: 'review', title: module.tt('root_lifecycle_review'), body(ctx) {
+                    {id: 'review', subtitle: module.tt('root_lifecycle_review'), body(ctx) {
+                        ctx.buttons.hide('back'); ctx.buttons.hide('confirm'); ctx.buttons.show('advance');
+                        if (!preview.revoked && !ctx.state.invalid) ctx.buttons.enable('advance');
                         const body = element('div', '');
                         body.append(certificateDetails(preview), element('p', 'small text-muted',
                             module.tt('root_lifecycle_dependents', preview.known_dependent_certificates)));
@@ -99,10 +104,12 @@ window.PDFSealerRootLifecycle = module => {
                             row.append(radio, label, help); fields.append(row);
                         });
                         body.append(fields);
-                        if (preview.revoked) ctx.buttons.disable('confirm');
+                        if (preview.revoked) ctx.buttons.disable('advance');
                         return body;
                     }},
-                    {id: 'confirmation', title: module.tt('root_lifecycle_confirm'), body(ctx) {
+                    {id: 'confirmation', subtitle: module.tt('root_lifecycle_confirm'), body(ctx) {
+                        ctx.buttons.hide('advance'); ctx.buttons.show('back'); ctx.buttons.show('confirm');
+                        if (!ctx.state.invalid) ctx.buttons.enable('confirm');
                         const body = element('div', '');
                         const reason = ctx.state.reason;
                         body.append(element('p', 'fw-bold', module.tt('root_lifecycle_' + reason)), certificateDetails(preview),
@@ -130,15 +137,23 @@ window.PDFSealerRootLifecycle = module => {
                 setup(ctx) {
                     ctx.on('dialog:beforeClose', () => !busy);
                     ctx.on('wizard:beforePageChange', () => !busy && !preview.revoked && !ctx.state.invalid);
-                    ctx.on('button:confirm', async () => {
-                        if (busy || preview.revoked || ctx.state.invalid || ctx.state.completed) return false;
-                        if (ctx.wizard.currentPage.id === 'review') {
-                            await ctx.wizard.next();
-                            return false;
+                    ctx.on('button:advance', async () => {
+                        if (!busy && !ctx.state.invalid && ctx.wizard.currentPage.id === 'review') await ctx.wizard.next();
+                        return false;
+                    });
+                    ctx.on('button:back', async () => {
+                        if (!busy && !ctx.state.invalid && ctx.wizard.currentPage.id === 'confirmation') {
+                            ctx.state.acknowledged = false;
+                            await ctx.wizard.previous();
                         }
+                        return false;
+                    });
+                    ctx.on('button:confirm', async () => {
+                        if (busy || preview.revoked || ctx.state.invalid || ctx.state.completed
+                            || ctx.wizard.currentPage.id !== 'confirmation') return false;
                         if (ctx.state.reason === 'compromise' && !ctx.state.acknowledged) return false;
                         busy = true;
-                        ctx.buttons.disable('confirm'); ctx.buttons.disable('cancel');
+                        ctx.buttons.disable('confirm'); ctx.buttons.disable('cancel'); ctx.buttons.disable('back');
                         ctx.buttons.setLoading('confirm', true); ctx.setCloseButton(false);
                         ctx.clearFooterStatus();
                         try {
