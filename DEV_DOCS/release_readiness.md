@@ -2,15 +2,40 @@
 
 ## Conclusion — 2026-10-03
 
-The module's candidate package passes the reviewed dependency, notice, namespace isolation, runtime syntax and package-content gates after repairing a dependency-build omission. The previously accepted legacy ESS compatibility change is now reproducible and correctly disclosed; no runtime library PHP changed in this slice.
+The latest unpublished candidate is a direct archive of committed source **b271be0c9393d6ba1861180ab7370c145e3cf881**, including the accepted sealing-support notices and subsequent HTML-label changes. Dependency reproducibility, notices, namespace isolation, runtime syntax and package-content gates pass on PHP 8.2/8.5. The preceding review repaired the dependency-build omission described below; this refresh changes no runtime source. UI/UX refactor rounds remain planned before final release packaging.
 
 **Installation policy:** the module intentionally remains installable for certificate management when PDF finalization support is absent. The required Core/Framework additions are not in released versions yet. Sealing requires both feature markers described below; missing support is reported on the project status and CC management pages. A published version number alone must not be presented as proof of sealing support. The bounded HTTP helper remains a separate external TSA requirement. The inspected installation runs dedicated development branches. No release was tagged, published or installed by this review; no Core/Framework or live database/PKI state was changed.
+
+## Refreshed committed candidate — 2026-10-03
+
+Built with **git archive** from the exact commit above, with no working-tree overlays or dependency downloads. The checkout was clean when generated. No release metadata, tag, installation or publication was changed.
+
+| Gate | Result |
+| --- | --- |
+| Dependencies and notices | Reproducible 61-file bundle; three prefixed LGPL packages; checkout and extracted notices pass on PHP 8.2.34 and 8.5.11 |
+| Extracted loader | Both load orders pass on both runtimes: 48 isolated dependency symbols and module adapter, without Composer |
+| Runtime syntax | All 140 packaged PHP files pass on both runtimes; all five JavaScript assets parse |
+| Contents and exclusions | 169 files; required runtime, shared support notice, all libraries/license records and three configured guides present; no Composer, developer/editor files or PDF/certificate/key fixtures |
+| Documentation | All 57 relative Markdown file links resolve within the package |
+| Support notices | All four marker combinations and existing pipeline states pass on both runtimes against the extracted runtime/view/language files |
+| Archive | ZIP integrity passes; ZIP commit comment matches the source commit |
+
+The support harness is the committed **tests/project_pipeline_status.php**, copied outside the extraction with only its three package-root expressions retargeted. No tests or tooling were added to the package. Cryptographic, lifecycle and browser matrices were not repeated: the changes since the earlier candidate affect support detection, notices and UI labels. User-reported capable/non-capable installation acceptance is recorded below; installing this exact candidate on a fresh instance remains a separate check.
+
+- Temporary candidate: **/tmp/pdf-sealer-candidate-UsWE2y/pdf-sealer-candidate.zip**
+- ZIP SHA-256: **9d7946c50a4e9730aa7e5ad3253c257ede3a15a87f21266c7842495d32bd9a22**
+- Content-tree SHA-256: **83b847337ee441d584c21eb2fdf9422b4a6bc21fa52190fb26aff8931a1659a4**
+- Evidence receipt: **/tmp/pdf-sealer-candidate-UsWE2y/verification.json**
+- Per-file hashes: **/tmp/pdf-sealer-candidate-UsWE2y/content-SHA256SUMS.txt**
+- Content hash method: SHA-256 of file-hash, two spaces, relative path and LF for all 169 files, sorted by UTF-8 path bytes.
+
+These temporary artifacts are unpublished and may disappear. Regenerate from the final commit after the remaining UI/UX work; preserve the development directory convention.
 
 ## Feature-presence notices — 2026-10-03
 
 The shared **SealingSupport** check requires both the Core constant **Vanderbilt\REDCap\Classes\Settings\ProjectSettingKeys::EXTERNAL_MODULES_PDF_FINALIZE_EXECUTION_PLAN** and the Framework class **ExternalModules\PdfFinalize**. It does not write configuration, block installation or disable certificate management. Both management and project status pages identify missing components; the project pipeline inspector avoids reading configuration when either marker is absent. Assignment, Framework storage availability and PKI health remain separate checks.
 
-The isolated support/notice tests pass on PHP 8.2.34 and 8.5.11 for neither marker, Core only, Framework only and both. They render the shared notice and confirm that no warning is shown when both markers are present. On 2026-10-03, the user reported successful tests on both sealing-capable and non-capable installations, completing manual acceptance of these support notices. This does not establish installation of the final release archive. The candidate evidence below predates these runtime/view changes and must be regenerated for a final release.
+The isolated support/notice tests pass on PHP 8.2.34 and 8.5.11 for neither marker, Core only, Framework only and both. They render the shared notice and confirm that no warning is shown when both markers are present. On 2026-10-03, the user reported successful tests on both sealing-capable and non-capable installations, completing manual acceptance of these support notices. This does not establish installation of the final release archive. The refreshed candidate above includes these runtime/view changes. A new archive from the final committed source will still be needed after the planned UI/UX rounds.
 
 ## Evidence checked in the preceding packaging slice
 
@@ -36,7 +61,7 @@ The pre-review build differed in exactly two files: the signing library's **Cms/
 
 The audited functional patch is now declared in [third-party-review.json](../tools/third-party-review.json), with its modification/review dates, exact prefixed input/output hashes and four unique replacements. [The builder](../tools/dependency-build.php) rejects changed input, ambiguous context, unexpected output or an unapplied target. It reproduces the accepted PHP bytes and modification record exactly. The generated manifest records the change; [the notice checker](../tools/third-party-notices.php) compares that record against reviewed metadata and the complete bundle hash. The notices describe the exception accurately. See [the ongoing build procedure](release_licensing.md).
 
-## Candidate provenance
+## Earlier candidate provenance
 
 This temporary, unpublished candidate uses committed source **6b2dbe30e0afa282d798107fb6a5dd92b1c023bf** plus the reviewed working-tree overlays **libraries/manifest.json** and **THIRD_PARTY_NOTICES.md**. Developer documentation and tooling changes are intentionally outside the package. It is not an archive of a final release commit.
 
@@ -59,7 +84,7 @@ Read-only source inspection confirms the necessary features in the current devel
 
 Both integration worktrees were clean during inspection. Their presence on these branches and live acceptance do not establish availability in a published release. The Framework hook documentation still marks the introduction version **TBD**. Declaring Framework version 16 alone cannot guarantee these added features, as the [administrator guide](../docs/ADMIN.md#requirements-and-installation) already explains.
 
-Before a public v1 distribution:
+Before a public v1 distribution, complete the planned UI/UX refactor rounds. Then:
 
 1. Document the two installation modes: certificate management without PDF finalization support, and sealing with both feature markers. State integration prerequisites without inventing a REDCap minimum version or blocking certificate-only installations. Published Core/Framework feature availability remains to be recorded when released.
 2. Choose the final public version/tag and build its exact committed archive. Preserve the development-only **pdf_sealer_v9.9.9** checkout convention.
