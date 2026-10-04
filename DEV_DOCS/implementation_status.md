@@ -1,5 +1,9 @@
 # PDF Sealer implementation status
 
+## Core editor stable sizing and initialization — 2026-10-04
+
+The editor now fetches and renders its initial plan/previews before rcDialog is displayed, and uses an explicit initial height with scrolling to avoid resizing during redraws. Manual resize/fullscreen remain available; pending opens are deduplicated and initial load failures remain dismissible/retryable. Eleven Node tests pass. See [testing](testing.md#core-editor-stable-sizing-and-initialization--2026-10-04) for the geometry spot-check before continuing deliberate save/enablement acceptance. No server contract or live state changed.
+
 ## Core plan editor rcDialog refinement — 2026-10-04
 
 The user passed the initial browser opening/cancellation/preview checks in PIDs 533 and 524, including the Framework entry point; independent dev-control inspection confirms unchanged stored plans and enablement. At the user's request, Project Setup now displays a PDF icon and the editor uses Core's documented `rcDialog` API, with native footer/dismissal controls, drag/resize/fullscreen, fresh per-opening state and retained permission/busy/stale-preview guards. The Framework bridge and server contracts need no changes.

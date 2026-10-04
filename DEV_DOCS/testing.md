@@ -1,5 +1,13 @@
 # Development and testing
 
+## Core editor stable sizing and initialization — 2026-10-04
+
+Following browser feedback about resizing during redraws, initial Core configuration is fetched before creating the rcDialog. The controller prepares a fresh detached DOM body, operation editor and workflow previews before the helper displays it. A pending-open guard prevents duplicate dialogs/requests. An explicit `80vh` initial height keeps the outer dialog stable as assignments, warnings and previews redraw; native body scrolling, manual resize and fullscreen remain available. Passing the prepared DOM node to rcDialog preserves the editor's node references and handlers. Notices receive explicit display state so initial read-only/enablement/error messages also work before insertion. Initial load failures open a dismissible error, and closing permits another attempt.
+
+The **eleven Node checks** (ten controller plus ordered assignment) pass, including hidden initialization, pre-show data/render state, duplicate pending opens, initial HTTP/response failure recovery, stable configuration through redraw, permissions, stale responses, busy dismissal, retry and enablement callbacks. JavaScript syntax and whitespace checks pass. No server contracts or live settings changed. This supersedes the prior initialization on `dialog:shown`; initial preparation now finishes before display.
+
+Browser spot-check: hard-refresh, open PID 524 and confirm that populated operations/previews appear together without an expanding loading dialog. Add/remove/reorder duplicate assignments and wait for previews; outer dimensions must stay fixed. Manually resize or toggle fullscreen, then redraw again and confirm the chosen geometry is retained. Cancel and reopen. Deliberate save/reopen and enablement acceptance remain next.
+
 ## Core editor rcDialog refinement — 2026-10-04
 
 The user reports that the first browser round passed: PID 533 empty-plan opening, Cancel/× and reopening; PID 524's saved Sealer assignment and document-type previews; duplicate preview followed by Cancel preserving one saved occurrence; and the Framework entry point opening the same editor. Independent `redcap_devctl` reads confirm that PID 533 still has no plan or enabled override and PID 524 retains `["pdf_sealer:seal"]` with Sealer enabled. These checks predate the dialog refinement below; deliberate save/enablement and fresh artifact delivery acceptance remain pending.
