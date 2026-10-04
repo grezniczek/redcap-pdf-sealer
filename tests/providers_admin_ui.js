@@ -19,7 +19,7 @@ class Node {
 }
 const all = node => [node, ...node.children.flatMap(all)];
 function fixture({retired = false, required = false, fail = false, previewFail = false, deferred = null} = {}) {
-    const ids = {}, calls = [], dialogs = [], tables = [];
+    const ids = {}, calls = [], dialogs = [], tables = [], notifications = [];
     const node = (id, tag, data = {}) => ids[id] = new Node(tag, {dataset: data});
     const catalog = node('pdf-sealer-providers', 'table');
     const row = new Node('tr', {dataset: {providerId: 'builtin-ca', retired: retired ? '1' : '0'}});
@@ -28,9 +28,8 @@ function fixture({retired = false, required = false, fail = false, previewFail =
     const actions = new Node('td'), launcher = new Node('button', {dataset: {providerManage: ''}}); actions.append(launcher);
     row.append(statusCell, name, actions); catalog.append(row);
     const policy = node('pdf-sealer-assignment-policy', 'div', {required: required ? '1' : '0', projectsUnavailable: '0'});
-    const summary = new Node('p', {dataset: {policySummary: ''}}), policyMessage = new Node('p', {dataset: {policyMessage: ''}});
-    policy.append(summary, policyMessage);
-    const policyButton = node('pdf-sealer-policy-change', 'button'), pageMessage = node('pdf-sealer-provider-message', 'p');
+    const summary = new Node('p', {dataset: {policySummary: ''}}); policy.append(summary);
+    const policyButton = node('pdf-sealer-policy-change', 'button');
     node('pki-panel-providers', 'section', {}); const tab = new Node('button');
     const fields = new Node('fieldset'), project = node('provider-pid', 'select'); fields.append(project); project.options = [{}, {}];
     const option = (text, value) => new Node('option', {textContent: text, value});
@@ -82,10 +81,10 @@ function fixture({retired = false, required = false, fail = false, previewFail =
     }});
     const context = {document: {getElementById: id => ids[id], createElement: tag => new Node(tag),
         createTextNode: text => new Node('#text', {textContent: text}), querySelector: () => tab},
-        window: {rcDialog: makeDialog, addEventListener() {}}, $: jquery,
+        window: {rcDialog: makeDialog, addEventListener() {}, PDFSealerNotify: (text, tone) => notifications.push({text, tone})}, $: jquery,
         Event: class {constructor(type) {this.type = type;}}, Option: function(text, value) { return option(text, value); }};
     vm.runInNewContext(source, context); context.window.PDFSealerProvidersAdmin(module);
-    return {calls, dialogs, tables, policy, policyMessage, pageMessage, row, statusCell, ids, context,
+    return {calls, dialogs, tables, notifications, policy, row, statusCell, ids, context,
         open: async () => { const completion = catalog.events.click({target: launcher}); await tick(); return {completion}; },
         policyOpen: async () => { const completion = policyButton.events.click(); await tick(); return {completion}; }};
 }
@@ -102,14 +101,14 @@ function fixture({retired = false, required = false, fail = false, previewFail =
     assert.equal(f.calls.length, 1); assert.equal(f.tables[1].destroyed, true);
 
     f = fixture(); run = await f.open(); main = f.dialogs[0];
-    const cancelRun = main.options.footerStatus.children[0].events.click(); await tick();
+    const cancelRun = main.options.footerStatus.events.click(); await tick();
     await f.dialogs[1].ctx.close(null); await cancelRun;
     assert.equal(f.calls.length, 2, 'Canceling confirmation must only read');
     assert.equal(main.controls.close.disabled, false);
     await main.ctx.close(null); await run.completion;
 
     f = fixture(); run = await f.open(); main = f.dialogs[0];
-    const action = main.options.footerStatus.children[0];
+    const action = main.options.footerStatus;
     const change = action.events.click(); await tick();
     const confirm = f.dialogs[1], gate = all(confirm.bodies[0]).find(n => n.type === 'checkbox');
     assert.equal(f.calls.length, 2, 'Confirmation must get a fresh review');
@@ -122,26 +121,26 @@ function fixture({retired = false, required = false, fail = false, previewFail =
     assert.equal(f.statusCell.children[0].textContent, 'provider_retired');
     assert.equal(f.ids['provider-selection'].options.length, 1); assert.equal(f.ids['provider-pid'].disabled, true);
     assert.ok(f.tables[0].draws.every(reset => reset === false), 'Updates must preserve table page');
-    assert.equal(f.pageMessage.hidden, false);
+    assert.ok(f.notifications.length > 0);
 
     f = fixture({retired: true, required: true}); run = await f.open(); main = f.dialogs[0];
-    let changeRun = main.options.footerStatus.children[0].events.click(); await tick();
+    let changeRun = main.options.footerStatus.events.click(); await tick();
     await f.dialogs[1].press('confirm'); await changeRun; await run.completion;
     assert.equal(f.row.dataset.retired, '0'); assert.equal(f.policy.dataset.required, '1');
     assert.equal(f.ids['provider-selection'].options.length, 2); assert.equal(f.ids['provider-pid'].disabled, false);
     assert.equal(f.calls[2].payload.enable_assignment_gate, false);
 
     f = fixture({required: true, fail: true}); run = await f.open(); main = f.dialogs[0];
-    changeRun = main.options.footerStatus.children[0].events.click(); await tick();
+    changeRun = main.options.footerStatus.events.click(); await tick();
     await f.dialogs[1].press('confirm'); await f.dialogs[1].press('confirm');
     assert.equal(f.calls.length, 3, 'Failed/stale retirement must not replay');
-    assert.equal(f.dialogs[1].ctx.footer, 'provider_lifecycle_failed');
+    assert.equal(f.notifications[0].text, 'provider_lifecycle_failed');
     await f.dialogs[1].ctx.close(null); await changeRun; assert.equal(main.controls.close.disabled, false);
     await main.ctx.close(null); await run.completion; assert.equal(f.row.dataset.retired, '0');
 
     let release; const deferred = new Promise(r => {release = r;});
     f = fixture({required: true, deferred}); run = await f.open(); main = f.dialogs[0];
-    changeRun = main.options.footerStatus.children[0].events.click(); await tick();
+    changeRun = main.options.footerStatus.events.click(); await tick();
     const child = f.dialogs[1], pending = child.press('confirm'); await tick();
     await child.press('confirm'); assert.equal(f.calls.length, 3);
     assert.equal(await child.ctx.close(null), false); assert.equal(await main.ctx.close(null), false);
@@ -150,14 +149,14 @@ function fixture({retired = false, required = false, fail = false, previewFail =
     f = fixture(); run = await f.policyOpen(); const policyDialog = f.dialogs[0];
     all(policyDialog.bodies[0]).find(n => n.type === 'checkbox').checked = true;
     await policyDialog.press('save'); await run.completion;
-    assert.equal(f.policy.dataset.required, '1'); assert.equal(f.policyMessage.hidden, false);
+    assert.equal(f.policy.dataset.required, '1'); assert.equal(f.notifications[0].text, 'assignment_policy_saved');
     assert.equal(f.calls[0].action, 'save_assignment_policy');
     f = fixture(); run = await f.policyOpen(); await f.dialogs[0].ctx.close(null); await run.completion;
     assert.equal(f.calls.length, 0, 'Canceling policy editing must not write');
     f = fixture({fail: true}); run = await f.policyOpen(); await f.dialogs[0].press('save'); await f.dialogs[0].press('save');
-    assert.equal(f.calls.length, 1); assert.equal(f.dialogs[0].ctx.footer, 'assignment_policy_failed');
+    assert.equal(f.calls.length, 1); assert.equal(f.notifications[0].text, 'assignment_policy_failed');
     await f.dialogs[0].ctx.close(null); await run.completion;
     f = fixture({previewFail: true}); run = await f.open(); await run.completion;
-    assert.equal(f.dialogs.length, 0); assert.equal(f.pageMessage.hidden, false);
+    assert.equal(f.dialogs.length, 0); assert.equal(f.notifications[0].text, 'provider_review_failed');
     console.log('Provider administration UI checks passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });

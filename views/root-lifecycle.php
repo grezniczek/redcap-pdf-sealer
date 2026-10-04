@@ -6,4 +6,3 @@
     <?= $escape($framework->tt('root_lifecycle_title')) ?>
 </button>
 <p class="small text-muted mt-2"><?= $escape($framework->tt('root_lifecycle_intro')) ?></p>
-<div id="root-lifecycle-message" role="status" hidden></div>

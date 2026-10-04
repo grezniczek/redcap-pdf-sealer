@@ -7,7 +7,6 @@ window.PDFSealerTsaLifecycle = module => {
     const action = document.getElementById('tsa-lifecycle-action');
     const help = document.getElementById('tsa-lifecycle-help');
     const confirm = document.getElementById('tsa-lifecycle-confirm');
-    const message = form.querySelector('[role="status"]');
     let preview = null;
     const update = () => {
         help.textContent = module.tt('tsa_lifecycle_' + action.value + '_help');
@@ -18,9 +17,7 @@ window.PDFSealerTsaLifecycle = module => {
     const fail = () => {
         preview = null;
         review.hidden = true;
-        message.textContent = module.tt('tsa_lifecycle_failed');
-        message.className = 'alert alert-danger mt-3';
-        message.hidden = false;
+        window.PDFSealerNotify(module.tt('tsa_lifecycle_failed'), 'error');
     };
     action.addEventListener('change', update);
     form.addEventListener('submit', async event => {
@@ -28,7 +25,7 @@ window.PDFSealerTsaLifecycle = module => {
         if (fields.disabled) return;
         preview = null;
         review.hidden = true;
-        message.hidden = true;
+
         busy(true);
         try {
             const result = await module.ajax('preview_tsa_lifecycle', {});
@@ -51,7 +48,7 @@ window.PDFSealerTsaLifecycle = module => {
         if (!window.confirm(module.tt('tsa_lifecycle_confirm_prompt', action.selectedOptions[0].textContent,
             preview.certificate.fingerprint, help.textContent))) return;
         busy(true);
-        message.hidden = true;
+
         try {
             const result = await module.ajax(selected === 'replace' ? 'replace_tsa_certificate' : 'revoke_tsa_certificate',
                 {review_hash: preview.review_hash, reason: selected});
@@ -65,9 +62,7 @@ window.PDFSealerTsaLifecycle = module => {
             }
             details.push(module.tt(result.replacement === 'renewed' ? 'tsa_lifecycle_replaced'
                 : (result.replacement === 'skipped' ? 'tsa_lifecycle_changed' : 'tsa_lifecycle_pending')));
-            message.textContent = details.join(' ');
-            message.className = 'alert mt-3 ' + (result.replacement === 'renewed' && result.crl_published !== false ? 'alert-success' : 'alert-warning');
-            message.hidden = false;
+            window.PDFSealerNotify(details.join(' '), result.replacement === 'renewed' && result.crl_published !== false ? 'success' : 'warning');
         } catch (_) { fail(); }
         finally { busy(false); }
     });

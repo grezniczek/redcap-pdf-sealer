@@ -4,11 +4,10 @@
 <div id="pdf-sealer-assignment-policy" data-required="<?= $assignmentRequired ? '1' : '0' ?>" data-projects-unavailable="<?= $assignmentProjectsUnavailable ? '1' : '0' ?>" class="mb-3">
     <p data-policy-summary class="mb-1"><?= $escape($framework->tt($assignmentRequired ? 'assignment_policy_explicit' : 'assignment_policy_automatic')) ?></p>
     <button type="button" class="btn btn-link btn-sm p-0" id="pdf-sealer-policy-change"><?= $escape($framework->tt('assignment_policy_change')) ?></button>
-    <p data-policy-message class="alert" role="status" hidden></p>
 </div>
 <hr>
 <div class="pdf-sealer-table-wrap mb-3">
-    <table id="pdf-sealer-providers" class="table table-sm w-100">
+    <table id="pdf-sealer-providers" class="table table-sm w-100 hover">
         <thead><tr>
             <th><?= $escape($framework->tt('provider_status')) ?></th>
             <th><?= $escape($framework->tt('provider_table_name')) ?></th>
@@ -38,7 +37,6 @@
         </tbody>
     </table>
 </div>
-<p id="pdf-sealer-provider-message" class="alert" role="status" hidden></p>
 <?php foreach ($providerCatalog as $provider): ?>
     <template id="pdf-sealer-provider-details-<?= $escape($provider['id']) ?>">
         <div class="pdf-sealer-dialog-body">

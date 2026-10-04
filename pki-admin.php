@@ -218,8 +218,6 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
     <h4 class="mb-2"><i class="fas fa-file-signature" aria-hidden="true"></i> <?= $escape($framework->tt('pki_page_title')) ?></h4>
     <p><?= $escape($framework->tt('pki_page_intro')) ?></p>
     <?php require __DIR__ . '/views/sealing-support.php'; ?>
-    <?php if ($error !== null): ?><div class="alert alert-danger" role="alert"><?= $escape($error) ?></div><?php endif; ?>
-    <?php if ($success): ?><div class="alert alert-success" role="status"><?= $escape($framework->tt('pki_init_success')) ?></div><?php endif; ?>
     <div class="pdf-sealer-summary">
         <div class="pdf-sealer-card pdf-sealer-health-<?= $escape(strtolower($report->status->value)) ?>">
             <div class="small text-muted"><?= $escape($framework->tt('pki_status')) ?></div>
@@ -257,7 +255,6 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
                 <button type="button" class="btn btn-outline-secondary btn-sm" data-pki-root-download="der"><i class="fas fa-download" aria-hidden="true"></i> <?= $escape($framework->tt('pki_download_root_der')) ?></button>
             </div>
             <p class="small text-muted mt-2"><?= $escape($framework->tt('pki_download_root_help')) ?></p>
-            <div id="pki-root-download-message" role="status" hidden></div>
         <?php endif; ?>
     <?php endif; ?>
     <hr>
@@ -286,7 +283,6 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
                     <label class="mb-3"><input type="checkbox" id="provider-fallback" disabled> <?= $escape($framework->tt('timestamp_fallback_allow')) ?></label><br>
                     <button class="btn btn-primaryrc btn-sm" type="submit"><?= $escape($framework->tt('provider_register')) ?></button>
                 </fieldset>
-                <p class="alert mt-3" role="status" hidden></p>
             </form>
             <hr>
             <h5><?= $escape($framework->tt('provider_assign')) ?></h5>
@@ -310,7 +306,6 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
                     </select>
                     <button class="btn btn-primaryrc btn-sm" type="submit"><?= $escape($framework->tt('provider_assign')) ?></button>
                 </fieldset>
-                <p class="alert mt-3" role="status" hidden></p>
             </form>
             <hr>
             <h5><?= $escape($framework->tt('transition_title')) ?></h5>
@@ -340,7 +335,6 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
                         <button type="button" class="btn btn-warning btn-sm" id="transition-confirm"></button>
                     </div>
                 </fieldset>
-                <p class="alert mt-3" role="status" hidden></p>
             </form>
             <hr>
             <?php require __DIR__ . '/views/project-renewal.php'; ?>
@@ -372,7 +366,6 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
     <p class="small text-muted"><?= $escape($framework->tt('diagnostic_snapshot_help')) ?></p>
     <div id="pdf-sealer-diagnostic-cache-message" class="alert alert-warning" role="status" hidden></div>
     <button id="pdf-sealer-diagnostic" type="button" class="btn btn-primaryrc btn-sm"><?= $escape($framework->tt('diagnostic_run')) ?></button>
-    <div id="pdf-sealer-diagnostic-message" role="status" hidden></div>
     <table id="pdf-sealer-diagnostic-results" class="table table-sm" hidden>
         <thead><tr><th scope="col"><?= $escape($framework->tt('diagnostic_check')) ?></th><th scope="col"><?= $escape($framework->tt('diagnostic_result')) ?></th></tr></thead>
         <tbody>
@@ -443,7 +436,6 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
     <hr>
     <h5><?= $escape($framework->tt('admin_alert_recipients')) ?></h5>
     <p><?= $escape($framework->tt('admin_alert_recipients_help')) ?></p>
-    <div id="pdf-sealer-recipient-message" role="status" hidden></div>
     <div class="mb-3">
         <label for="pdf-sealer-recipients"><?= $escape($framework->tt('admin_alert_recipients')) ?></label>
         <textarea id="pdf-sealer-recipients" class="form-control form-control-sm" rows="3" maxlength="4096"><?= $escape($recipients) ?></textarea>
@@ -454,9 +446,9 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
     <h5><?= $escape($framework->tt('alarm_test_title')) ?></h5>
     <p class="text-muted"><?= $escape($framework->tt('alarm_test_help')) ?></p>
     <button id="pdf-sealer-test-alarm" type="button" class="btn btn-outline-secondary btn-sm"><i class="fas fa-paper-plane" aria-hidden="true"></i> <?= $escape($framework->tt('alarm_test_button')) ?></button>
-    <div id="pdf-sealer-test-alarm-message" role="status" hidden></div>
     </section>
 </div>
+<script src="<?= $escape($framework->getUrl('assets/admin-notifications.js')) ?>"></script>
 <script src="<?= $escape($framework->getUrl('assets/timestamp-admin.js')) ?>"></script>
 <script src="<?= $escape($framework->getUrl('assets/project-renewal.js')) ?>"></script>
 <script src="<?= $escape($framework->getUrl('assets/project-revocation.js')) ?>"></script>
@@ -466,6 +458,20 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
 <script>
 (() => {
     const module = <?= $framework->getJavascriptModuleObjectName() ?>;
+    const notify = window.PDFSealerNotify;
+    const notices = <?= json_encode(array_values(array_filter([
+        $error === null ? null : ['text' => $error, 'tone' => 'error'],
+        $success ? ['text' => $framework->tt('pki_init_success'), 'tone' => 'success'] : null,
+        ($_GET['tsa_notice'] ?? null) === 'saved' ? ['text' => $framework->tt('external_tsa_saved'), 'tone' => 'success'] : null,
+        ($_GET['tsa_notice'] ?? null) === 'registered' ? ['text' => $framework->tt('external_tsa_registered'), 'tone' => 'success'] : null,
+        ($_GET['provider_notice'] ?? null) === 'registered' ? ['text' => $framework->tt('provider_registered'), 'tone' => 'success'] : null,
+    ])), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    notices.forEach(notice => notify(notice.text, notice.tone));
+    if (notices.length) {
+        const url = new URL(location.href);
+        ['pki_notice', 'tsa_notice', 'provider_notice'].forEach(key => url.searchParams.delete(key));
+        history.replaceState(null, '', url.href);
+    }
     const tabs = [...document.querySelectorAll('[data-pki-tab]')];
     const selectTab = (name, focus = false) => {
         if (!tabs.some(tab => tab.dataset.pkiTab === name)) name = 'root';
@@ -505,7 +511,6 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
         const target = document.getElementById('transition-provider');
         const review = document.getElementById('transition-review');
         const confirm = document.getElementById('transition-confirm');
-        const message = transitionForm.querySelector('[role="status"]');
         const catalog = <?= json_encode(array_column(array_map(static fn(array $p): array => ['id' => $p['id'], 'name' => $p['name'] ?? $framework->tt('provider_builtin'), 'kind' => $p['kind']], $providerCatalog), null, 'id'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
         const failed = <?= json_encode($framework->tt('transition_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
         let preview = null;
@@ -522,9 +527,9 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
             confirm.disabled = !preview || (!cancel && (Boolean(preview.enrollment_id) || !target.value || target.value === preview.provider_id));
         };
         target.addEventListener('change', updateAction);
-        project.on('change', () => { preview = null; review.hidden = true; message.hidden = true; });
+        project.on('change', () => { preview = null; review.hidden = true; });
         transitionForm.addEventListener('submit', async event => {
-            event.preventDefault(); fields.disabled = true; project.prop('disabled', true); review.hidden = true; message.hidden = true;
+            event.preventDefault(); fields.disabled = true; project.prop('disabled', true); review.hidden = true;
             try {
                 const response = await module.ajax('preview_provider_transition', {pid: Number(project.val())});
                 if (!response?.ok) throw new Error('Preview failed');
@@ -537,7 +542,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
                 document.getElementById('transition-target-choice').hidden = Boolean(response.transition_id);
                 document.getElementById('transition-csr').hidden = !response.enrollment_id || Boolean(response.transition_id);
                 review.hidden = false; updateAction();
-            } catch (error) { preview = null; message.className = 'alert alert-danger mt-3'; message.textContent = failed; message.hidden = false; }
+            } catch (error) { preview = null; notify(failed, 'error'); }
             finally { fields.disabled = false; project.prop('disabled', false); }
         });
         confirm.addEventListener('click', async () => {
@@ -546,19 +551,17 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
             const pid = preview.pid;
             const provider = cancel ? preview.pending_provider_id : target.value;
             const projectName = project[0].selectedOptions[0].textContent;
-            fields.disabled = true; project.prop('disabled', true); message.hidden = true;
+            fields.disabled = true; project.prop('disabled', true);
             try {
                 const payload = {pid, review_hash: preview.review_hash};
                 if (!cancel) payload.provider = provider;
                 const response = await module.ajax(cancel ? 'cancel_provider_transition' : 'start_provider_transition', payload);
                 if (!response?.ok) throw new Error('Transition failed');
                 transitionForm.reset(); project.trigger('change'); preview = null; review.hidden = true;
-                message.className = 'alert alert-success mt-3';
-                message.textContent = module.tt('transition_saved_' + response.state, catalog[provider]?.name || provider, projectName);
-                message.hidden = false;
+                notify(module.tt('transition_saved_' + response.state, catalog[provider]?.name || provider, projectName));
             } catch (error) {
                 preview = null; review.hidden = true;
-                message.className = 'alert alert-danger mt-3'; message.textContent = failed; message.hidden = false;
+                notify(failed, 'error');
             } finally { fields.disabled = false; project.prop('disabled', false); }
         });
     }
@@ -581,10 +584,9 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
         form.addEventListener('submit', async event => {
             event.preventDefault();
             const fields = form.querySelector('fieldset');
-            const message = form.querySelector('[role="status"]');
             fields.disabled = true;
             if (action === 'assign') assignmentProject.prop('disabled', true);
-            message.hidden = true;
+
             try {
                 let payload;
                 let assignedProjectName, assignedProviderName;
@@ -601,10 +603,10 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
                     assignedProviderName = providerSelect.selectedOptions[0].textContent;
                 }
                 const response = await module.ajax(action + '_ca_provider', payload);
-                message.className = 'alert mt-3 ' + (response?.ok ? 'alert-success' : 'alert-danger');
-                message.textContent = response?.ok ? <?= json_encode($framework->tt('provider_saved'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?> : response?.message;
+                let feedback = response?.ok ? <?= json_encode($framework->tt('provider_saved'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
+                    : (response?.message || <?= json_encode($framework->tt('provider_request_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>);
                 if (response?.ok && action === 'assign') {
-                    message.textContent = module.tt('provider_assigned', assignedProviderName, assignedProjectName);
+                    feedback = module.tt('provider_assigned', assignedProviderName, assignedProjectName);
                     const transitionProject = document.getElementById('transition-pid');
                     if (transitionProject && !Array.from(transitionProject.options).some(option => option.value === String(payload.pid))) {
                         transitionProject.add(new Option(assignedProjectName, String(payload.pid)));
@@ -618,12 +620,12 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
                     }
                     assignmentProject.trigger('change');
                 }
-                message.hidden = false;
-                if (response?.ok && action === 'register') { location.hash = 'providers'; location.reload(); }
+                if (response?.ok && action === 'register') {
+                    const url = new URL(location.href); url.searchParams.set('provider_notice', 'registered');
+                    url.hash = 'providers'; location.assign(url.href);
+                } else { notify(feedback, response?.ok ? 'success' : 'error'); }
             } catch (error) {
-                message.className = 'alert alert-danger mt-3';
-                message.textContent = <?= json_encode($framework->tt('provider_request_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-                message.hidden = false;
+                notify(<?= json_encode($framework->tt('provider_request_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>, 'error');
             } finally {
                 fields.disabled = action === 'assign' && assignmentProject[0].options.length === 1;
                 if (action === 'assign') assignmentProject.prop('disabled', fields.disabled);
@@ -632,21 +634,16 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
     });
     const input = document.getElementById('pdf-sealer-recipients');
     const button = document.getElementById('pdf-sealer-save-recipients');
-    const message = document.getElementById('pdf-sealer-recipient-message');
     let savedRecipients = input.value;
     const testAlarmButton = document.getElementById('pdf-sealer-test-alarm');
     const savedMessage = <?= json_encode($framework->tt('admin_alert_recipients_saved'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     const failedMessage = <?= json_encode($framework->tt('admin_alert_recipients_save_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-    const showMessage = (success, text) => {
-        message.className = 'alert ' + (success ? 'alert-success' : 'alert-danger');
-        message.textContent = text;
-        message.hidden = false;
-    };
+    const showMessage = (success, text) => notify(text, success ? 'success' : 'error');
     button.addEventListener('click', () => {
         button.disabled = true;
         input.disabled = true;
         testAlarmButton.disabled = true;
-        message.hidden = true;
+
         module.ajax('save_alert_recipients', input.value).then(response => {
             if (response && response.ok) {
                 input.value = response.recipients;
@@ -661,17 +658,12 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
             testAlarmButton.disabled = false;
         });
     });
-    const alarmMessage = document.getElementById('pdf-sealer-test-alarm-message');
     const alarmText = <?= json_encode(array_combine(
         ['confirm', 'unsaved', 'unconfigured', 'sending', 'failed'],
         array_map(static fn(string $key): string => $framework->tt('alarm_test_' . $key),
             ['confirm', 'unsaved', 'unconfigured', 'sending', 'failed'])
     ), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-    const showAlarmMessage = (style, text) => {
-        alarmMessage.className = 'alert alert-' + style;
-        alarmMessage.textContent = text;
-        alarmMessage.hidden = false;
-    };
+    const showAlarmMessage = (style, text) => notify(text, style);
     testAlarmButton.addEventListener('click', () => {
         if (testAlarmButton.disabled) return;
         if (input.value !== savedRecipients) { showAlarmMessage('warning', alarmText.unsaved); return; }
@@ -687,7 +679,6 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
         });
     });
     const diagnosticButton = document.getElementById('pdf-sealer-diagnostic');
-    const diagnosticMessage = document.getElementById('pdf-sealer-diagnostic-message');
     const diagnosticResults = document.getElementById('pdf-sealer-diagnostic-results');
     const diagnosticText = <?= json_encode(array_combine(
         ['running', 'complete', 'incomplete', 'unavailable', 'passed', 'failed', 'skipped'],
@@ -751,11 +742,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
         cacheMessage.textContent = snapshotText.cache_unavailable;
         cacheMessage.hidden = false;
     }
-    const showDiagnosticMessage = (style, text) => {
-        diagnosticMessage.className = 'alert alert-' + style;
-        diagnosticMessage.textContent = text;
-        diagnosticMessage.hidden = false;
-    };
+    const showDiagnosticMessage = (style, text) => notify(text, style);
     diagnosticButton.addEventListener('click', () => {
         if (diagnosticButton.disabled) return;
         diagnosticButton.disabled = true;
@@ -771,25 +758,21 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
             });
             snapshot = response;
             renderSnapshot();
-            cacheMessage.textContent = response.saved === true ? '' : snapshotText.cache_failed;
-            cacheMessage.hidden = response.saved === true;
+            cacheMessage.hidden = true;
+            if (response.saved !== true) notify(snapshotText.cache_failed, 'warning');
             showDiagnosticMessage(response.passed ? 'success' : 'warning',
                 response.passed ? diagnosticText.complete : diagnosticText.incomplete);
         }).catch(() => showDiagnosticMessage('danger', diagnosticText.unavailable)).finally(() => {
             diagnosticButton.disabled = false;
         });
     });
-    const downloadMessage = document.getElementById('pki-root-download-message');
     const downloadFailedMessage = <?= json_encode($framework->tt('pki_root_download_unavailable'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     document.querySelectorAll('[data-pki-root-download]').forEach(downloadButton => {
         downloadButton.addEventListener('click', () => {
             downloadButton.disabled = true;
-            downloadMessage.hidden = true;
             module.ajax('download_root_certificate', downloadButton.dataset.pkiRootDownload).then(response => {
                 if (!response || !response.ok) {
-                    downloadMessage.className = 'alert alert-danger';
-                    downloadMessage.textContent = response && response.message ? response.message : downloadFailedMessage;
-                    downloadMessage.hidden = false;
+                    notify(response && response.message ? response.message : downloadFailedMessage, 'error');
                     return;
                 }
                 const binary = atob(response.base64);
@@ -806,9 +789,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
                 link.remove();
                 setTimeout(() => URL.revokeObjectURL(url), 60000);
             }).catch(() => {
-                downloadMessage.className = 'alert alert-danger';
-                downloadMessage.textContent = downloadFailedMessage;
-                downloadMessage.hidden = false;
+                notify(downloadFailedMessage, 'error');
             }).finally(() => {
                 downloadButton.disabled = false;
             });

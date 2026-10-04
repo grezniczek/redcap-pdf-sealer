@@ -34,3 +34,11 @@
 .pdf-sealer-dialog-body { font-size: 13px; line-height: 1.35; }
 .pdf-sealer-table-wrap { overflow-x: auto; }
 .pdf-sealer-dialog-body table { width: 100%; }
+
+/* Keep every module DataTable cell uniform, including REDCap's first/sorted-column overrides. */
+.pdf-sealer-admin table.dataTable > tbody > tr > *,
+.pdf-sealer-dialog-body table.dataTable > tbody > tr > * { background-color: #fff !important; }
+.pdf-sealer-admin table.dataTable > tbody > tr:hover > *,
+.pdf-sealer-dialog-body table.dataTable > tbody > tr:hover > * { background-color: #eef4fb !important; }
+#pdf-sealer-providers th:first-child, #pdf-sealer-providers td:first-child { width: 70px; white-space: nowrap; }
+#pdf-sealer-providers td:nth-child(4) { font-size: .85em; }

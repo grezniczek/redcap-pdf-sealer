@@ -1,11 +1,7 @@
 /* Control Center only. All mutations use the Framework's authenticated AJAX endpoint. */
 window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime, pageUrl) => {
     const text = key => module.tt(key);
-    const fail = (form, failureMessage) => {
-        const element = form.querySelector('[data-tsa-message]');
-        element.textContent = failureMessage || text('external_tsa_failed');
-        element.hidden = false;
-    };
+    const fail = (_form, failureMessage) => window.PDFSealerNotify(failureMessage || text('external_tsa_failed'), 'error');
     const reload = notice => {
         const url = new URL(pageUrl, location.href);
         url.searchParams.set('tsa_notice', notice);
@@ -59,7 +55,6 @@ window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime, pageUrl
     const fallback = document.getElementById('tsa-fallback');
     const alternatives = [1, 2].map(position => document.getElementById('tsa-alternative-' + position));
     const save = document.getElementById('tsa-policy-save');
-    const policyMessage = document.getElementById('tsa-policy-message');
     const sync = () => {
         fallback.disabled = source.value === 'none';
         if (fallback.disabled) fallback.checked = false;
@@ -89,8 +84,7 @@ window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime, pageUrl
         if (!provider.reportValidity() || !source.reportValidity()) return;
         const order = alternatives.filter(select => !select.disabled && select.value).map(select => select.value);
         if (new Set([source.value, ...order]).size !== order.length + 1) {
-            policyMessage.textContent = text('timestamp_order_invalid');
-            policyMessage.hidden = false;
+            window.PDFSealerNotify(text('timestamp_order_invalid'), 'error');
             return;
         }
         const payload = {provider: provider.value, source: source.value, alternatives: order, fallback: !fallback.disabled && fallback.checked};
@@ -100,8 +94,7 @@ window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime, pageUrl
             if (!result?.ok) throw new Error();
             reload('saved');
         } catch (_) {
-            policyMessage.textContent = text('external_tsa_failed');
-            policyMessage.hidden = false;
+            window.PDFSealerNotify(text('external_tsa_failed'), 'error');
         } finally { save.disabled = false; }
     });
 };

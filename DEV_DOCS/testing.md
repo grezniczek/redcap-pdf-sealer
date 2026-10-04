@@ -467,3 +467,15 @@ Browser acceptance remains pending:
 2. Open **Manage** for built-in and external providers. Verify complete certificate/timestamp details, subject line breaks and both fingerprints. Only **Close** should be a regular button. On **Usage Stats**, check the project rows, search/paging and width after switching tabs or moving/resizing the dialog. Close and reopen to refresh usage.
 3. On a disposable external provider, choose **Retire CA** in the footer and cancel confirmation once: Manage stays open and status is unchanged. Confirm retirement: both dialogs close, the row changes to Retired without a page reload, and the provider disappears from assignment/transition choices. Reopen Manage and confirm **Reactivate CA**: status/choices return, with the assignment policy unchanged.
 4. Default-CA retirement still requires the explicit-assignment acknowledgment when the gate is off; this is covered by disposable tests. Reviewing and canceling this confirmation is sufficient for the layout check. No repeat of live certificate revocation or Acrobat acceptance is required solely for this presentation change.
+
+## CC table polish and toast feedback — 2026-10-04
+
+Run **node tests/admin_notifications_ui.js**, **node tests/providers_admin_ui.js** and **node tests/root_lifecycle_ui.js**. The shared notification helper escapes all text before REDCap's HTML-rendering **showToast** API, retains readable newlines, maps danger to Core's persistent **error** type and allows more reading time for warnings. Existing dialog cancellation, stale/failed/busy gates, in-place catalog updates and Root CA reload receipts remain covered.
+
+The status column now has a compact width and expiry cells use smaller text. CSS overrides first/sorted-column shading on module DataTables in both page and dialog bodies, with a uniform row hover highlight. Control Center operation feedback (assignment, registration, transitions, renewals/revocations, timestamp settings, downloads, diagnostics and alarms) uses toasts; persistent health/policy/cache warnings and saved diagnostic observations remain inline. GET initialization/registration/settings notices are shown once and removed from the URL; Root CA receipts retain their existing sessionStorage handoff. No live settings or PKI changes are needed to implement this.
+
+Browser checks pending:
+
+1. Check status width and smaller expiry text. In the catalog and **Manage → Usage Stats**, sorting should not reintroduce first-column shading; hovering should highlight the whole row consistently.
+2. Save assignment policy or retire/reactivate a disposable provider. Confirm a toast appears without expanding the page or dialog footer; catalog updates should retain their existing behavior. Cancel remains silent.
+3. Check a harmless error (e.g. an invalid external CA registration): its toast should stay until dismissed, without inserting an error banner. Check the alarm-recipient save, timestamp-policy save/GET notice and Root CA download. Refresh after a successful redirected save should not repeat its notice. No additional live root/project/TSA revocation or Acrobat matrix is required for this feedback change.

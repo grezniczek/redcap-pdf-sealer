@@ -7,7 +7,6 @@ window.PDFSealerProjectRenewal = module => {
     project.prop('disabled', fields.disabled).select2({width: '100%', minimumResultsForSearch: 0});
     const review = document.getElementById('renewal-review');
     const confirm = document.getElementById('renewal-confirm');
-    const message = form.querySelector('[role="status"]');
     let preview = null;
     const busy = value => {
         fields.disabled = value;
@@ -17,18 +16,16 @@ window.PDFSealerProjectRenewal = module => {
     const fail = () => {
         preview = null;
         review.hidden = true;
-        message.textContent = module.tt('renewal_failed');
-        message.className = 'alert alert-danger mt-3';
-        message.hidden = false;
+        window.PDFSealerNotify(module.tt('renewal_failed'), 'error');
     };
     const utc = seconds => new Date(seconds * 1000).toISOString().replace('T', ' ').replace('.000Z', ' UTC');
-    project.on('change', () => { preview = null; review.hidden = true; message.hidden = true; });
+    project.on('change', () => { preview = null; review.hidden = true; });
     form.addEventListener('submit', async event => {
         event.preventDefault();
         if (fields.disabled || !project.val()) return;
         preview = null;
         review.hidden = true;
-        message.hidden = true;
+
         busy(true);
         try {
             const result = await module.ajax('preview_project_renewal', {pid: Number(project.val())});
@@ -50,16 +47,13 @@ window.PDFSealerProjectRenewal = module => {
         const projectName = project[0].selectedOptions[0].textContent;
         const payload = {pid: preview.pid, review_hash: preview.review_hash};
         busy(true);
-        message.hidden = true;
+
         try {
             const result = await module.ajax('renew_project_certificate', payload);
             if (!result?.ok) throw new Error('Renewal failed');
             form.reset();
             project.trigger('change');
-            message.textContent = module.tt('renewal_saved', projectName, result.fingerprint);
-            message.className = 'alert alert-success mt-3';
-            message.style.overflowWrap = 'anywhere';
-            message.hidden = false;
+            window.PDFSealerNotify(module.tt('renewal_saved', projectName, result.fingerprint));
         } catch (_) { fail(); }
         finally { busy(false); }
     });

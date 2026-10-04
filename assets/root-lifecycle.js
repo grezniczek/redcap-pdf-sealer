@@ -2,19 +2,13 @@
 window.PDFSealerRootLifecycle = module => {
     const launcher = document.getElementById('pdf-sealer-root-lifecycle');
     if (!launcher) return;
-    const message = document.getElementById('root-lifecycle-message');
     const receiptKey = 'pdf-sealer-root-lifecycle:' + location.pathname + location.search;
-    const showMessage = (text, tone) => {
-        message.textContent = text;
-        message.className = 'alert alert-' + tone;
-        message.hidden = false;
-    };
     try {
         const stored = sessionStorage.getItem(receiptKey);
         sessionStorage.removeItem(receiptKey);
         const receipt = stored ? JSON.parse(stored) : null;
         if (typeof receipt?.text === 'string' && ['success', 'warning'].includes(receipt.tone)) {
-            showMessage(receipt.text, receipt.tone);
+            window.PDFSealerNotify(receipt.text, receipt.tone);
         }
     } catch (_) { /* Storage restrictions must not prevent certificate management. */ }
     const element = (tag, className, text) => {
@@ -56,9 +50,8 @@ window.PDFSealerRootLifecycle = module => {
     };
     launcher.addEventListener('click', async () => {
         if (launcher.disabled) return;
-        message.hidden = true;
         if (typeof window.rcDialog !== 'function') {
-            showMessage(module.tt('root_lifecycle_dialog_unavailable'), 'warning');
+            window.PDFSealerNotify(module.tt('root_lifecycle_dialog_unavailable'), 'warning');
             return;
         }
         launcher.disabled = true;
@@ -147,7 +140,7 @@ window.PDFSealerRootLifecycle = module => {
                             return {applied: true};
                         } catch (_) {
                             ctx.state.invalid = true; // Do not retry a possibly accepted mutation with the same review.
-                            ctx.setFooterStatus(module.tt('root_lifecycle_failed'));
+                            window.PDFSealerNotify(module.tt('root_lifecycle_failed'), 'error');
                             return false;
                         } finally {
                             busy = false;
@@ -157,7 +150,7 @@ window.PDFSealerRootLifecycle = module => {
                 },
             });
             if (result?.applied) location.reload();
-        } catch (_) { showMessage(module.tt('root_lifecycle_failed'), 'danger'); }
+        } catch (_) { window.PDFSealerNotify(module.tt('root_lifecycle_failed'), 'danger'); }
         finally { launcher.disabled = false; launcher.removeAttribute('aria-busy'); }
     });
 };

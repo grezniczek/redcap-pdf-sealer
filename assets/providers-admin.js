@@ -4,7 +4,6 @@ window.PDFSealerProvidersAdmin = module => {
     if (!tableNode) return;
     const policy = document.getElementById('pdf-sealer-assignment-policy');
     const policyButton = document.getElementById('pdf-sealer-policy-change');
-    const pageMessage = document.getElementById('pdf-sealer-provider-message');
     const rows = new Map([...tableNode.querySelectorAll('[data-provider-id]')].map(row => [row.dataset.providerId, row]));
     const element = (tag, className, text) => {
         const node = document.createElement(tag);
@@ -12,11 +11,7 @@ window.PDFSealerProvidersAdmin = module => {
         if (text !== undefined) node.textContent = text;
         return node;
     };
-    const showMessage = (node, key, tone, ...values) => {
-        node.textContent = module.tt(key, ...values);
-        node.className = 'alert alert-' + tone;
-        node.hidden = false;
-    };
+    const notify = (key, tone, ...values) => window.PDFSealerNotify(module.tt(key, ...values), tone);
     const language = {
         search: module.tt('table_search'), lengthMenu: module.tt('table_length'),
         info: module.tt('table_info'), infoEmpty: module.tt('table_info_empty'),
@@ -25,14 +20,14 @@ window.PDFSealerProvidersAdmin = module => {
             next: module.tt('table_next'), previous: module.tt('table_previous')},
     };
     const table = $(tableNode).DataTable({pageLength: 10, order: [[1, 'asc']], language,
-        columnDefs: [{targets: 4, orderable: false, searchable: false}]});
+        columnDefs: [{targets: 0, width: '70px'}, {targets: 4, orderable: false, searchable: false}]});
     const adjust = () => { if (!document.getElementById('pki-panel-providers').hidden) table.columns.adjust(); };
     document.querySelector('[data-pki-tab="providers"]').addEventListener('click', adjust);
     window.addEventListener('hashchange', adjust);
     adjust();
     const available = tabbed => {
         if (typeof window.rcDialog === 'function' && (!tabbed || typeof window.rcDialog.tabbed === 'function')) return true;
-        showMessage(pageMessage, 'provider_dialog_unavailable', 'warning');
+        notify('provider_dialog_unavailable', 'warning');
         return false;
     };
     const updatePolicy = required => {
@@ -71,7 +66,6 @@ window.PDFSealerProvidersAdmin = module => {
     policyButton.addEventListener('click', async () => {
         if (policyButton.disabled || !available(false)) return;
         policyButton.disabled = true;
-        policy.querySelector('[data-policy-message]').hidden = true;
         let busy = false, fields, checkbox;
         try {
             const result = await window.rcDialog({title: module.tt('assignment_policy_change'), draggable: true,
@@ -101,7 +95,7 @@ window.PDFSealerProvidersAdmin = module => {
                             return {required: response.required};
                         } catch (_) {
                             // An ambiguous save needs a fresh page review; do not replay it from this dialog.
-                            ctx.setFooterStatus(module.tt('assignment_policy_failed')); return false;
+                            notify('assignment_policy_failed', 'error'); return false;
                         } finally {
                             busy = false; ctx.buttons.setLoading('save', false);
                             ctx.buttons.enable('cancel'); ctx.setCloseButton('cancel');
@@ -111,10 +105,10 @@ window.PDFSealerProvidersAdmin = module => {
             });
             if (typeof result?.required === 'boolean') {
                 updatePolicy(result.required);
-                showMessage(policy.querySelector('[data-policy-message]'), 'assignment_policy_saved', 'success');
+                notify('assignment_policy_saved', 'success');
             }
         } catch (_) {
-            showMessage(policy.querySelector('[data-policy-message]'), 'assignment_policy_failed', 'danger');
+            notify('assignment_policy_failed', 'danger');
         } finally { policyButton.disabled = false; }
     });
     const counts = preview => module.tt('provider_retirement_counts', preview.projects.length,
@@ -158,7 +152,7 @@ window.PDFSealerProvidersAdmin = module => {
                         if (!response?.ok) throw new Error('Provider change failed');
                         return {retired: !preview.retired, required: preview.assignment_required || needsGate};
                     } catch (_) {
-                        invalid = true; ctx.setFooterStatus(module.tt('provider_lifecycle_failed')); return false;
+                        invalid = true; notify('provider_lifecycle_failed', 'error'); return false;
                     } finally {
                         busy = false; ctx.buttons.setLoading('confirm', false);
                         ctx.buttons.enable('cancel'); ctx.setCloseButton('cancel');
@@ -172,7 +166,7 @@ window.PDFSealerProvidersAdmin = module => {
         if (!launcher || launcher.disabled || !available(true)) return;
         const row = launcher.closest('[data-provider-id]'), id = row.dataset.providerId;
         const name = row.querySelector('[data-provider-name]').textContent;
-        launcher.disabled = true; pageMessage.hidden = true;
+        launcher.disabled = true;
         let usageTable;
         try {
             const preview = await module.ajax('preview_ca_retirement', {provider: id});
@@ -181,10 +175,8 @@ window.PDFSealerProvidersAdmin = module => {
             let busy = false, usageNode;
             const action = element('button', 'btn btn-link btn-sm p-0', module.tt(preview.retired ? 'provider_reactivate' : 'provider_retire'));
             action.type = 'button';
-            const footer = element('div', ''), footerError = element('p', 'text-danger mb-0');
-            footerError.hidden = true; footer.append(action, footerError);
             const result = await window.rcDialog.tabbed({title: module.tt('provider_manage_title', name), size: 'lg',
-                draggable: true, closeButton: 'close', focusAfterClose: launcher, buttons: ['close'], footerStatus: footer,
+                draggable: true, closeButton: 'close', focusAfterClose: launcher, buttons: ['close'], footerStatus: action,
                 tabs: [
                     {id: 'details', label: module.tt('provider_details'), body() {
                         const body = document.getElementById('pdf-sealer-provider-details-' + id).content.cloneNode(true);
@@ -195,7 +187,7 @@ window.PDFSealerProvidersAdmin = module => {
                         const body = element('div', 'pdf-sealer-dialog-body');
                         body.append(element('p', '', counts(preview)));
                         const wrapper = element('div', 'pdf-sealer-table-wrap');
-                        usageNode = element('table', 'table table-sm');
+                        usageNode = element('table', 'table table-sm hover');
                         const header = element('thead', ''), headerRow = element('tr', '');
                         ['provider_pid', 'provider_active_signer', 'provider_pending_enrollment', 'transition_pending_label'].forEach(key => headerRow.append(element('th', '', module.tt(key))));
                         header.append(headerRow); usageNode.append(header);
@@ -219,7 +211,7 @@ window.PDFSealerProvidersAdmin = module => {
                     ctx.on('tab:changed', event => { if (event.current.id === 'usage') initializeUsage(); });
                     action.addEventListener('click', async () => {
                         if (busy) return;
-                        busy = true; action.disabled = true; footerError.hidden = true;
+                        busy = true; action.disabled = true;
                         ctx.buttons.disable('close'); ctx.setCloseButton(false);
                         try {
                             const changed = await confirmRetirement(id, name, action);
@@ -227,7 +219,7 @@ window.PDFSealerProvidersAdmin = module => {
                                 busy = false; await ctx.close(changed); return;
                             }
                         } catch (_) {
-                            footerError.textContent = module.tt('provider_lifecycle_failed'); footerError.hidden = false;
+                            notify('provider_lifecycle_failed', 'error');
                         }
                         finally {
                             busy = false; action.disabled = false; ctx.buttons.enable('close'); ctx.setCloseButton('close');
@@ -237,10 +229,10 @@ window.PDFSealerProvidersAdmin = module => {
             });
             if (typeof result?.retired === 'boolean') {
                 updateProvider(id, result.retired, result.required);
-                showMessage(pageMessage, 'provider_lifecycle_saved', 'success', name,
+                notify('provider_lifecycle_saved', 'success', name,
                     module.tt(result.retired ? 'provider_retired' : 'provider_active'));
             }
-        } catch (_) { showMessage(pageMessage, 'provider_review_failed', 'danger'); }
+        } catch (_) { notify('provider_review_failed', 'danger'); }
         finally { if (usageTable) usageTable.destroy(); launcher.disabled = false; }
     });
 };

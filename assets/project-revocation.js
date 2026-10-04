@@ -8,7 +8,6 @@ window.PDFSealerProjectRevocation = module => {
     const review = document.getElementById('revocation-review');
     const choice = document.getElementById('revocation-choice');
     const reason = document.getElementById('revocation-reason');
-    const message = form.querySelector('[role="status"]');
     let preview = null;
     const busy = value => {
         fields.disabled = value;
@@ -18,17 +17,15 @@ window.PDFSealerProjectRevocation = module => {
     const fail = () => {
         preview = null;
         review.hidden = true;
-        message.textContent = module.tt('revocation_failed');
-        message.className = 'alert alert-danger mt-3';
-        message.hidden = false;
+        window.PDFSealerNotify(module.tt('revocation_failed'), 'error');
     };
-    project.on('change', () => { preview = null; review.hidden = true; message.hidden = true; });
+    project.on('change', () => { preview = null; review.hidden = true; });
     form.addEventListener('submit', async event => {
         event.preventDefault();
         if (fields.disabled || !project.val()) return;
         preview = null;
         review.hidden = true;
-        message.hidden = true;
+
         busy(true);
         try {
             const result = await module.ajax('preview_project_revocation', {pid: Number(project.val())});
@@ -51,20 +48,19 @@ window.PDFSealerProjectRevocation = module => {
         if (!window.confirm(module.tt('revocation_confirm_prompt', projectName, selectedReason, preview.certificate.fingerprint))) return;
         const payload = {pid: preview.pid, review_hash: preview.review_hash, reason: reason.value};
         busy(true);
-        message.hidden = true;
+
         try {
             const result = await module.ajax('revoke_project_certificate', payload);
             if (!result?.ok) throw new Error('Revocation failed');
             form.reset();
             project.trigger('change');
-            message.textContent = [
+            const details = [
                 module.tt('revocation_saved', projectName),
                 module.tt(result.crl_published ? 'revocation_crl_published' : 'revocation_crl_pending'),
                 module.tt(result.replacement === 'renewed' ? 'revocation_replaced'
                     : (result.replacement === 'skipped' ? 'revocation_signer_changed' : 'revocation_replacement_pending')),
             ].join(' ');
-            message.className = 'alert mt-3 ' + (result.crl_published && result.replacement === 'renewed' ? 'alert-success' : 'alert-warning');
-            message.hidden = false;
+            window.PDFSealerNotify(details, result.crl_published && result.replacement === 'renewed' ? 'success' : 'warning');
         } catch (_) { fail(); }
         finally { busy(false); }
     });

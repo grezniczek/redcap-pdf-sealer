@@ -27,5 +27,4 @@
             <button type="button" class="btn btn-warning btn-sm" id="renewal-confirm"><?= $escape($framework->tt('renewal_confirm')) ?></button>
         </div>
     </fieldset>
-    <p class="alert mt-3" role="status" hidden></p>
 </form>

@@ -31,5 +31,4 @@
             </div>
         </div>
     </fieldset>
-    <p class="alert mt-3" role="status" hidden></p>
 </form>

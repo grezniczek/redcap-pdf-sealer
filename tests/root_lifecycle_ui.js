@@ -12,8 +12,8 @@ class Node {
     removeAttribute(name) { delete this.attributes[name]; }
 }
 function fixture({revoked = false, fail = false, pending = false, deferred = null, dialogAvailable = true} = {}) {
-    const launcher = new Node('button'), message = new Node('div');
-    const calls = [], storage = new Map();
+    const launcher = new Node('button');
+    const calls = [], storage = new Map(), notifications = [];
     let dialog, reloads = 0, resolveDialog;
     const preview = {ok: true, revoked, review_hash: 'current-review', known_dependent_certificates: 3,
         certificate: {subject: '/O=Example/CN=Root', fingerprint: 'root-sha256', thumbprint: 'root-sha1'}};
@@ -52,16 +52,16 @@ function fixture({revoked = false, fail = false, pending = false, deferred = nul
         };
         return new Promise(resolve => { resolveDialog = resolve; });
     };
-    const context = {document: {getElementById: id => id === 'pdf-sealer-root-lifecycle' ? launcher : message,
+    const context = {document: {getElementById: id => id === 'pdf-sealer-root-lifecycle' ? launcher : null,
         createElement: tag => new Node(tag)},
         location: {pathname: '/module', search: '?prefix=pdf_sealer', reload: () => { ++reloads; }},
         sessionStorage: {getItem: key => storage.get(key) ?? null, removeItem: key => storage.delete(key),
-            setItem: (key, value) => storage.set(key, value)}, window: {},
+            setItem: (key, value) => storage.set(key, value)}, window: {PDFSealerNotify: (text, tone) => notifications.push({text, tone})},
     };
     if (dialogAvailable) context.window.rcDialog = createDialog;
     vm.runInNewContext(source, context);
     context.window.PDFSealerRootLifecycle(module);
-    return {launcher, message, calls, storage, context, module,
+    return {launcher, calls, storage, context, module, notifications,
         get dialog() { return dialog; }, get reloads() { return reloads; },
         launch: async () => { const completion = launcher.events.click(); await new Promise(resolve => setImmediate(resolve)); return {completion}; },
     };
@@ -86,7 +86,7 @@ const choose = (fixture, reason) => {
     assert.equal(f.reloads, 1);
     assert.ok([...f.storage.values()][0].includes('root_lifecycle_renewed'));
     f.context.window.PDFSealerRootLifecycle(f.module); // Next page load consumes a text-only outcome.
-    assert.ok(f.message.textContent.includes('root_lifecycle_renewed')); assert.equal(f.storage.size, 0);
+    assert.ok(f.notifications[0].text.includes('root_lifecycle_renewed')); assert.equal(f.storage.size, 0);
 
     f = fixture({pending: true}); run = await f.launch(); choose(f, 'compromise');
     const gate = nodes(f.dialog.ctx.body).find(node => node.type === 'checkbox');
@@ -122,7 +122,7 @@ const choose = (fixture, reason) => {
     f.dialog.cancel(); await run.completion;
 
     f = fixture({fail: true}); run = await f.launch(); await f.dialog.confirm();
-    assert.equal(f.reloads, 0); assert.equal(f.dialog.ctx.footer, 'root_lifecycle_failed');
+    assert.equal(f.reloads, 0); assert.equal(f.notifications[0].text, 'root_lifecycle_failed');
     assert.equal(nodes(f.dialog.ctx.body).find(node => node.tag === 'fieldset').disabled, true);
     await f.dialog.confirm(); assert.equal(f.calls.length, 2, 'Failed/ambiguous request must not retry with the same review');
     f.dialog.cancel(); await run.completion;
@@ -137,6 +137,6 @@ const choose = (fixture, reason) => {
     release(); await applying; await run.completion; assert.equal(f.reloads, 1);
 
     f = fixture({dialogAvailable: false}); run = await f.launch(); await run.completion;
-    assert.equal(f.calls.length, 0); assert.equal(f.message.textContent, 'root_lifecycle_dialog_unavailable');
+    assert.equal(f.calls.length, 0); assert.equal(f.notifications[0].text, 'root_lifecycle_dialog_unavailable');
     console.log('Root CA UI: single-page dialog/style, compromise gate/reset, cancellation, revoked/stale state, frozen busy fields and reload receipts passed.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

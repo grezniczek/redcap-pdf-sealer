@@ -23,5 +23,4 @@
             <button type="button" class="btn btn-warning btn-sm" id="tsa-lifecycle-confirm"><?= $escape($framework->tt('tsa_lifecycle_confirm')) ?></button>
         </div>
     </fieldset>
-    <p class="alert mt-3" role="status" hidden></p>
 </form>

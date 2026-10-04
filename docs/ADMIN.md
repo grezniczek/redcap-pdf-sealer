@@ -2,6 +2,8 @@
 
 PDF Sealer maintains an installation-specific certificate authority and timestamp authority, issues project sealing certificates, and seals eligible eConsent PDFs. This guide covers setup and operation. The [project guide](PROJECT.md) explains what project users see; [PKI](pki.md) and [sealing and validation](sealing-and-validation.md) provide technical background.
 
+Control Center operation results appear as REDCap toast notifications without inserting banners into the page. Errors remain visible until dismissed. Provider tables use row hover highlighting; certificate dates remain in UTC.
+
 ## Requirements and installation
 
 This is a reference implementation progressing toward v1. It requires:
