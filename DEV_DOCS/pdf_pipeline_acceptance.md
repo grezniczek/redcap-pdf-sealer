@@ -31,7 +31,7 @@ Framework hook dispatch rolls back before and after every hook. The harness ther
 
 The extended `tests/pdf_pipeline_live.php` passes on PHP 8.2.34/8.5.11 in PID 524 with the refactored Core coordinator, Framework provider and real Sealer hook. Both entry points preserve all five fixtures' rendering/text/links and produce independently verified B-T signatures/timestamps with matching final-byte hashes. Under a synthetic reserved Core policy, Sealer returns nonterminal unchanged, Core adopts its own result last, and required Core failure prevents commitment. The synthetic Core operation is a test action, not a Core sealing implementation. Transactional test logs are rolled back and generated files removed; existing signer/provider state is preserved. Details are in [testing](testing.md#native-coreframework-acceptance--2026-10-04).
 
-This verifies the native finalization handoff after refactoring. The fresh record 10 download/Acrobat checks are recorded below; its stored-byte hash comparison remains pending. Earlier saved-artifact/Acrobat results predate the refactor. No new edoc, record, external TSA request or email was created by the automated harness.
+This verifies the native finalization handoff after refactoring. The fresh record 10 stored/downloaded and Acrobat acceptance below also passes. Earlier saved-artifact/Acrobat results predate the refactor. No new edoc, record, external TSA request or email was created by the automated harness.
 
 ## Browser step: saved snapshot and delivery
 
@@ -46,7 +46,7 @@ The agent then uses `redcap_devctl` to identify and inspect the matching stored 
 
 A matching hash verifies that downloading preserved the stored artifact. A valid whole-document signature on those bytes verifies that storage/delivery did not invalidate the seal. It does not prove every other PDF pathway behaves identically. Attachment-heavy eConsent workflows and confirmation-email attachment delivery need separate acceptance if they are in the v1 deployment scope. Sending test email requires explicit authorization.
 
-## Record 10 post-refactor download verification — stored hash pending
+## Record 10 post-refactor acceptance — passed
 
 On 2026-10-04 the user added a drawn-signature field to PID 524's Example Survey (it had no signature field), completed a new synthetic eConsent for record **10**, and downloaded `C:\Users\grezn\Downloads\pid524_formExampleSurvey_id10_2026-10-04_234310.pdf`. The user reports Acrobat accepted it as certified, timestamped and without warnings, with the Root CA already trusted. This is user-reported Acrobat acceptance.
 
@@ -65,15 +65,17 @@ Independent verification of the downloaded bytes passes:
 - One embedded RFC 3161 signature timestamp verifies with OpenSSL against the actual CMS signature bytes and the same root. Generation time is **2026-10-04 21:43:10 UTC**, serial `DC7F51F7941D964B755D464DDD6EC082`, policy `2.25.186172099785128831488612506224552954430`.
 - The preceding unsigned revision is retained (38,037 bytes). Its one-page Poppler render and extracted text match the finished PDF, and its single footer link target/rectangle is preserved. The PDF contains the drawn-signature image and its transparency mask.
 
-The stored/downloaded byte comparison is **pending**. `edoc_inspect`, `edoc_hash`, and `edoc_export` again fail with “The REDCap CLI did not return a valid JSON envelope”; the failed export leaves no output file. Matching metadata and a valid download do not independently establish equality with stored bytes. The tool enhancement noted below remains needed: expose sanitized underlying CLI diagnostics and restore read-only edoc inspection/hash/export.
+The stored/downloaded byte comparison **passes**. The user supplied the SHA-256 of the stored file, and it exactly matches the independently calculated download hash above. The stored digest is user-supplied rather than obtained directly by the agent. Together with the downloaded artifact's complete-document certification and timestamp verification, this completes fresh saved-snapshot/download acceptance after the ownership refactor for this eConsent pathway.
 
-Database metadata identifies the stored file as `/home/gr/edocs/20261004234310_pid524_e2WGZq.pdf`. A user-performed read-only hash can complete this check without changing permissions or the artifact:
+Database metadata identifies the stored file as `/home/gr/edocs/20261004234310_pid524_e2WGZq.pdf`. The user provided its digest following this read-only hash request:
 
 ```sh
 sudo sha256sum /home/gr/edocs/20261004234310_pid524_e2WGZq.pdf
 ```
 
-The agent made no live mutations. Temporary copies, certificate material and verification files are removed after verification; the user's download is retained. The downloaded artifact and browser/Acrobat pathway pass, while stored-byte equality remains an explicitly outstanding check.
+`edoc_inspect`, `edoc_hash`, and `edoc_export` again failed with “The REDCap CLI did not return a valid JSON envelope”; the failed export left no output file. The user's digest closes the comparison without changing permissions or the artifact. The tool enhancement noted below remains needed: expose sanitized underlying CLI diagnostics and restore read-only edoc inspection/hash/export.
+
+The agent made no live mutations. Temporary copies, certificate material and verification files were removed after verification; the user's download is retained. This acceptance covers the tested eConsent repository snapshot/download pathway; it does not establish confirmation-email delivery or every other PDF storage pathway.
 
 ## Record 18 stored/downloaded acceptance — passed
 

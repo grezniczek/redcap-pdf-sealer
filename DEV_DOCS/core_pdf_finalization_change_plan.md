@@ -1,11 +1,17 @@
 # Core-owned PDF finalization — change plan
 
-**Status:** Core contracts, coordinator/provider wiring, plan management and PDF Sealer integration implemented; native backend acceptance passes. Interactive browser/remaining enablement paths and real artifact delivery acceptance remain pending.
+**Status:** Core contracts, coordinator/provider wiring, plan management and PDF Sealer integration implemented; native backend, guided project plan-management browser, and fresh eConsent stored/downloaded artifact acceptance pass. Activation-request/global-enable UI acceptance remains pending.
 
 **Date:** 2026-10-03.  
 **Scope:** REDCap Core, the External Module Framework, and PDF Sealer's integration contract.
 
 ## Implementation progress — 2026-10-04
+
+### Guided browser and fresh eConsent acceptance
+
+The user passed project plan-management checks in PIDs 533 and 524, including explicit empty plans, canceled/unassigned/assigned enablement, saved duplicates/removal, unavailable assignment retention/restoration, and unchanged saves. Independent dev-control reads confirm saved state and the expected four deliberate plan-change audits without extra unchanged-save entries. The user also accepted the rcDialog initialization/sizing refinement; eleven Node checks pass.
+
+PID 524 record 10's fresh eConsent snapshot (edoc 2378) passes user-reported Acrobat certification/timestamp acceptance and independent cryptographic/content checks on the supplied download. The user-supplied stored-file digest exactly matches the independently calculated download digest, completing the stored/downloaded comparison for this pathway. [Pipeline acceptance](pdf_pipeline_acceptance.md#record-10-post-refactor-acceptance--passed) records the evidence and provenance. Dev-control's edoc inspect/hash/export JSON-envelope failure remains a tooling issue; no permission or artifact changes were needed. Activation-request/global-enable UI remains a separate pending check. Production Core sealing and XML/PMT transport remain outside this refactor's implemented scope.
 
 ### Editor browser feedback
 
