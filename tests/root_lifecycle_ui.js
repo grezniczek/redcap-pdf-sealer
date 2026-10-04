@@ -27,7 +27,7 @@ function fixture({revoked = false, fail = false, pending = false, deferred = nul
                 crl_published: !pending, maintenance_status: pending ? 'pending' : 'ok'};
         },
     };
-    const wizard = options => {
+    const createDialog = options => {
         const handlers = {}, controls = Object.fromEntries(options.buttons.map(button =>
             typeof button === 'string' ? [button, {}] : [button.id, {...button}]));
         const ctx = {state: options.state, body: null, footer: null,
@@ -44,17 +44,10 @@ function fixture({revoked = false, fail = false, pending = false, deferred = nul
             clearFooterStatus: () => { ctx.footer = null; },
             setFooterStatus: value => { ctx.footer = value; },
         };
-        const goTo = async index => {
-            if (handlers['wizard:beforePageChange']() === false) return false;
-            ctx.wizard.currentPage = options.pages[index];
-            ctx.body = options.pages[index].body(ctx); return true;
-        };
-        ctx.wizard = {currentPage: options.pages[0], next: () => goTo(1), previous: () => goTo(0)};
-        options.setup(ctx); ctx.body = options.pages[0].body(ctx);
+        options.setup(ctx); ctx.body = options.body(ctx);
         const close = value => { if (handlers['dialog:beforeClose']() !== false) resolveDialog(value); };
         dialog = {options, ctx, controls,
             confirm: async () => { const value = await handlers['button:confirm'](); if (value !== false) close(value); return value; },
-            next: () => handlers['button:advance'](), back: () => handlers['button:back'](),
             cancel: () => close(null),
         };
         return new Promise(resolve => { resolveDialog = resolve; });
@@ -65,7 +58,7 @@ function fixture({revoked = false, fail = false, pending = false, deferred = nul
         sessionStorage: {getItem: key => storage.get(key) ?? null, removeItem: key => storage.delete(key),
             setItem: (key, value) => storage.set(key, value)}, window: {},
     };
-    if (dialogAvailable) context.window.rcDialog = {wizard};
+    if (dialogAvailable) context.window.rcDialog = createDialog;
     vm.runInNewContext(source, context);
     context.window.PDFSealerRootLifecycle(module);
     return {launcher, message, calls, storage, context, module,
@@ -81,15 +74,11 @@ const choose = (fixture, reason) => {
 (async () => {
     let f = fixture(); let run = await f.launch();
     assert.equal(f.dialog.options.draggable, true);
-    assert.deepEqual(Array.from(f.dialog.options.buttons, b => typeof b === 'string' ? b : b.id), ['cancel', 'back', 'advance', 'confirm']);
-    assert.equal(f.dialog.options.pageLabelTemplate, false);
-    assert.equal(f.dialog.controls.advance.hidden, false);
-    assert.equal(f.dialog.controls.back.hidden, true); assert.equal(f.dialog.controls.confirm.hidden, true);
-    await f.dialog.confirm(); assert.equal(f.calls.length, 1, 'Confirm on review must not execute');
-    await f.dialog.next();
-    assert.equal(f.dialog.controls.advance.hidden, true);
-    assert.equal(f.dialog.controls.back.hidden, false); assert.equal(f.dialog.controls.confirm.hidden, false);
-    assert.equal(f.calls.length, 1, 'Review-to-confirm must not mutate');
+    assert.deepEqual(Array.from(f.dialog.options.buttons, b => typeof b === 'string' ? b : b.id), ['cancel', 'confirm']);
+    assert.equal(f.dialog.options.pages, undefined); assert.equal(f.dialog.options.progress, undefined);
+    assert.equal(f.dialog.ctx.body.className, 'pdf-sealer-dialog-body');
+    assert.equal(f.calls.length, 1, 'Opening/reviewing must not mutate');
+    assert.equal(nodes(f.dialog.ctx.body).find(node => node.className === 'red').hidden, true);
     await f.dialog.confirm(); await run.completion;
     assert.equal(f.calls[1].action, 'renew_root_certificate');
     assert.equal(f.calls[1].payload.reason, 'renew');
@@ -100,17 +89,16 @@ const choose = (fixture, reason) => {
     assert.ok(f.message.textContent.includes('root_lifecycle_renewed')); assert.equal(f.storage.size, 0);
 
     f = fixture({pending: true}); run = await f.launch(); choose(f, 'compromise');
-    await f.dialog.next();
-    let gate = nodes(f.dialog.ctx.body).find(node => node.type === 'checkbox');
+    const gate = nodes(f.dialog.ctx.body).find(node => node.type === 'checkbox');
+    const acknowledgment = nodes(f.dialog.ctx.body).find(node => node.className === 'red');
+    assert.equal(acknowledgment.hidden, false);
     assert.ok(gate.required); assert.equal(f.dialog.controls.confirm.disabled, true);
     await f.dialog.confirm(); assert.equal(f.calls.length, 1, 'Unchecked compromise must not mutate');
     gate.checked = true; gate.events.change(); assert.equal(f.dialog.controls.confirm.disabled, false);
-    await f.dialog.back(); assert.equal(f.calls.length, 1);
-    assert.equal(f.dialog.controls.advance.hidden, false);
-    assert.equal(nodes(f.dialog.ctx.body).find(node => node.value === 'compromise').checked, true);
-    await f.dialog.next();
-    gate = nodes(f.dialog.ctx.body).find(node => node.type === 'checkbox');
-    assert.equal(gate.checked, false); assert.equal(f.dialog.controls.confirm.disabled, true);
+    gate.checked = false; gate.events.change(); assert.equal(f.dialog.controls.confirm.disabled, true);
+    gate.checked = true; gate.events.change();
+    choose(f, 'superseded'); assert.equal(acknowledgment.hidden, true); assert.equal(gate.checked, false);
+    choose(f, 'compromise'); assert.equal(gate.checked, false); assert.equal(f.dialog.controls.confirm.disabled, true);
     await f.dialog.confirm(); assert.equal(f.calls.length, 1);
     gate.checked = true; gate.events.change();
     await f.dialog.confirm(); await run.completion;
@@ -122,31 +110,33 @@ const choose = (fixture, reason) => {
         assert.ok(receipt.text.includes(key), 'Recovery/CRL outcomes must survive reload');
     }
 
-    f = fixture(); run = await f.launch(); choose(f, 'superseded'); await f.dialog.next();
-    assert.equal(nodes(f.dialog.ctx.body).some(node => node.type === 'checkbox'), false);
-    await f.dialog.confirm(); await run.completion;
-    assert.equal(f.calls[1].payload.reason, 'superseded');
+    f = fixture(); run = await f.launch(); choose(f, 'superseded');
+    assert.equal(nodes(f.dialog.ctx.body).find(node => node.className === 'red').hidden, true);
+    assert.equal(f.dialog.controls.confirm.intent, 'danger');
+    await f.dialog.confirm(); await run.completion; assert.equal(f.calls[1].payload.reason, 'superseded');
 
-    f = fixture(); run = await f.launch(); await f.dialog.next(); f.dialog.cancel(); await run.completion;
+    f = fixture(); run = await f.launch(); f.dialog.cancel(); await run.completion;
     assert.equal(f.calls.length, 1); assert.equal(f.reloads, 0);
-    f = fixture({revoked: true}); run = await f.launch(); await f.dialog.next();
-    assert.equal(f.dialog.ctx.wizard.currentPage.id, 'review'); assert.equal(f.calls.length, 1);
+    f = fixture({revoked: true}); run = await f.launch(); await f.dialog.confirm();
+    assert.equal(f.dialog.controls.confirm.disabled, true); assert.equal(f.calls.length, 1);
     f.dialog.cancel(); await run.completion;
 
-    f = fixture({fail: true}); run = await f.launch(); await f.dialog.next(); await f.dialog.confirm();
+    f = fixture({fail: true}); run = await f.launch(); await f.dialog.confirm();
     assert.equal(f.reloads, 0); assert.equal(f.dialog.ctx.footer, 'root_lifecycle_failed');
+    assert.equal(nodes(f.dialog.ctx.body).find(node => node.tag === 'fieldset').disabled, true);
     await f.dialog.confirm(); assert.equal(f.calls.length, 2, 'Failed/ambiguous request must not retry with the same review');
     f.dialog.cancel(); await run.completion;
 
     let release; const deferred = new Promise(resolve => { release = resolve; });
-    f = fixture({deferred}); run = await f.launch(); await f.dialog.next();
-    const applying = f.dialog.confirm(); f.dialog.cancel(); await f.dialog.confirm(); await f.dialog.back();
-    assert.equal(f.dialog.ctx.wizard.currentPage.id, 'confirmation'); assert.equal(f.dialog.controls.back.disabled, true);
+    f = fixture({deferred}); run = await f.launch();
+    const applying = f.dialog.confirm(); f.dialog.cancel(); await f.dialog.confirm(); choose(f, 'compromise');
+    assert.equal(f.dialog.ctx.state.reason, 'renew', 'In-flight choices must remain frozen');
+    assert.equal(nodes(f.dialog.ctx.body).find(node => node.tag === 'fieldset').disabled, true);
     assert.equal(f.dialog.controls.cancel.disabled, true); assert.equal(f.dialog.ctx.closeButton, false);
     assert.equal(f.calls.length, 2, 'Repeated confirm must not send another mutation');
     release(); await applying; await run.completion; assert.equal(f.reloads, 1);
 
     f = fixture({dialogAvailable: false}); run = await f.launch(); await run.completion;
     assert.equal(f.calls.length, 0); assert.equal(f.message.textContent, 'root_lifecycle_dialog_unavailable');
-    console.log('Root CA UI: hidden page numbers, Next/Back state, two-step confirmation, compromise gate, cancellation, revoked/stale state, busy guard and reload receipts passed.');
+    console.log('Root CA UI: single-page dialog/style, compromise gate/reset, cancellation, revoked/stale state, frozen busy fields and reload receipts passed.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

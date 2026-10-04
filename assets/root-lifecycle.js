@@ -57,7 +57,7 @@ window.PDFSealerRootLifecycle = module => {
     launcher.addEventListener('click', async () => {
         if (launcher.disabled) return;
         message.hidden = true;
-        if (typeof window.rcDialog?.wizard !== 'function') {
+        if (typeof window.rcDialog !== 'function') {
             showMessage(module.tt('root_lifecycle_dialog_unavailable'), 'warning');
             return;
         }
@@ -67,93 +67,73 @@ window.PDFSealerRootLifecycle = module => {
             const preview = await module.ajax('preview_root_lifecycle', {});
             if (!preview?.ok) throw new Error('Root CA review failed');
             let busy = false;
-            const result = await window.rcDialog.wizard({
+            let fields;
+            const result = await window.rcDialog({
                 title: module.tt('root_lifecycle_title'),
+                subtitle: module.tt('root_lifecycle_review'),
                 size: 'lg',
                 draggable: true,
                 closeButton: 'cancel',
                 focusAfterClose: launcher,
-                pageLabelTemplate: false,
                 state: {reason: 'renew', acknowledged: false, invalid: false, completed: false},
-                buttons: ['cancel',
-                    {id: 'back', label: module.tt('root_lifecycle_back'), intent: 'secondary'},
-                    {id: 'advance', label: module.tt('root_lifecycle_next'), intent: 'primary'},
-                    {id: 'confirm', label: module.tt('root_lifecycle_confirm_button'), intent: 'primary'}],
-                pages: [
-                    {id: 'review', subtitle: module.tt('root_lifecycle_review'), body(ctx) {
-                        ctx.buttons.hide('back'); ctx.buttons.hide('confirm'); ctx.buttons.show('advance');
-                        if (!preview.revoked && !ctx.state.invalid) ctx.buttons.enable('advance');
-                        const body = element('div', 'pdf-sealer-dialog-body');
-                        body.append(certificateDetails(preview), element('p', 'small text-muted',
-                            module.tt('root_lifecycle_dependents', preview.known_dependent_certificates)));
-                        if (preview.revoked) body.append(element('p', 'alert alert-warning', module.tt('root_lifecycle_already')));
-                        const fields = element('fieldset', '');
-                        fields.disabled = preview.revoked;
-                        fields.append(element('legend', 'h6', module.tt('root_lifecycle_action')));
-                        ['renew', 'superseded', 'compromise'].forEach(reason => {
-                            const row = element('div', 'form-check mb-3');
-                            const radio = element('input', 'form-check-input');
-                            radio.type = 'radio'; radio.name = 'root-lifecycle-action'; radio.value = reason;
-                            radio.id = 'root-lifecycle-' + reason; radio.checked = ctx.state.reason === reason;
-                            radio.setAttribute('aria-describedby', radio.id + '-help');
-                            const label = element('label', 'form-check-label', module.tt('root_lifecycle_' + reason));
-                            label.htmlFor = radio.id;
-                            const help = element('div', 'small text-muted', module.tt('root_lifecycle_' + reason + '_help'));
-                            help.id = radio.id + '-help';
-                            radio.addEventListener('change', () => { ctx.state.reason = reason; ctx.state.acknowledged = false; });
-                            row.append(radio, label, help); fields.append(row);
+                buttons: ['cancel', {id: 'confirm', label: module.tt('root_lifecycle_confirm_button'), intent: 'primary'}],
+                body(ctx) {
+                    const body = element('div', 'pdf-sealer-dialog-body');
+                    body.append(certificateDetails(preview), element('p', 'small text-muted',
+                        module.tt('root_lifecycle_dependents', preview.known_dependent_certificates)));
+                    if (preview.revoked) body.append(element('p', 'alert alert-warning', module.tt('root_lifecycle_already')));
+                    fields = element('fieldset', '');
+                    fields.disabled = preview.revoked;
+                    fields.append(element('legend', 'h6', module.tt('root_lifecycle_action')));
+                    const acknowledgment = element('div', 'red');
+                    const row = element('div', 'form-check');
+                    const check = element('input', 'form-check-input');
+                    check.type = 'checkbox'; check.id = 'root-lifecycle-compromise-ack';
+                    const checkLabel = element('label', 'form-check-label', module.tt('root_lifecycle_compromise_ack'));
+                    checkLabel.htmlFor = check.id;
+                    row.append(check, checkLabel); acknowledgment.append(row);
+                    const updateChoice = () => {
+                        const compromise = ctx.state.reason === 'compromise';
+                        acknowledgment.hidden = !compromise;
+                        check.required = compromise; check.checked = ctx.state.acknowledged;
+                        ctx.buttons.update('confirm', {intent: ctx.state.reason === 'renew' ? 'primary' : 'danger'});
+                        if (busy || preview.revoked || ctx.state.invalid || ctx.state.completed
+                            || (compromise && !ctx.state.acknowledged)) ctx.buttons.disable('confirm');
+                        else ctx.buttons.enable('confirm');
+                    };
+                    ['renew', 'superseded', 'compromise'].forEach(reason => {
+                        const option = element('div', 'form-check mb-3');
+                        const radio = element('input', 'form-check-input');
+                        radio.type = 'radio'; radio.name = 'root-lifecycle-action'; radio.value = reason;
+                        radio.id = 'root-lifecycle-' + reason; radio.checked = ctx.state.reason === reason;
+                        radio.setAttribute('aria-describedby', radio.id + '-help');
+                        const label = element('label', 'form-check-label', module.tt('root_lifecycle_' + reason));
+                        label.htmlFor = radio.id;
+                        const help = element('div', 'small text-muted', module.tt('root_lifecycle_' + reason + '_help'));
+                        help.id = radio.id + '-help';
+                        radio.addEventListener('change', () => {
+                            if (fields.disabled) return;
+                            ctx.state.reason = reason; ctx.state.acknowledged = false;
+                            updateChoice();
                         });
-                        body.append(fields);
-                        if (preview.revoked) ctx.buttons.disable('advance');
-                        return body;
-                    }},
-                    {id: 'confirmation', subtitle: module.tt('root_lifecycle_confirm'), body(ctx) {
-                        ctx.buttons.hide('advance'); ctx.buttons.show('back'); ctx.buttons.show('confirm');
-                        if (!ctx.state.invalid) ctx.buttons.enable('confirm');
-                        const body = element('div', 'pdf-sealer-dialog-body');
-                        const reason = ctx.state.reason;
-                        body.append(element('h4', 'fw-bold', module.tt('root_lifecycle_' + reason)), certificateDetails(preview),
-                            element('p', 'alert ' + (reason === 'renew' ? 'alert-info' : 'alert-warning'),
-                                module.tt('root_lifecycle_' + reason + '_help')));
-                        if (reason === 'compromise') {
-                            const row = element('div', 'form-check');
-                            const check = element('input', 'form-check-input');
-                            check.type = 'checkbox'; check.id = 'root-lifecycle-compromise-ack'; check.required = true;
-                            check.checked = ctx.state.acknowledged;
-                            const label = element('label', 'form-check-label', module.tt('root_lifecycle_compromise_ack'));
-                            label.htmlFor = check.id;
-                            check.addEventListener('change', () => {
-                                ctx.state.acknowledged = check.checked;
-                                if (check.checked && !busy && !ctx.state.invalid) ctx.buttons.enable('confirm');
-                                else ctx.buttons.disable('confirm');
-                            });
-                            row.append(check, label); body.append(($('<div class="red"></div>').append(row))[0]);
-                            ctx.buttons.disable('confirm');
-                        }
-                        ctx.buttons.update('confirm', {intent: reason === 'renew' ? 'primary' : 'danger'});
-                        return body;
-                    }},
-                ],
+                        option.append(radio, label, help); fields.append(option);
+                    });
+                    check.addEventListener('change', () => {
+                        if (fields.disabled) return;
+                        ctx.state.acknowledged = check.checked;
+                        updateChoice();
+                    });
+                    fields.append(acknowledgment); body.append(fields);
+                    updateChoice();
+                    return body;
+                },
                 setup(ctx) {
                     ctx.on('dialog:beforeClose', () => !busy);
-                    ctx.on('wizard:beforePageChange', () => !busy && !preview.revoked && !ctx.state.invalid);
-                    ctx.on('button:advance', async () => {
-                        if (!busy && !ctx.state.invalid && ctx.wizard.currentPage.id === 'review') await ctx.wizard.next();
-                        return false;
-                    });
-                    ctx.on('button:back', async () => {
-                        if (!busy && !ctx.state.invalid && ctx.wizard.currentPage.id === 'confirmation') {
-                            ctx.state.acknowledged = false;
-                            await ctx.wizard.previous();
-                        }
-                        return false;
-                    });
                     ctx.on('button:confirm', async () => {
-                        if (busy || preview.revoked || ctx.state.invalid || ctx.state.completed
-                            || ctx.wizard.currentPage.id !== 'confirmation') return false;
+                        if (busy || preview.revoked || ctx.state.invalid || ctx.state.completed) return false;
                         if (ctx.state.reason === 'compromise' && !ctx.state.acknowledged) return false;
-                        busy = true;
-                        ctx.buttons.disable('confirm'); ctx.buttons.disable('cancel'); ctx.buttons.disable('back');
+                        busy = true; fields.disabled = true;
+                        ctx.buttons.disable('confirm'); ctx.buttons.disable('cancel');
                         ctx.buttons.setLoading('confirm', true); ctx.setCloseButton(false);
                         ctx.clearFooterStatus();
                         try {
