@@ -1,8 +1,12 @@
 # PDF Sealer implementation status
 
+## Browser assigned enablement and duplicate persistence — 2026-10-04
+
+The user passed assigned Sealer enablement, duplicate save/reopen with its warning, and removal/save/reopen of the extra occurrence in PID 533. Independent dev-control inspection confirms one saved sealing assignment with Sealer enabled and the expected native audit sequence (one, two, one occurrences), all attributed to `gr`. PID 524 remains unchanged. See [testing](testing.md#browser-assigned-enablement-and-duplicate-persistence--2026-10-04). Retained unavailable assignments, unchanged saves and fresh artifact delivery remain pending.
+
 ## Browser plan save and unassigned enablement — 2026-10-04
 
-The user passed explicit-empty save/reopen, canceled enablement, and deliberate Sealer enablement without a sealing assignment in PID 533. Independent dev-control inspection confirms `[]`, Sealer enabled, and exactly one native plan-change audit attributed to `gr`; unchanged-plan enablement creates no duplicate audit. PID 524's plan and enablement remain unchanged. See [testing](testing.md#browser-plan-save-and-unassigned-enablement--2026-10-04). Assigned enablement, duplicate persistence, retained unavailable assignments and fresh artifact delivery remain pending.
+The user passed explicit-empty save/reopen, canceled enablement, and deliberate Sealer enablement without a sealing assignment in PID 533. Inspection at that checkpoint confirmed `[]`, Sealer enabled, and exactly one native plan-change audit attributed to `gr`; unchanged-plan enablement creates no duplicate audit. PID 524's plan and enablement remained unchanged. See [testing](testing.md#browser-plan-save-and-unassigned-enablement--2026-10-04). The subsequent assigned enablement and duplicate persistence results are recorded above.
 
 ## Core editor stable sizing and initialization — 2026-10-04
 

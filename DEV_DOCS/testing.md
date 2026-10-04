@@ -1,12 +1,20 @@
 # Development and testing
 
+## Browser assigned enablement and duplicate persistence — 2026-10-04
+
+The user reports all three checks passed in PID 533: disabling and re-enabling Sealer with one explicit sealing assignment; saving/reopening two occurrences with a duplicate warning; and removing the extra occurrence, saving/reopening one assignment without that warning.
+
+Independent read-only `redcap_devctl` inspection confirms the final plan is `["pdf_sealer:seal"]` and Sealer is enabled. Native plan-change audits attributed to `gr` record the expected sequence: ID 1062 with one occurrence, ID 1064 with two occurrences, and ID 1065 with one occurrence again, following the earlier explicit empty save (ID 1059). The browser warnings and intermediate module states are user-reported. PID 524's plan and enablement remain unchanged. No tool-driven live mutations were made.
+
+Next browser acceptance: disable Sealer without deleting its saved assignment, save/reopen the unavailable entry, re-enable Sealer and confirm the retained assignment resolves, then save the unchanged plan. Fresh PDF delivery remains subsequent acceptance.
+
 ## Browser plan save and unassigned enablement — 2026-10-04
 
 The user reports all three checks passed in PID 533 (ChatGPT's Playground): saving an explicit empty plan and reopening it after reload; canceling PDF Sealer enablement while preserving the disabled module and empty plan; and deliberately enabling PDF Sealer without assigning its sealing operation, with the operation subsequently available in the editor and the pipeline still empty.
 
 Independent read-only `redcap_devctl` inspection confirms the saved Core plan is `[]` and the project Sealer enabled override is `true`. The plan audit contains one entry, ID 1059, attributed to `gr`, with `[]` as its data; enablement with the unchanged plan added no duplicate plan-change audit. The canceled intermediate state is user-reported. PID 524 remains `["pdf_sealer:seal"]` with Sealer enabled. No tool-driven live mutations were made.
 
-Next browser acceptance: disable Sealer in PID 533 and re-enable it with one explicit sealing assignment; save/reopen a duplicate assignment and its warning; then remove the extra occurrence and save/reopen one assignment. Retained unavailable assignments and fresh PDF delivery remain subsequent checks.
+The subsequent assigned enablement and duplicate persistence results are recorded above. Retained unavailable assignments and fresh PDF delivery remain subsequent checks.
 
 ## Core editor stable sizing and initialization — 2026-10-04
 
