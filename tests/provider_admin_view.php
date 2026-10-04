@@ -36,4 +36,17 @@ check(str_contains($html, 'Remote &lt;TSA&gt;') && !str_contains($html, '<img'),
 check(substr_count($html, '<template ') === 3 && str_contains($html, 'data-test-root'), 'Missing certificate detail templates');
 check(!str_contains($html, 'id="assignment-required"') && str_contains($html, 'Change assignment policy'), 'Policy editing still inline');
 check(substr_count($html, 'pdf-sealer-dialog-body') === 3, 'Missing shared dialog body style');
-echo "Provider administration view checks passed\n";
+$assignableProviders = array_values(array_filter($providerCatalog, static fn(array $p): bool => !$p['retired']));
+$assignmentProjects = $transitionProjects = $renewalProjects = $revocationProjects = [['project_id' => 524, 'app_title' => '<Project & title>']];
+$providersUnavailable = false;
+ob_start(); require dirname(__DIR__) . '/views/provider-workflows.php'; $workflows = ob_get_clean();
+check(substr_count($workflows, 'data-provider-workflow="') === 5, 'Missing workflow launchers');
+check(substr_count($workflows, 'data-provider-workflow-host="') === 5, 'Missing hidden workflow hosts');
+check(substr_count($workflows, 'pdf-sealer-dialog-body') === 5, 'Missing shared workflow body style');
+check(substr_count($workflows, '<form ') === 5, 'Missing workflow forms');
+$section = explode('<div data-provider-workflow-host=', $workflows, 2)[0];
+check(str_contains($section, 'Administrative workflows') && !str_contains($section, '<form '), 'Forms still expand the visible page');
+check(!str_contains($workflows, '<Project') && str_contains($workflows, '&lt;Project &amp; title&gt;'), 'Project labels must stay escaped');
+check(substr_count($workflows, 'data-workflow-project') === 4, 'Missing dialog project pickers');
+check(preg_match_all('/\bid="([^"]+)"/', $workflows, $ids) !== false && count($ids[1]) === count(array_unique($ids[1])), 'Duplicate workflow IDs');
+echo "Provider administration and workflow view checks passed\n";

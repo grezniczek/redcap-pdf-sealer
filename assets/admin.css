@@ -42,3 +42,5 @@
 .pdf-sealer-dialog-body table.dataTable > tbody > tr:hover > * { background-color: #eef4fb !important; }
 #pdf-sealer-providers th:first-child, #pdf-sealer-providers td:first-child { width: 70px; white-space: nowrap; }
 #pdf-sealer-providers td:nth-child(4) { font-size: .85em; }
+
+.pdf-sealer-dialog-body .form-select, .pdf-sealer-dialog-body input[type="text"] { max-width: 720px; }

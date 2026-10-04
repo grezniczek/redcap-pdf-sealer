@@ -1,12 +1,11 @@
 <?php
 /** Control Center built-in renewal form; $renewalProjects contains public project labels only. */
 ?>
-<h5><?= $escape($framework->tt('renewal_title')) ?></h5>
 <p class="small text-muted"><?= $escape($framework->tt('renewal_intro')) ?></p>
 <form id="pdf-sealer-renewal">
     <fieldset <?= $assignmentProjectsUnavailable || $providersUnavailable || $renewalProjects === [] ? 'disabled' : '' ?>>
         <label for="renewal-pid"><?= $escape($framework->tt('provider_pid')) ?></label>
-        <div class="mb-3"><select class="form-select form-select-sm" id="renewal-pid" required>
+        <div class="mb-3"><select class="form-select form-select-sm" id="renewal-pid" data-workflow-project required>
             <option value="" selected><?= $escape($framework->tt($renewalProjects === [] ? 'renewal_no_projects' : 'renewal_choose_project')) ?></option>
             <?php foreach ($renewalProjects as $project): ?>
                 <option value="<?= $escape($project['project_id']) ?>"><?= $escape('(' . $project['project_id'] . ') ' . $project['app_title']) ?></option>

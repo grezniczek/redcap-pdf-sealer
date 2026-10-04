@@ -4,7 +4,7 @@ window.PDFSealerProjectRevocation = module => {
     if (!form) return;
     const fields = form.querySelector('fieldset');
     const project = $('#revocation-pid');
-    project.prop('disabled', fields.disabled).select2({width: '100%', minimumResultsForSearch: 0});
+    project.prop('disabled', fields.disabled);
     const review = document.getElementById('revocation-review');
     const choice = document.getElementById('revocation-choice');
     const reason = document.getElementById('revocation-reason');
@@ -45,11 +45,21 @@ window.PDFSealerProjectRevocation = module => {
         if (fields.disabled || !preview || preview.revoked) return;
         const projectName = project[0].selectedOptions[0].textContent;
         const selectedReason = reason.selectedOptions[0].textContent;
-        if (!window.confirm(module.tt('revocation_confirm_prompt', projectName, selectedReason, preview.certificate.fingerprint))) return;
         const payload = {pid: preview.pid, review_hash: preview.review_hash, reason: reason.value};
         busy(true);
 
         try {
+            const confirmationText = module.tt('revocation_confirm_prompt', projectName, selectedReason, preview.certificate.fingerprint);
+            const confirmed = await window.rcDialog({title: module.tt('revocation_title'), size: 'lg', draggable: true,
+                closeButton: 'cancel', focusAfterClose: document.getElementById('revocation-confirm'),
+                buttons: ['cancel', {id: 'confirm', label: module.tt('revocation_confirm'), intent: 'danger'}],
+                body() {
+                    const body = document.createElement('div'); body.className = 'pdf-sealer-dialog-body';
+                    body.textContent = confirmationText; return body;
+                },
+                setup(ctx) { ctx.on('button:confirm', () => ({confirmed: true})); },
+            });
+            if (!confirmed?.confirmed) return;
             const result = await module.ajax('revoke_project_certificate', payload);
             if (!result?.ok) throw new Error('Revocation failed');
             form.reset();

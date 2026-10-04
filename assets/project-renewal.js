@@ -4,7 +4,7 @@ window.PDFSealerProjectRenewal = module => {
     if (!form) return;
     const fields = form.querySelector('fieldset');
     const project = $('#renewal-pid');
-    project.prop('disabled', fields.disabled).select2({width: '100%', minimumResultsForSearch: 0});
+    project.prop('disabled', fields.disabled);
     const review = document.getElementById('renewal-review');
     const confirm = document.getElementById('renewal-confirm');
     let preview = null;

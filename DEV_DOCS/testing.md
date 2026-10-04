@@ -479,3 +479,16 @@ Browser checks pending:
 1. Check status width and smaller expiry text. In the catalog and **Manage → Usage Stats**, sorting should not reintroduce first-column shading; hovering should highlight the whole row consistently.
 2. Save assignment policy or retire/reactivate a disposable provider. Confirm a toast appears without expanding the page or dialog footer; catalog updates should retain their existing behavior. Cancel remains silent.
 3. Check a harmless error (e.g. an invalid external CA registration): its toast should stay until dismissed, without inserting an error banner. Check the alarm-recipient save, timestamp-policy save/GET notice and Root CA download. Refresh after a successful redirected save should not repeat its notice. No additional live root/project/TSA revocation or Acrobat matrix is required for this feedback change.
+
+## CA provider administrative workflow dialogs — 2026-10-04
+
+Run **node tests/provider_workflows_ui.js** and **node tests/project_revocation_ui.js**, alongside the existing provider, Root CA and toast UI tests. The launcher test exercises all five real dialog entry points, moving/reusing form nodes, scoped Select2 setup/destruction, fresh local selection on reopening, blocked busy dismissal, reset cleanup, missing dialog support and setup failure. The revocation asset test checks read-only review, cancel/confirm, captured reason/review hash, frozen requests, duplicate prevention and failed/already-revoked guards. These use disposable DOM/rcDialog doubles rather than browser rendering.
+
+**tests/provider_admin_view.php** now renders the actual workflow view too: five links, five hidden forms with the shared body class, four project pickers, escaped project labels and unique IDs. It and **tests/pki_admin_ajax.php** pass on PHP 8.2/8.5. Changed-file syntax, inline JavaScript parsing, translation and diff checks pass. No live project/provider settings, enrollment/certificates or Core/Framework files were changed.
+
+Browser checks pending:
+
+1. Check that **CA providers** shows the compact catalog followed by **Administrative workflows** and the five link buttons. Each opens a movable styled dialog, with no form expanding the background page.
+2. Open and close/reopen all five workflows. Check project search, provider/source choices, select menus staying inside their dialog, body scrolling and Close/X/Escape. Opening/reviewing/closing should not issue or replace anything. Reopening should clear local selections and require a new review. Empty/unavailable project lists should allow closing the dialog.
+3. In registration, confirm **No timestamp** disables/clears B-B fallback, including after closing and reopening. Invalid registration should retain entered values while showing an error toast. For an optional successful registration/assignment, use a disposable provider/project and verify the existing receipt and cleared/updated selector behavior.
+4. Review an existing provider change and a built-in project certificate without confirming. For project revocation, open its nested confirmation and cancel it: the parent remains open, the review remains usable and no revocation occurs. Requests should temporarily disable fields and dialog dismissal. No additional live certificate revocation/renewal or Acrobat matrix is needed solely for this presentation refactor.

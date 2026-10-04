@@ -205,11 +205,11 @@ foreach ([
     'provider_reactivate', 'provider_pid', 'provider_active_signer', 'provider_pending_enrollment',
     'transition_pending_label', 'provider_retirement_counts', 'provider_retirement_help', 'provider_reactivation_help',
     'provider_retirement_gate', 'provider_lifecycle_failed', 'provider_lifecycle_saved', 'provider_review_failed',
-    'provider_dialog_unavailable', 'provider_usage_empty', 'table_search', 'table_length',
+    'provider_dialog_unavailable', 'provider_workflow_failed', 'provider_usage_empty', 'table_search', 'table_length',
     'table_info', 'table_info_empty', 'table_info_filtered', 'table_zero',
     'table_first', 'table_last', 'table_next', 'table_previous',
 ] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
-foreach (['root_lifecycle_title', 'root_lifecycle_review', 'root_lifecycle_action', 'root_lifecycle_confirm_button', 'root_lifecycle_compromise_ack', 'root_lifecycle_dialog_unavailable', 'root_lifecycle_already', 'root_lifecycle_renew', 'root_lifecycle_superseded', 'root_lifecycle_compromise', 'pki_subject', 'root_lifecycle_failed', 'root_lifecycle_saved', 'root_lifecycle_renewed', 'root_lifecycle_replaced', 'root_lifecycle_pending', 'root_lifecycle_trust', 'root_lifecycle_projects_done', 'root_lifecycle_projects_pending', 'root_lifecycle_renew_help', 'root_lifecycle_superseded_help', 'root_lifecycle_compromise_help', 'root_lifecycle_dependents', 'tsa_lifecycle_failed', 'tsa_lifecycle_confirm_prompt', 'tsa_lifecycle_saved', 'tsa_lifecycle_replaced', 'tsa_lifecycle_changed', 'tsa_lifecycle_pending', 'tsa_lifecycle_replace_help', 'tsa_lifecycle_superseded_help', 'tsa_lifecycle_compromise_help', 'revocation_failed', 'revocation_confirm_prompt', 'revocation_saved', 'revocation_crl_published', 'revocation_crl_pending', 'revocation_replaced', 'revocation_signer_changed', 'revocation_replacement_pending', 'revocation_already', 'renewal_failed', 'renewal_saved', 'renewal_issuer_expiry'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
+foreach (['root_lifecycle_title', 'root_lifecycle_review', 'root_lifecycle_action', 'root_lifecycle_confirm_button', 'root_lifecycle_compromise_ack', 'root_lifecycle_dialog_unavailable', 'root_lifecycle_already', 'root_lifecycle_renew', 'root_lifecycle_superseded', 'root_lifecycle_compromise', 'pki_subject', 'root_lifecycle_failed', 'root_lifecycle_saved', 'root_lifecycle_renewed', 'root_lifecycle_replaced', 'root_lifecycle_pending', 'root_lifecycle_trust', 'root_lifecycle_projects_done', 'root_lifecycle_projects_pending', 'root_lifecycle_renew_help', 'root_lifecycle_superseded_help', 'root_lifecycle_compromise_help', 'root_lifecycle_dependents', 'tsa_lifecycle_failed', 'tsa_lifecycle_confirm_prompt', 'tsa_lifecycle_saved', 'tsa_lifecycle_replaced', 'tsa_lifecycle_changed', 'tsa_lifecycle_pending', 'tsa_lifecycle_replace_help', 'tsa_lifecycle_superseded_help', 'tsa_lifecycle_compromise_help', 'revocation_title', 'revocation_confirm', 'revocation_failed', 'revocation_confirm_prompt', 'revocation_saved', 'revocation_crl_published', 'revocation_crl_pending', 'revocation_replaced', 'revocation_signer_changed', 'revocation_replacement_pending', 'revocation_already', 'renewal_failed', 'renewal_saved', 'renewal_issuer_expiry'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
 foreach (['transition_current', 'transition_target', 'transition_saved_pending', 'transition_saved_activated', 'transition_saved_canceled'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
 ?>
 <link rel="stylesheet" href="<?= $escape($framework->getUrl('assets/admin.css')) ?>">
@@ -267,79 +267,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
             <p class="alert alert-warning"><?= $escape($framework->tt('provider_unavailable')) ?></p>
         <?php else: ?>
             <?php require __DIR__ . '/views/providers.php'; ?>
-            <h5><?= $escape($framework->tt('provider_register')) ?></h5>
-            <p class="small text-muted"><?= $escape($framework->tt('provider_upload_help')) ?></p>
-            <form id="pdf-sealer-provider-register">
-                <fieldset>
-                    <label for="provider-name"><?= $escape($framework->tt('provider_name')) ?></label>
-                    <input class="form-control form-control-sm mb-3" id="provider-name" maxlength="128" required>
-                    <label for="provider-chain"><?= $escape($framework->tt('provider_chain')) ?></label>
-                    <input class="form-control form-control-sm mb-3" id="provider-chain" type="file" accept=".pem,.crt,.cer" required>
-                    <label for="provider-source"><?= $escape($framework->tt('timestamp_mode_label')) ?></label>
-                    <select class="form-select form-select-sm mb-3" id="provider-source" required>
-                        <option value="" selected disabled><?= $escape($framework->tt('timestamp_settings_choose')) ?></option>
-                        <?php foreach ($sourceChoices as $id => $name): ?><option value="<?= $escape($id) ?>"><?= $escape($name) ?></option><?php endforeach; ?>
-                    </select>
-                    <label class="mb-3"><input type="checkbox" id="provider-fallback" disabled> <?= $escape($framework->tt('timestamp_fallback_allow')) ?></label><br>
-                    <button class="btn btn-primaryrc btn-sm" type="submit"><?= $escape($framework->tt('provider_register')) ?></button>
-                </fieldset>
-            </form>
-            <hr>
-            <h5><?= $escape($framework->tt('provider_assign')) ?></h5>
-            <p class="small text-muted"><?= $escape($framework->tt('provider_assign_help')) ?></p>
-            <form id="pdf-sealer-provider-assign">
-                <?php if ($assignmentProjectsUnavailable): ?><p class="alert alert-warning"><?= $escape($framework->tt('provider_projects_unavailable')) ?></p><?php endif; ?>
-                <fieldset <?= $assignableProviders === [] || $assignmentProjectsUnavailable || $assignmentProjects === [] ? 'disabled' : '' ?>>
-                    <label for="provider-pid"><?= $escape($framework->tt('provider_pid')) ?></label>
-                    <div class="mb-3">
-                        <select class="form-select form-select-sm" id="provider-pid" required>
-                            <option value="" selected><?= $escape($framework->tt($assignmentProjects === [] ? 'provider_no_unassigned_projects' : 'provider_choose_project')) ?></option>
-                            <?php foreach ($assignmentProjects as $project): ?>
-                                <option value="<?= $escape($project['project_id']) ?>"><?= $escape('(' . $project['project_id'] . ') ' . $project['app_title']) ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <label for="provider-selection"><?= $escape($framework->tt('provider_label')) ?></label>
-                    <select class="form-select form-select-sm mb-3" id="provider-selection" required>
-                        <option value="" selected disabled><?= $escape($framework->tt('timestamp_settings_choose')) ?></option>
-                        <?php foreach ($assignableProviders as $provider): ?><option value="<?= $escape($provider['id']) ?>"><?= $escape($provider['name'] ?? $framework->tt('provider_builtin')) ?></option><?php endforeach; ?>
-                    </select>
-                    <button class="btn btn-primaryrc btn-sm" type="submit"><?= $escape($framework->tt('provider_assign')) ?></button>
-                </fieldset>
-            </form>
-            <hr>
-            <h5><?= $escape($framework->tt('transition_title')) ?></h5>
-            <p class="small text-muted"><?= $escape($framework->tt('transition_intro')) ?></p>
-            <form id="pdf-sealer-transition">
-                <fieldset <?= $assignmentProjectsUnavailable || $transitionProjects === [] ? 'disabled' : '' ?>>
-                    <label for="transition-pid"><?= $escape($framework->tt('provider_pid')) ?></label>
-                    <div class="mb-3"><select class="form-select form-select-sm" id="transition-pid" required>
-                        <option value="" selected><?= $escape($framework->tt('transition_choose_project')) ?></option>
-                        <?php foreach ($transitionProjects as $project): ?>
-                            <option value="<?= $escape($project['project_id']) ?>"><?= $escape('(' . $project['project_id'] . ') ' . $project['app_title']) ?></option>
-                        <?php endforeach; ?>
-                    </select></div>
-                    <button type="submit" class="btn btn-outline-secondary btn-sm"><?= $escape($framework->tt('transition_review')) ?></button>
-                    <div id="transition-review" class="mt-3" hidden>
-                        <p id="transition-current"></p>
-                        <p id="transition-pending"></p>
-                        <p id="transition-csr" class="alert alert-warning" hidden><?= $escape($framework->tt('transition_cancel_csr_first')) ?></p>
-                        <div id="transition-target-choice">
-                            <label for="transition-provider"><?= $escape($framework->tt('transition_target_label')) ?></label>
-                            <select class="form-select form-select-sm mb-3" id="transition-provider">
-                                <option value="" selected><?= $escape($framework->tt('timestamp_settings_choose')) ?></option>
-                                <?php foreach ($assignableProviders as $provider): ?><option value="<?= $escape($provider['id']) ?>"><?= $escape($provider['name'] ?? $framework->tt('provider_builtin')) ?></option><?php endforeach; ?>
-                            </select>
-                        </div>
-                        <p id="transition-action-help"></p>
-                        <button type="button" class="btn btn-warning btn-sm" id="transition-confirm"></button>
-                    </div>
-                </fieldset>
-            </form>
-            <hr>
-            <?php require __DIR__ . '/views/project-renewal.php'; ?>
-            <hr>
-            <?php require __DIR__ . '/views/project-revocation.php'; ?>
+            <?php require __DIR__ . '/views/provider-workflows.php'; ?>
         <?php endif; ?>
     </section>
     <section class="pdf-sealer-panel" id="pki-panel-tsa" role="tabpanel" aria-labelledby="pki-tab-tsa" tabindex="0" hidden>
@@ -455,6 +383,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
 <script src="<?= $escape($framework->getUrl('assets/tsa-lifecycle.js')) ?>"></script>
 <script src="<?= $escape($framework->getUrl('assets/root-lifecycle.js')) ?>"></script>
 <script src="<?= $escape($framework->getUrl('assets/providers-admin.js')) ?>"></script>
+<script src="<?= $escape($framework->getUrl('assets/provider-workflows.js')) ?>"></script>
 <script>
 (() => {
     const module = <?= $framework->getJavascriptModuleObjectName() ?>;
@@ -507,7 +436,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
     if (transitionForm) {
         const fields = transitionForm.querySelector('fieldset');
         const project = $('#transition-pid');
-        project.prop('disabled', fields.disabled).select2({width: '100%', minimumResultsForSearch: 0});
+        project.prop('disabled', fields.disabled);
         const target = document.getElementById('transition-provider');
         const review = document.getElementById('transition-review');
         const confirm = document.getElementById('transition-confirm');
@@ -529,7 +458,10 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
         target.addEventListener('change', updateAction);
         project.on('change', () => { preview = null; review.hidden = true; });
         transitionForm.addEventListener('submit', async event => {
-            event.preventDefault(); fields.disabled = true; project.prop('disabled', true); review.hidden = true;
+            event.preventDefault();
+            if (fields.disabled || !project.val()) return;
+            transitionForm.setAttribute('aria-busy', 'true');
+            fields.disabled = true; project.prop('disabled', true); review.hidden = true;
             try {
                 const response = await module.ajax('preview_provider_transition', {pid: Number(project.val())});
                 if (!response?.ok) throw new Error('Preview failed');
@@ -543,14 +475,17 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
                 document.getElementById('transition-csr').hidden = !response.enrollment_id || Boolean(response.transition_id);
                 review.hidden = false; updateAction();
             } catch (error) { preview = null; notify(failed, 'error'); }
-            finally { fields.disabled = false; project.prop('disabled', false); }
+            finally {
+                fields.disabled = false; project.prop('disabled', false); transitionForm.setAttribute('aria-busy', 'false');
+            }
         });
         confirm.addEventListener('click', async () => {
-            if (!preview) return;
+            if (fields.disabled || !preview) return;
             const cancel = Boolean(preview.transition_id);
             const pid = preview.pid;
             const provider = cancel ? preview.pending_provider_id : target.value;
             const projectName = project[0].selectedOptions[0].textContent;
+            transitionForm.setAttribute('aria-busy', 'true');
             fields.disabled = true; project.prop('disabled', true);
             try {
                 const payload = {pid, review_hash: preview.review_hash};
@@ -562,15 +497,14 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
             } catch (error) {
                 preview = null; review.hidden = true;
                 notify(failed, 'error');
-            } finally { fields.disabled = false; project.prop('disabled', false); }
+            } finally {
+                fields.disabled = false; project.prop('disabled', false); transitionForm.setAttribute('aria-busy', 'false');
+            }
         });
     }
 
     const assignmentProject = $('#provider-pid');
-    $(function () {
-        assignmentProject.prop('disabled', assignmentProject.closest('fieldset').prop('disabled'));
-        assignmentProject.select2({width: '100%', minimumResultsForSearch: 0});
-    });
+    assignmentProject.prop('disabled', assignmentProject.closest('fieldset').prop('disabled'));
     ['register', 'assign'].forEach(action => {
         const form = document.getElementById('pdf-sealer-provider-' + action);
         if (!form) return;
@@ -584,6 +518,8 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
         form.addEventListener('submit', async event => {
             event.preventDefault();
             const fields = form.querySelector('fieldset');
+            if (fields.disabled) return;
+            form.setAttribute('aria-busy', 'true');
             fields.disabled = true;
             if (action === 'assign') assignmentProject.prop('disabled', true);
 
@@ -627,6 +563,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
             } catch (error) {
                 notify(<?= json_encode($framework->tt('provider_request_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>, 'error');
             } finally {
+                form.setAttribute('aria-busy', 'false');
                 fields.disabled = action === 'assign' && assignmentProject[0].options.length === 1;
                 if (action === 'assign') assignmentProject.prop('disabled', fields.disabled);
             }
@@ -800,6 +737,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
     window.PDFSealerTsaLifecycle(module);
     window.PDFSealerRootLifecycle(module);
     window.PDFSealerProvidersAdmin(module);
+    window.PDFSealerProviderWorkflows(module);
     window.PDFSealerTimestampAdmin(module, <?= json_encode($timestampPolicies, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
         <?= json_encode($sourceSummaries, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>, formatDiagnosticTime,
         <?= json_encode($framework->getUrl('pki-admin.php'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>);
