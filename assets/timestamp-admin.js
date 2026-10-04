@@ -57,7 +57,8 @@ window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime, pageUrl
         language: {search: text('table_search'), lengthMenu: text('table_length'), info: text('table_info'),
             infoEmpty: text('table_info_empty'), infoFiltered: text('table_info_filtered'), zeroRecords: text('table_zero'),
             paginate: {first: text('table_first'), last: text('table_last'), next: text('table_next'), previous: text('table_previous')}},
-        columnDefs: [{targets: [0, 1], width: '70px'}, {targets: 5, orderable: false, searchable: false}]});
+        autoWidth: false,
+        columnDefs: [{targets: 5, orderable: false, searchable: false}]});
     const testAll = document.getElementById('pdf-sealer-tsa-test-all');
     let batchBusy = false, testsRunning = 0;
     const updateTestAll = () => {
@@ -165,7 +166,6 @@ window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime, pageUrl
                 : element('div', 'pdf-sealer-dialog-body');
             let action, observation, retirementAction;
             if (source) {
-                body.append(element('p', 'small', source.id));
                 const details = element('dl', 'pdf-sealer-certificate');
                 details.append(element('dt', '', text('tsa_source_status')), element('dd', '', text(source.retired ? 'provider_retired' : 'provider_active')),
                     element('dt', '', text('external_tsa_policy')), element('dd', '', source.policy_oid || text('external_tsa_default_policy')),
@@ -176,7 +176,8 @@ window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime, pageUrl
                 retirementAction = element('button', 'btn btn-link btn-sm pdf-sealer-workflow-link', text(source.retired ? 'tsa_reactivate' : 'tsa_retire')); retirementAction.type = 'button';
                 body.append(observation, action, element('p', 'small text-muted mt-2', text('tsa_observation_help')));
             } else action = body.querySelector('[data-tsa-lifecycle]');
-            const result = await window.rcDialog({title: module.tt('tsa_manage_title', row.querySelector('[data-tsa-name]').textContent),
+            const result = await window.rcDialog({title: source?.name || row.querySelector('[data-tsa-name]').textContent,
+                subtitle: module.tt('tsa_manage_subtitle', id),
                 size: 'lg', draggable: true, closeButton: 'close', focusAfterClose: launcher, buttons: ['close'], footerStatus: retirementAction, body: () => body,
                 setup(ctx) {
                     ctx.on('dialog:beforeClose', () => {

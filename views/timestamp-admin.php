@@ -6,6 +6,14 @@ if (!isset($framework) || !$framework->isSuperUser() || $framework->getProjectId
 <?php if ($sourcesUnavailable): ?><p class="alert alert-warning"><?= $escape($framework->tt('external_tsa_unavailable')) ?></p><?php endif; ?>
 <div class="pdf-sealer-table-wrap mb-3">
 <table id="pdf-sealer-tsa-sources" class="table table-sm w-100 hover">
+    <colgroup>
+        <col class="pdf-sealer-col-source-status">
+        <col class="pdf-sealer-col-source-type">
+        <col>
+        <col class="pdf-sealer-col-source-expiry">
+        <col class="pdf-sealer-col-source-test">
+        <col class="pdf-sealer-col-source-actions">
+    </colgroup>
     <thead><tr>
         <th><?= $escape($framework->tt('tsa_source_status')) ?></th>
         <th><?= $escape($framework->tt('tsa_type')) ?></th>
