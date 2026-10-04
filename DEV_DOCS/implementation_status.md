@@ -1,5 +1,11 @@
 # PDF Sealer implementation status
 
+## Core plan editor rcDialog refinement — 2026-10-04
+
+The user passed the initial browser opening/cancellation/preview checks in PIDs 533 and 524, including the Framework entry point; independent dev-control inspection confirms unchanged stored plans and enablement. At the user's request, Project Setup now displays a PDF icon and the editor uses Core's documented `rcDialog` API, with native footer/dismissal controls, drag/resize/fullscreen, fresh per-opening state and retained permission/busy/stale-preview guards. The Framework bridge and server contracts need no changes.
+
+Eight Node checks and Core **90 tests/356 assertions** on PHP 8.2/8.5 pass; native template preflight passes. [Testing](testing.md#core-editor-rcdialog-refinement--2026-10-04) records the user results and the new dialog spot-check before continuing deliberate save/enablement acceptance. No live plan, enablement or PKI changes were made in this refinement.
+
 ## Native Core/Framework acceptance — 2026-10-04
 
 The refactored stack passes native backend acceptance on PHP 8.2/8.5. Two integration fixes preserve meaningful audit-failure detection and absent project overrides during failed enablement. The new preview-first management harness checks real rights, Core plan saves/audits and Framework placement/enablement in PID 533; rollback and independent dev-control inspection confirm restoration. The extended live pipeline in PID 524 verifies five REDCap fixtures through both entry points, B-T signatures/timestamps/content/hashes, and real Sealer yielding nonterminal unchanged before a synthetic Core action executes last. Required Core failure blocks commitment. Existing identities/provider settings are unchanged; no edocs, external TSA requests or email were created.

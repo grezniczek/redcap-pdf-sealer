@@ -7,6 +7,10 @@
 
 ## Implementation progress — 2026-10-04
 
+### Editor browser feedback
+
+The user passed initial opening/cancellation/duplicate-preview checks and both Core/Framework entry points. Storage inspection confirms preserved plans/enablement. The requested PDF button icon and migration to Core's documented `rcDialog` are implemented, including native dismissal/buttons, movable/resizable/fullscreen controls, fresh per-opening state and guarded asynchronous work. Eight Node tests and Core 90 tests/356 assertions on PHP 8.2/8.5 pass. [Testing](testing.md#core-editor-rcdialog-refinement--2026-10-04) records the refinement's browser spot-check and remaining deliberate-save/enablement acceptance.
+
 ### Slice 4 — native management and pipeline acceptance
 
 Native acceptance identified and corrected audit-result handling (`Logging::logEvent()` rather than the void `REDCap::logEvent()` wrapper) and Framework recovery of an absent enabled override (`getSetting()` rather than the inheriting `getProjectSetting()`). The audit fixture now reflects the real API. No ownership or hook-contract change was needed.

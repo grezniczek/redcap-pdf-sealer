@@ -85,7 +85,7 @@ PdfExecutionPlanView::render($pid);
 $view = ob_get_clean();
 preg_match('/window\.RedcapPdfFinalization = (.*?);<\/script>/', $view, $configurationMatch);
 $viewConfiguration = json_decode($configurationMatch[1] ?? '', true);
-checkPlan(str_contains($view, 'redcap-pdf-finalize-plan-modal') && str_contains($view, 'data-bs-dismiss="modal"')
+checkPlan(str_contains($view, 'id="redcap-pdf-finalize-plan-template" hidden') && !str_contains($view, 'class="modal')
     && str_ends_with($viewConfiguration['baseUrl'] ?? '', 'PdfFinalization/')
     && preg_match('/>\s*pdf_finalize_manage_/', $view) === 0, 'Native localized Core view failed.');
 checkPlan(!PdfExecutionPlanRepository::hasProjectExecutionPlan($pid), 'Loading or rendering created a plan.');

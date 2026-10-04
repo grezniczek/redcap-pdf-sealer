@@ -1,5 +1,15 @@
 # Development and testing
 
+## Core editor rcDialog refinement — 2026-10-04
+
+The user reports that the first browser round passed: PID 533 empty-plan opening, Cancel/× and reopening; PID 524's saved Sealer assignment and document-type previews; duplicate preview followed by Cancel preserving one saved occurrence; and the Framework entry point opening the same editor. Independent `redcap_devctl` reads confirm that PID 533 still has no plan or enabled override and PID 524 retains `["pdf_sealer:seal"]` with Sealer enabled. These checks predate the dialog refinement below; deliberate save/enablement and fresh artifact delivery acceptance remain pending.
+
+Following that feedback, Project Setup's button has an accessible decorative PDF icon, and the Core editor uses `rcDialog.from()` with the event-first API documented in Core's `DEV_DOCS/rcDialog_USER_GUIDE.md`. The hidden template contains body content only; rcDialog supplies the PDF heading icon, native buttons, drag/resize/fullscreen behavior and focus/dismissal lifecycle. Controllers bind to the rendered dialog after `dialog:shown`, with a fresh editor per opening. Save/enablement busy state disables Cancel/×/Escape and vetoes programmatic closure. Failed saves retain edits for retry. Closing invalidates previews; enablement callbacks run after the dialog has finished closing. The existing Framework bridge and server contracts are unchanged.
+
+Installed checks pass: **eight Node tests** (seven controller plus the existing ordered-assignment test), Core **90 tests/356 assertions** on PHP 8.2/8.5, and native read-only template preflight in PID 533. The controller double models rcDialog setup before DOM creation, shown/hidden events and button state. It covers permission enforcement, fixed-action exclusion, stale canceled responses after reopening, duplicate-open prevention, busy dismissal, retry and enablement success/cancel callbacks. These checks do not establish actual browser rendering of the new dialog.
+
+Next browser round: hard-refresh, confirm the PDF button icon and rcDialog title icon, drag/resize/fullscreen toggle, and Cancel/×/Escape with clean reopening through both entry points. Then continue the deliberate save/reopen and project-enable checklist below in PID 533. No production Core action is selected; no fixed action is expected in the current live previews.
+
 ## Native Core/Framework acceptance — 2026-10-04
 
 Backend acceptance after the ownership refactor passes on **PHP 8.2.34 and 8.5.11**. It exposed two native API mismatches that isolated doubles had missed:
