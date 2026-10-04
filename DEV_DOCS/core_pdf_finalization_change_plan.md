@@ -1,8 +1,31 @@
 # Core-owned PDF finalization — change plan
 
-**Status:** Agreed direction; implementation pending.  
+**Status:** In progress; Core contract foundation implemented, coordinator and plan-management moves pending.
+
 **Date:** 2026-10-03.  
 **Scope:** REDCap Core, the External Module Framework, and PDF Sealer's integration contract.
+
+## Implementation progress — 2026-10-04
+
+Slice 1 now has executable Core-owned contracts under `Classes/PdfFinalization/`:
+
+| Contract | Concrete API |
+| --- | --- |
+| Operation result | `Vanderbilt\REDCap\Classes\PdfFinalization\PdfFinalizeResult`, preserving the existing factory/accessor semantics |
+| EM discovery/dispatch | `PdfOperationProvider::getOperations($projectId)` and `invoke($workingPdfPath, $resolvedOperation, $context)` |
+| Reserved Core action | `PdfTerminalAction::getIdentifier()`, `getLabel()`, and `finalize($workingPdfPath, $context)` |
+| Generation policy | `PdfFinalizationPolicy`: selected action, captured identity/label, reservation context, EM terminal-violation checks, and optional required success |
+| Pipeline outcome | `PdfFinalizationOutcome`: last accepted path, generation ID, validated Core-action status, failure details, and `canCommit()` |
+
+Discovery descriptors contain `identifier`, `module_prefix`, `module_version`, `module_name`, and the full validated declaration under `operation`. The provider returns mixed hook results so Core can report invalid consumers explicitly. A Framework implementation must retain existing targeted dispatch, exception handling, and transaction safeguards and check that active version/declaration still matches the resolved snapshot. Source inspection confirms that current hook dispatch rolls back before and after module invocation; artifact rollback must not be confused with an enclosing database transaction.
+
+The policy always supplies the Boolean reservation flag, overriding any incoming context value. Successful terminal EM results are rejected under reservation; failed results cannot acquire terminal effect. Action identifier/label are captured independently of readiness. A completed reserved workflow must report succeeded or failed, never not reserved. Preservation remains the default; strict required success is an explicit Core policy and blocks commitment on failed action status. The status is supplied after coordinator validation, not copied blindly from a handler's raw result.
+
+The isolated Core `UnitTests/PdfFinalization/PdfFinalizationContractsTest.php` suite passes on PHP 8.2.34 and 8.5.11: **39 tests, 100 assertions** on each runtime. All six new PHP files pass syntax checks. These tests load no application bootstrap, Framework, database, remote service, or PKI state. `Classes/PdfFinalization/README.md` documents the APIs and standalone commands.
+
+**Transition boundary:** The active `Classes/PdfFinalizer.php` and Framework executor remain unchanged. The new result type is not yet the active hook return type; PDF Sealer still uses the Framework result and has not yet been adapted to reservation. No Core action is installed or selected. Class presence alone must not be used as a marker for active Core coordination. Publish a versioned active-contract marker when the coordinator/provider wiring is installed, and adapt support detection with that transition. The synthetic new-action extensibility acceptance, working-copy enforcement, and live storage/delivery checks remain pending.
+
+Next slice: move the executor and correlation into Core, implement the Framework provider, and switch result consumption together. Then move authoritative execution-plan management and update PDF Sealer's flag/status/support integration. No module package, live settings, certificates, or edocs changed in the contract-foundation slice.
 
 ## 1. Objective and agreed decisions
 

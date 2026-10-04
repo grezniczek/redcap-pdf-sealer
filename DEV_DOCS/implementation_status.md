@@ -1,5 +1,9 @@
 # PDF Sealer implementation status
 
+## Core finalization contract foundation — 2026-10-04
+
+The [Core-owned finalization refactor](core_pdf_finalization_change_plan.md#implementation-progress--2026-10-04) has started with operation-result, EM-provider, Core terminal-action, reservation-policy, and structured-outcome contracts in Core. The isolated suite passes on PHP 8.2/8.5 (39 tests, 100 assertions per runtime), with syntax checks passing for the six new PHP files. The active coordinator, Framework runner, and PDF Sealer runtime are unchanged; the result-type switch and reservation handling follow in the coordinated executor move. This is contract evidence, not pipeline, browser, or storage acceptance. No live settings/PKI/edocs changed.
+
 ## Release candidate — 2026-10-04
 
 The user considers the UI round complete and designates the current module state a release candidate for the current Core/EM Framework implementation of `redcap_module_pdf_finalize`. That hook implementation may yet change. The [release-candidate record](release_readiness.md#current-release-candidate-status--2026-10-04) pins the current module/Core/Framework commits and distinguishes this implementation status from earlier package verification. This slice records the designation only; it creates no archive, tag or publication and does not imply additional browser/Acrobat tests beyond the recorded evidence. Further UI work and external TSA removal are not required slices for this candidate.
