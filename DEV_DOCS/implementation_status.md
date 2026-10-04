@@ -2,7 +2,7 @@
 
 ## Core editor stable sizing and initialization — 2026-10-04
 
-The editor now fetches and renders its initial plan/previews before rcDialog is displayed, and uses an explicit initial height with scrolling to avoid resizing during redraws. Manual resize/fullscreen remain available; pending opens are deduplicated and initial load failures remain dismissible/retryable. Eleven Node tests pass. See [testing](testing.md#core-editor-stable-sizing-and-initialization--2026-10-04) for the geometry spot-check before continuing deliberate save/enablement acceptance. No server contract or live state changed.
+The editor now fetches and renders its initial plan/previews before rcDialog is displayed, and uses an explicit initial height with scrolling to avoid resizing during redraws. Manual resize/fullscreen remain available; pending opens are deduplicated and initial load failures remain dismissible/retryable. Eleven Node tests pass. The user reports that the dialog now behaves correctly. See [testing](testing.md#core-editor-stable-sizing-and-initialization--2026-10-04) for that browser feedback and the independently verified starting state for deliberate save/enablement acceptance. No server contract or live state changed.
 
 ## Core plan editor rcDialog refinement — 2026-10-04
 

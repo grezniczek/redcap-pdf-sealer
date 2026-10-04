@@ -6,7 +6,9 @@ Following browser feedback about resizing during redraws, initial Core configura
 
 The **eleven Node checks** (ten controller plus ordered assignment) pass, including hidden initialization, pre-show data/render state, duplicate pending opens, initial HTTP/response failure recovery, stable configuration through redraw, permissions, stale responses, busy dismissal, retry and enablement callbacks. JavaScript syntax and whitespace checks pass. No server contracts or live settings changed. This supersedes the prior initialization on `dialog:shown`; initial preparation now finishes before display.
 
-Browser spot-check: hard-refresh, open PID 524 and confirm that populated operations/previews appear together without an expanding loading dialog. Add/remove/reorder duplicate assignments and wait for previews; outer dimensions must stay fixed. Manually resize or toggle fullscreen, then redraw again and confirm the chosen geometry is retained. Cancel and reopen. Deliberate save/reopen and enablement acceptance remain next.
+The user reports that the dialog now behaves correctly after the sizing and initialization refinement. This accepts the requested browser behavior fix; it does not independently establish every resize/fullscreen scenario. Deliberate save/reopen and enablement acceptance remain next.
+
+At the start of this next browser round, independent `redcap_devctl` inspection confirms that PID 533 (ChatGPT's Playground) still has no saved execution plan or Sealer enabled override. PID 524 retains `["pdf_sealer:seal"]` with Sealer enabled. Use PID 533 for the upcoming explicit-empty save, canceled enablement, and deliberate nonassignment checks.
 
 ## Core editor rcDialog refinement — 2026-10-04
 
