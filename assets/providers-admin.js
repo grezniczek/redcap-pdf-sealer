@@ -1,5 +1,5 @@
 /* CC provider presentation. Existing authenticated AJAX services own all policy checks and mutations. */
-window.PDFSealerProvidersAdmin = module => {
+window.PDFSealerProvidersAdmin = (module, timestampAdmin) => {
     const tableNode = document.getElementById('pdf-sealer-providers');
     if (!tableNode) return;
     const policy = document.getElementById('pdf-sealer-assignment-policy');
@@ -154,7 +154,7 @@ window.PDFSealerProvidersAdmin = module => {
             const preview = await module.ajax('preview_ca_retirement', {provider: id});
             if (!preview?.ok) throw new Error('Provider review failed');
             updateProvider(id, preview.retired, preview.assignment_required);
-            let busy = false, usageNode;
+            let busy = false, usageNode, dialogContext, timestampBody;
             const action = element('button', 'btn btn-link btn-sm pdf-sealer-workflow-link', module.tt(preview.retired ? 'provider_reactivate' : 'provider_retire'));
             action.type = 'button';
             const result = await window.rcDialog.tabbed({title: module.tt('provider_manage_title', name), size: 'lg',
@@ -164,6 +164,17 @@ window.PDFSealerProvidersAdmin = module => {
                         const body = document.getElementById('pdf-sealer-provider-details-' + id).content.cloneNode(true);
                         body.querySelector('[data-details-status]').append(badge(preview.retired));
                         return body;
+                    }},
+                    {id: 'timestamping', label: module.tt('timestamp_settings_title'), body() {
+                        if (!timestampBody) timestampBody = timestampAdmin.policy(id, value => {
+                            busy = value; action.disabled = value;
+                            dialogContext.buttons[value ? 'disable' : 'enable']('close');
+                            dialogContext.setCloseButton(value ? false : 'close');
+                        }, mode => {
+                            row.querySelector('[data-provider-timestamp]').textContent = mode;
+                            table.row(row).invalidate('dom').draw(false);
+                        });
+                        return timestampBody;
                     }},
                     {id: 'usage', label: module.tt('provider_usage'), body() {
                         const body = element('div', 'pdf-sealer-dialog-body');
@@ -184,6 +195,7 @@ window.PDFSealerProvidersAdmin = module => {
                     }},
                 ],
                 setup(ctx) {
+                    dialogContext = ctx;
                     const initializeUsage = () => {
                         if (!usageTable) usageTable = $(usageNode).DataTable({pageLength: 10, order: [[0, 'asc']],
                             language: {...language, emptyTable: module.tt('provider_usage_empty')}});

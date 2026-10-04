@@ -1,5 +1,15 @@
 # Handoff prompt: PDF Sealer certificate lifecycle
 
+## TSA source overview and CA timestamp policy dialogs — 2026-10-04
+
+The TSA tab now uses a ten-row searchable DataTables overview for built-in/external sources, with compact UTC certificate expiry and locally formatted last-test results. External expiry is the cached successful probe's signer expiry, never a continuous availability/chain-expiry assertion. Source Manage opens public policy/authentication details and cached diagnostics; explicit Test source updates the dialog and row with toast feedback. Opening a page/dialog performs no remote request. URLs and credentials remain outside public summaries.
+
+Register external TSA uses a movable rcDialog with Cancel/Register footer actions, native validation and retained inputs after errors. Busy requests block duplicate submission and dismissal. Success closes before a Framework-URL refresh to the TSA tab. Built-in Manage contains a standard reviewed replacement/revocation dialog; existing locked hashes, revoked-state limits, reason capture and CRL/recovery distinctions remain. Ambiguous lifecycle/policy mutations cannot replay from the same dialog. Accepted lifecycle changes close both dialogs and refresh with a one-shot outcome toast.
+
+CA providers → Manage now includes Timestamping, scoped to that CA without a provider selector. Primary/ordered alternatives/B-B fallback retain existing None/distinct-source/ordering rules. Saving stays in the dialog and updates the provider row (and built-in header summary where relevant); busy policy saves also block retirement/dismissal. Details no longer repeats a potentially stale policy.
+
+Automated UI/view and PHP 8.2/8.5 administrator AJAX checks pass. Browser acceptance is pending; see [testing](testing.md#tsa-source-overview-and-ca-timestamp-policy-dialogs--2026-10-04). No live PKI/settings, remote TSA requests or Core/Framework changes were made.
+
 ## Projects overview layout refinement — 2026-10-04
 
 Preset/refresh controls now follow DataTables Search; refresh is an accessible icon button. The narrow header checkbox selects/clears only selectable rows on the current page and tracks checked/indeterminate state after draws. Other-page selections are retained. Narrow PID cells link through the Framework-generated URL to project status in a new tab. Compact status icons have tooltips plus hidden searchable/accessible text. Workflow eligibility is described once; per-action help rows are removed. Node selection/workflow checks, escaped view checks and syntax checks pass (PHP views on 8.2/8.5). Browser layout/link/page-selection acceptance remains pending. No live PKI/settings or Core/Framework changes.

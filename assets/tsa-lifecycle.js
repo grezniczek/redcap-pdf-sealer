@@ -1,69 +1,74 @@
-/* Current built-in TSA only; distinguish an accepted block from completed recovery. */
-window.PDFSealerTsaLifecycle = module => {
-    const form = document.getElementById('pdf-sealer-tsa-lifecycle');
-    if (!form) return;
-    const fields = form.querySelector('fieldset');
-    const review = document.getElementById('tsa-lifecycle-review');
-    const action = document.getElementById('tsa-lifecycle-action');
-    const help = document.getElementById('tsa-lifecycle-help');
-    const confirm = document.getElementById('tsa-lifecycle-confirm');
-    let preview = null;
-    const update = () => {
-        help.textContent = module.tt('tsa_lifecycle_' + action.value + '_help');
-        help.className = 'alert ' + (action.value === 'replace' ? 'alert-info' : 'alert-warning');
-        confirm.className = 'btn btn-sm ' + (action.value === 'replace' ? 'btn-warning' : 'btn-danger');
+/* Fresh locked review of the current built-in TSA; never replay an ambiguous mutation. */
+window.PDFSealerTsaLifecycle = async (module, launcher) => {
+    const element = (tag, className, value) => {
+        const node = document.createElement(tag); node.className = className;
+        if (value !== undefined) node.textContent = value;
+        return node;
     };
-    const busy = value => { fields.disabled = value; form.setAttribute('aria-busy', String(value)); };
-    const fail = () => {
-        preview = null;
-        review.hidden = true;
-        window.PDFSealerNotify(module.tt('tsa_lifecycle_failed'), 'error');
+    const preview = await module.ajax('preview_tsa_lifecycle', {});
+    if (!preview?.ok) throw new Error('TSA review failed');
+    let busy = false, invalid = false, selected = 'replace', fields;
+    const receipt = response => {
+        const details = [];
+        if (selected !== 'replace') {
+            details.push(module.tt('tsa_lifecycle_saved'));
+            details.push(module.tt(response.crl_published ? 'revocation_crl_published' : 'revocation_crl_pending'));
+        }
+        details.push(module.tt(response.replacement === 'renewed' ? 'tsa_lifecycle_replaced'
+            : (response.replacement === 'skipped' ? 'tsa_lifecycle_changed' : 'tsa_lifecycle_pending')));
+        return {text: details.join(' '), tone: response.replacement === 'renewed' && response.crl_published !== false ? 'success' : 'warning'};
     };
-    action.addEventListener('change', update);
-    form.addEventListener('submit', async event => {
-        event.preventDefault();
-        if (fields.disabled) return;
-        preview = null;
-        review.hidden = true;
-
-        busy(true);
-        try {
-            const result = await module.ajax('preview_tsa_lifecycle', {});
-            if (!result?.ok) throw new Error('TSA review failed');
-            document.getElementById('tsa-lifecycle-subject').textContent = result.certificate.subject.replace(/(?<!\\)(?=\/[A-Za-z0-9.]+=)/g, '\n').trim();
-            document.getElementById('tsa-lifecycle-fingerprint').textContent = result.certificate.fingerprint;
-            document.getElementById('tsa-lifecycle-thumbprint').textContent = result.certificate.thumbprint;
-            document.getElementById('tsa-lifecycle-already').hidden = !result.revoked;
-            [...action.options].forEach(option => { option.disabled = result.revoked && option.value !== 'replace'; });
-            action.value = 'replace';
-            update();
-            preview = result;
-            review.hidden = false;
-        } catch (_) { fail(); }
-        finally { busy(false); }
-    });
-    confirm.addEventListener('click', async () => {
-        if (fields.disabled || !preview || (preview.revoked && action.value !== 'replace')) return;
-        const selected = action.value;
-        if (!window.confirm(module.tt('tsa_lifecycle_confirm_prompt', action.selectedOptions[0].textContent,
-            preview.certificate.fingerprint, help.textContent))) return;
-        busy(true);
-
-        try {
-            const result = await module.ajax(selected === 'replace' ? 'replace_tsa_certificate' : 'revoke_tsa_certificate',
-                {review_hash: preview.review_hash, reason: selected});
-            if (!result?.ok) throw new Error('TSA action failed');
-            preview = null;
-            review.hidden = true;
-            const details = [];
-            if (selected !== 'replace') {
-                details.push(module.tt('tsa_lifecycle_saved'));
-                details.push(module.tt(result.crl_published ? 'revocation_crl_published' : 'revocation_crl_pending'));
-            }
-            details.push(module.tt(result.replacement === 'renewed' ? 'tsa_lifecycle_replaced'
-                : (result.replacement === 'skipped' ? 'tsa_lifecycle_changed' : 'tsa_lifecycle_pending')));
-            window.PDFSealerNotify(details.join(' '), result.replacement === 'renewed' && result.crl_published !== false ? 'success' : 'warning');
-        } catch (_) { fail(); }
-        finally { busy(false); }
+    return window.rcDialog({title: module.tt('tsa_lifecycle_title'), size: 'lg', draggable: true,
+        closeButton: 'cancel', focusAfterClose: launcher,
+        buttons: ['cancel', {id: 'confirm', label: module.tt('root_lifecycle_confirm_button'), intent: 'warning'}],
+        body(ctx) {
+            const body = element('div', 'pdf-sealer-dialog-body');
+            body.append(element('h6', '', module.tt('tsa_lifecycle_review')));
+            const list = element('dl', 'pdf-sealer-certificate');
+            [['pki_subject', preview.certificate.subject], ['pki_fingerprint', preview.certificate.fingerprint],
+                ['pki_thumbprint', preview.certificate.thumbprint]].forEach(([key, value]) => {
+                const description = element('dd', '');
+                if (key === 'pki_subject') {
+                    description.style.whiteSpace = 'pre-line'; description.textContent = value.replace(/(?<!\\)(?=\/[A-Za-z0-9.]+=)/g, '\n').trim();
+                } else description.append(element('code', 'pdf-sealer-fingerprint', value));
+                list.append(element('dt', '', module.tt(key)), description);
+            });
+            body.append(list);
+            if (preview.revoked) body.append(element('p', 'alert alert-warning', module.tt('tsa_lifecycle_already')));
+            fields = element('fieldset', ''); fields.append(element('legend', 'h6', module.tt('tsa_lifecycle_action')));
+            ['replace', 'superseded', 'compromise'].forEach(reason => {
+                const option = element('div', 'form-check mb-3'), radio = element('input', 'form-check-input');
+                radio.type = 'radio'; radio.name = 'tsa-lifecycle-action'; radio.value = reason;
+                radio.id = 'tsa-lifecycle-' + reason; radio.checked = reason === selected;
+                radio.disabled = preview.revoked && reason !== 'replace';
+                const label = element('label', 'form-check-label', module.tt('tsa_lifecycle_' + reason)); label.htmlFor = radio.id;
+                const help = element('div', 'small text-muted', module.tt('tsa_lifecycle_' + reason + '_help'));
+                help.id = radio.id + '-help'; radio.setAttribute('aria-describedby', help.id);
+                radio.addEventListener('change', () => {
+                    if (fields.disabled || radio.disabled) return;
+                    selected = reason; ctx.buttons.update('confirm', {intent: reason === 'replace' ? 'warning' : 'danger'});
+                });
+                option.append(radio, label, help); fields.append(option);
+            });
+            body.append(fields); return body;
+        },
+        setup(ctx) {
+            ctx.on('dialog:beforeClose', () => !busy);
+            ctx.on('button:confirm', async () => {
+                if (busy || invalid || (preview.revoked && selected !== 'replace')) return false;
+                busy = true; fields.disabled = true;
+                ctx.buttons.disable('confirm'); ctx.buttons.disable('cancel'); ctx.buttons.setLoading('confirm', true); ctx.setCloseButton(false);
+                try {
+                    const response = await module.ajax(selected === 'replace' ? 'replace_tsa_certificate' : 'revoke_tsa_certificate',
+                        {review_hash: preview.review_hash, reason: selected});
+                    if (!response?.ok) throw new Error('TSA action failed');
+                    return {applied: true, receipt: receipt(response)};
+                } catch (_) {
+                    invalid = true; window.PDFSealerNotify(module.tt('tsa_lifecycle_failed'), 'error'); return false;
+                } finally {
+                    busy = false; ctx.buttons.setLoading('confirm', false); ctx.buttons.enable('cancel'); ctx.setCloseButton('cancel');
+                }
+            });
+        },
     });
 };

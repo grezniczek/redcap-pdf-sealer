@@ -4,6 +4,8 @@ declare(strict_types=1);
 $labels = parse_ini_file(dirname(__DIR__) . '/lang/English.ini', false, INI_SCANNER_RAW);
 $framework = new class($labels) {
     public function __construct(private array $labels) {}
+    public function isSuperUser(): bool { return true; }
+    public function getProjectId(): ?int { return null; }
     public function getUrl(string $path): string { return 'https://redcap.test/external_modules/?prefix=pdf_sealer&page=' . $path; }
     public function tt(string $key, mixed ...$values): string {
         $text = $this->labels[$key] ?? throw new RuntimeException('Missing label: ' . $key);
@@ -36,7 +38,7 @@ foreach (['builtin-ca' => 2000000000, 'external-a' => 1900000000, 'external-b' =
     check(str_contains($match[0], 'data-order="' . $until . '"'), 'Earliest chain expiry not selected for ' . $id);
     check(substr_count($match[0], '<button ') === 1 && str_contains($match[0], '>Manage</button>'), 'Unexpected catalog actions');
 }
-check(str_contains($html, '<td>Internal</td>') && str_contains($html, '<td>None</td>'), 'Wrong concise timestamp modes');
+check(str_contains($html, '<td data-provider-timestamp>Internal</td>') && str_contains($html, '<td data-provider-timestamp>None</td>'), 'Wrong concise timestamp modes');
 check(str_contains($html, 'Remote &lt;TSA&gt;') && !str_contains($html, '<img'), 'Dynamic names must be escaped');
 check(substr_count($html, '<template ') === 3 && str_contains($html, 'data-test-root'), 'Missing certificate detail templates');
 check(!str_contains($html, 'id="assignment-required"') && str_contains($html, 'Change assignment policy'), 'Policy editing still inline');
@@ -59,4 +61,14 @@ check(json_decode(htmlspecialchars_decode($match[1], ENT_QUOTES), true, 512, JSO
 check(str_contains($projects, 'id="pdf-sealer-project-select-page"') && !str_contains($projects, 'data-project-action-help'), 'Page-only selection and compact workflow section missing');
 check(str_contains($projects, 'data-status-url="https://redcap.test/external_modules/?prefix=pdf_sealer&amp;page=project-status.php"'), 'Status page URL must use the Framework and escaping');
 check(str_contains($projects, 'fa-sync-alt') && !str_contains($projects, '>Refresh overview</button>'), 'Refresh must be icon-only with an accessible label');
-echo "Provider and shared project administration view checks passed\n";
+$sourcesUnavailable = $providersUnavailable = false;
+$sourceSummaries = [['id' => 'remote-tsa-example', 'name' => '<Remote & TSA>', 'policy_oid' => '', 'authenticated' => true,
+    'diagnostic' => ['checked_at' => 1800000000, 'ok' => true, 'valid_until' => 1900000000]]];
+ob_start(); require dirname(__DIR__) . '/views/timestamp-admin.php'; $tsa = ob_get_clean();
+check(str_contains($tsa, '&lt;Remote &amp; TSA&gt;') && !str_contains($tsa, '<Remote'), 'Source metadata must be escaped');
+check(substr_count($tsa, 'data-tsa-manage') === 2 && str_contains($tsa, 'data-order="1900000000"'), 'Missing built-in/external source rows or cached expiry');
+check(str_contains($tsa, 'id="pdf-sealer-tsa-register-host" hidden') && !str_contains($tsa, 'type="submit"'), 'Registration must use a dialog footer action');
+check(str_contains($tsa, 'id="pdf-sealer-timestamp-policy"') && !str_contains($tsa, 'id="tsa-provider"'), 'Policy must be scoped to the managed CA');
+check(substr_count($tsa, 'data-timestamp-alternative') === 2 && str_contains($tsa, 'pdf-sealer-dialog-body'), 'Ordered alternatives/shared style missing');
+check(!str_contains($tsa, 'secret') && !str_contains($tsa, 'https://tsa.example'), 'Source secrets must not enter overview metadata');
+echo "Provider, shared project and TSA administration view checks passed\n";

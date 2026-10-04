@@ -1,100 +1,211 @@
-/* Control Center only. All mutations use the Framework's authenticated AJAX endpoint. */
+/* CC presentation only. Authenticated AJAX services retain source and policy validation. */
 window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime, pageUrl) => {
     const text = key => module.tt(key);
-    const fail = (_form, failureMessage) => window.PDFSealerNotify(failureMessage || text('external_tsa_failed'), 'error');
+    const notify = (message, tone = 'error') => window.PDFSealerNotify(message, tone);
+    const available = () => {
+        if (typeof window.rcDialog === 'function') return true;
+        notify(text('provider_dialog_unavailable'), 'warning'); return false;
+    };
+    const element = (tag, className, value) => {
+        const node = document.createElement(tag); node.className = className;
+        if (value !== undefined) node.textContent = value;
+        return node;
+    };
+    const receiptKey = 'pdf-sealer-tsa-lifecycle:' + pageUrl;
+    try {
+        const stored = sessionStorage.getItem(receiptKey); sessionStorage.removeItem(receiptKey);
+        const receipt = stored ? JSON.parse(stored) : null;
+        if (typeof receipt?.text === 'string' && ['success', 'warning'].includes(receipt.tone)) notify(receipt.text, receipt.tone);
+    } catch (_) { /* Storage restrictions do not prevent management. */ }
     const reload = notice => {
         const url = new URL(pageUrl, location.href);
-        url.searchParams.set('tsa_notice', notice);
-        url.hash = 'tsa';
-        location.assign(url.href);
+        if (notice) url.searchParams.set('tsa_notice', notice);
+        url.hash = 'tsa'; location.assign(url.href);
     };
-    const register = document.getElementById('tsa-register');
-    register.addEventListener('submit', async event => {
-        event.preventDefault();
-        const fields = register.querySelector('fieldset');
-        if (fields.disabled) return;
-        const payload = Object.fromEntries(new FormData(register));
-        fields.disabled = true;
+    const utc = seconds => new Date(seconds * 1000).toISOString().replace('T', ' ').replace('.000Z', ' UTC');
+    const tableNode = document.getElementById('pdf-sealer-tsa-sources');
+    const rows = new Map([...tableNode.querySelectorAll('[data-tsa-id]')].map(row => [row.dataset.tsaId, row]));
+    const renderObservation = (source, observation) => {
+        const snapshot = source.diagnostic;
+        observation.className = 'small ' + (snapshot ? (snapshot.ok ? 'text-success' : 'text-danger') : 'text-muted');
+        observation.textContent = snapshot ? text(snapshot.ok ? 'external_tsa_passed' : 'external_tsa_test_failed')
+            + ' — ' + formatTime(new Date(snapshot.checked_at * 1000))
+            + (snapshot.ok ? '\n' + text('pki_fingerprint') + ': ' + snapshot.signer_sha256 : '')
+            + (snapshot.ok && snapshot.signer_sha1 ? '\n' + text('pki_thumbprint') + ': ' + snapshot.signer_sha1 : '')
+            + (snapshot.ok && snapshot.valid_until ? '\n' + text('pki_valid_until') + ': ' + utc(snapshot.valid_until) : '')
+            : text('diagnostic_never');
+        observation.style.overflowWrap = 'anywhere'; observation.style.whiteSpace = 'pre-line';
+    };
+    const renderRow = source => {
+        const row = rows.get(source.id), snapshot = source.diagnostic;
+        const last = row.querySelector('[data-tsa-last-test]'), expiry = row.querySelector('[data-tsa-expiry]');
+        last.dataset.order = String(snapshot?.checked_at || 0);
+        last.className = 'small ' + (snapshot ? (snapshot.ok ? 'text-success' : 'text-danger') : 'text-muted');
+        last.textContent = snapshot ? text(snapshot.ok ? 'tsa_test_passed' : 'tsa_test_failed') + ' — '
+            + formatTime(new Date(snapshot.checked_at * 1000)) : text('diagnostic_never');
+        expiry.dataset.order = String(snapshot?.valid_until || 0);
+        expiry.textContent = snapshot?.valid_until ? utc(snapshot.valid_until) : '—';
+    };
+    sources.forEach(renderRow);
+    const table = $(tableNode).DataTable({pageLength: 10, order: [[1, 'asc']],
+        language: {search: text('table_search'), lengthMenu: text('table_length'), info: text('table_info'),
+            infoEmpty: text('table_info_empty'), infoFiltered: text('table_info_filtered'), zeroRecords: text('table_zero'),
+            paginate: {first: text('table_first'), last: text('table_last'), next: text('table_next'), previous: text('table_previous')}},
+        columnDefs: [{targets: 0, width: '70px'}, {targets: 4, orderable: false, searchable: false}]});
+    const adjust = () => { if (!document.getElementById('pki-panel-tsa').hidden) table.columns.adjust(); };
+    document.querySelector('[data-pki-tab="tsa"]').addEventListener('click', adjust);
+    window.addEventListener('hashchange', adjust); adjust();
+    tableNode.addEventListener('click', async event => {
+        const launcher = event.target.closest('[data-tsa-manage]');
+        if (!launcher || launcher.disabled || !available()) return;
+        const row = launcher.closest('[data-tsa-id]'), id = row.dataset.tsaId;
+        const source = sources.find(item => item.id === id);
+        launcher.disabled = true;
+        let busy = false;
         try {
-            const result = await module.ajax('register_timestamp_source', payload);
-            if (!result?.ok) { fail(register, result?.message); return; }
-            register.reset();
-            reload('registered');
-        } catch (_) { fail(register, text('external_tsa_register_ajax')); }
-        finally { fields.disabled = false; }
-    });
-    sources.forEach(source => {
-        const card = document.querySelector('[data-tsa-card="' + source.id + '"]');
-        const observation = card.querySelector('[data-tsa-observation]');
-        const button = card.querySelector('[data-tsa-test]');
-        const render = snapshot => {
-            observation.className = 'small ' + (snapshot ? (snapshot.ok ? 'text-success' : 'text-danger') : 'text-muted');
-            observation.textContent = snapshot
-                ? text(snapshot.ok ? 'external_tsa_passed' : 'external_tsa_test_failed') + ' — ' + formatTime(new Date(snapshot.checked_at * 1000))
-                    + (snapshot.ok ? '\n' + text('pki_fingerprint') + ': ' + snapshot.signer_sha256 : '')
-                    + (snapshot.ok && snapshot.signer_sha1 ? '\n' + text('pki_thumbprint') + ': ' + snapshot.signer_sha1 : '')
-                : text('diagnostic_never');
-            observation.style.overflowWrap = 'anywhere';
-            observation.style.whiteSpace = 'pre-line';
-        };
-        render(source.diagnostic);
-        button.addEventListener('click', async () => {
-            if (button.disabled) return;
-            button.disabled = true;
-            observation.textContent = text('external_tsa_testing');
-            try {
-                const result = await module.ajax('test_timestamp_source', {source: source.id});
-                if (!result?.ok) throw new Error();
-                render(result.diagnostic);
-            } catch (_) { observation.textContent = text('external_tsa_failed'); observation.className = 'small text-danger'; }
-            finally { button.disabled = false; }
-        });
-    });
-    const provider = document.getElementById('tsa-provider');
-    const source = document.getElementById('tsa-source');
-    const fallback = document.getElementById('tsa-fallback');
-    const alternatives = [1, 2].map(position => document.getElementById('tsa-alternative-' + position));
-    const save = document.getElementById('tsa-policy-save');
-    const sync = () => {
-        fallback.disabled = source.value === 'none';
-        if (fallback.disabled) fallback.checked = false;
-        alternatives.forEach((select, index) => {
-            select.disabled = source.value === 'none' || (index === 1 && !alternatives[0].value);
-            if (select.disabled) select.value = '';
-        });
-        alternatives.forEach((select, index) => {
-            Array.from(select.options).forEach(option => {
-                option.disabled = !!option.value && (option.value === source.value
-                    || alternatives.some((other, otherIndex) => otherIndex !== index && other.value === option.value));
+            const body = id === 'builtin-tsa'
+                ? document.getElementById('pdf-sealer-builtin-tsa-details').content.cloneNode(true).firstElementChild
+                : element('div', 'pdf-sealer-dialog-body');
+            let action, observation;
+            if (source) {
+                body.append(element('p', 'small', source.id));
+                const details = element('dl', 'pdf-sealer-certificate');
+                details.append(element('dt', '', text('external_tsa_policy')), element('dd', '', source.policy_oid || text('external_tsa_default_policy')),
+                    element('dt', '', text('tsa_authentication')), element('dd', '', text(source.authenticated ? 'external_tsa_basic' : 'external_tsa_anonymous')));
+                body.append(details, element('h6', '', text('tsa_last_test')));
+                observation = element('p', 'small'); observation.setAttribute('role', 'status'); renderObservation(source, observation);
+                action = element('button', 'btn btn-outline-secondary btn-sm', text('external_tsa_test')); action.type = 'button';
+                body.append(observation, action, element('p', 'small text-muted mt-2', text('tsa_observation_help')));
+            } else action = body.querySelector('[data-tsa-lifecycle]');
+            const result = await window.rcDialog({title: module.tt('tsa_manage_title', row.querySelector('[data-tsa-name]').textContent),
+                size: 'lg', draggable: true, closeButton: 'close', focusAfterClose: launcher, buttons: ['close'], body: () => body,
+                setup(ctx) {
+                    ctx.on('dialog:beforeClose', () => {
+                        if (busy) return false;
+                        launcher.disabled = false; return true;
+                    });
+                    action.addEventListener('click', async () => {
+                        if (busy) return;
+                        busy = true; action.disabled = true; ctx.buttons.disable('close'); ctx.setCloseButton(false);
+                        try {
+                            if (!source) {
+                                const changed = await window.PDFSealerTsaLifecycle(module, action);
+                                if (changed) { busy = false; await ctx.close(changed); }
+                            } else {
+                                observation.textContent = text('external_tsa_testing');
+                                const response = await module.ajax('test_timestamp_source', {source: id});
+                                if (!response?.ok) throw new Error('Source test failed');
+                                source.diagnostic = response.diagnostic;
+                                renderObservation(source, observation); renderRow(source); table.row(row).invalidate('dom').draw(false);
+                                notify(text(source.diagnostic.ok ? 'external_tsa_passed' : 'external_tsa_test_failed'), source.diagnostic.ok ? 'success' : 'error');
+                            }
+                        } catch (_) {
+                            notify(text(source ? 'external_tsa_failed' : 'tsa_lifecycle_failed'));
+                            if (source) renderObservation(source, observation); // Retain the dated last completed observation.
+                        } finally {
+                            busy = false; action.disabled = false; ctx.buttons.enable('close'); ctx.setCloseButton('close');
+                        }
+                    });
+                },
             });
-        });
-    };
-    provider.addEventListener('change', () => {
-        const policy = policies.find(item => item.id === provider.value);
-        source.value = policy?.timestamp_source || 'none';
-        alternatives.forEach((select, index) => { select.value = policy?.timestamp_alternatives?.[index] || ''; });
-        fallback.checked = !!policy?.bb_fallback;
-        sync();
+            if (result?.applied) {
+                try { sessionStorage.setItem(receiptKey, JSON.stringify(result.receipt)); } catch (_) { /* Refresh still proceeds. */ }
+                reload();
+            }
+        } catch (_) { notify(text('external_tsa_failed')); }
+        finally { launcher.disabled = false; }
     });
-    source.addEventListener('change', () => { fallback.checked = false; alternatives.forEach(select => { select.value = ''; }); sync(); });
-    alternatives.forEach(select => select.addEventListener('change', sync));
-    sync();
-    save.addEventListener('click', async () => {
-        if (save.disabled) return;
-        if (!provider.reportValidity() || !source.reportValidity()) return;
-        const order = alternatives.filter(select => !select.disabled && select.value).map(select => select.value);
-        if (new Set([source.value, ...order]).size !== order.length + 1) {
-            window.PDFSealerNotify(text('timestamp_order_invalid'), 'error');
-            return;
-        }
-        const payload = {provider: provider.value, source: source.value, alternatives: order, fallback: !fallback.disabled && fallback.checked};
-        save.disabled = true;
+    const registration = document.getElementById('pdf-sealer-tsa-register');
+    registration.addEventListener('click', async () => {
+        if (registration.disabled || !available()) return;
+        registration.disabled = true;
+        const host = document.getElementById('pdf-sealer-tsa-register-host'), body = host.firstElementChild;
+        const form = body.querySelector('form'), fields = form.querySelector('fieldset');
+        let busy = false, submit;
         try {
-            const result = await module.ajax('save_provider_timestamp', payload);
-            if (!result?.ok) throw new Error();
-            reload('saved');
-        } catch (_) {
-            window.PDFSealerNotify(text('external_tsa_failed'), 'error');
-        } finally { save.disabled = false; }
+            const result = await window.rcDialog({title: text('external_tsa_register'), size: 'lg', draggable: true,
+                closeButton: 'cancel', focusAfterClose: registration,
+                buttons: ['cancel', {use: 'save', id: 'register', label: text('external_tsa_register')}], body: () => body,
+                setup(ctx) {
+                    ctx.on('dialog:beforeClose', () => {
+                        if (busy) return false;
+                        registration.disabled = false; return true;
+                    });
+                    ctx.on('button:register', async () => {
+                        if (busy || fields.disabled || !form.reportValidity()) return false;
+                        const payload = Object.fromEntries(new FormData(form));
+                        busy = true; fields.disabled = true;
+                        ctx.buttons.disable('register'); ctx.buttons.disable('cancel'); ctx.buttons.setLoading('register', true); ctx.setCloseButton(false);
+                        try {
+                            const response = await module.ajax('register_timestamp_source', payload);
+                            if (response?.ok) return {registered: true};
+                            notify(response?.message || text('external_tsa_failed'));
+                        } catch (_) { notify(text('external_tsa_register_ajax')); }
+                        finally {
+                            busy = false; fields.disabled = false; ctx.buttons.setLoading('register', false);
+                            ctx.buttons.enable('register'); ctx.buttons.enable('cancel'); ctx.setCloseButton('cancel');
+                        }
+                        return false;
+                    });
+                    submit = event => { event.preventDefault(); if (!busy) ctx.buttons.trigger('register'); };
+                    form.addEventListener('submit', submit);
+                },
+            });
+            if (result?.registered) reload('registered');
+        } catch (_) { notify(text('external_tsa_failed')); }
+        finally {
+            if (submit) form.removeEventListener('submit', submit);
+            form.reset(); host.appendChild(body); registration.disabled = false;
+        }
     });
+    // Each CA dialog owns its controls; the provider ID is pinned to the dialog, never selected in the form.
+    return {
+        policy(id, setBusy, saved) {
+            const body = document.getElementById('pdf-sealer-timestamp-policy').content.cloneNode(true).firstElementChild;
+            const fields = body.querySelector('fieldset'), source = body.querySelector('[data-timestamp-source]');
+            const fallback = body.querySelector('[data-timestamp-fallback]'), save = body.querySelector('[data-timestamp-save]');
+            const alternatives = [...body.querySelectorAll('[data-timestamp-alternative]')];
+            const policy = policies.find(item => item.id === id);
+            let busy = false, invalid = false;
+            const sync = () => {
+                fallback.disabled = source.value === 'none'; if (fallback.disabled) fallback.checked = false;
+                alternatives.forEach((select, index) => {
+                    select.disabled = source.value === 'none' || (index === 1 && !alternatives[0].value);
+                    if (select.disabled) select.value = '';
+                });
+                alternatives.forEach((select, index) => [...select.options].forEach(option => {
+                    option.disabled = !!option.value && (option.value === source.value
+                        || alternatives.some((other, otherIndex) => otherIndex !== index && other.value === option.value));
+                }));
+            };
+            source.value = policy?.timestamp_source || 'none'; fallback.checked = !!policy?.bb_fallback;
+            alternatives.forEach((select, index) => { select.value = policy?.timestamp_alternatives?.[index] || ''; });
+            source.addEventListener('change', () => { fallback.checked = false; alternatives.forEach(select => { select.value = ''; }); sync(); });
+            alternatives.forEach(select => select.addEventListener('change', sync)); sync();
+            save.addEventListener('click', async () => {
+                if (busy || invalid || save.disabled || fields.disabled || !source.reportValidity()) return;
+                const order = alternatives.filter(select => !select.disabled && select.value).map(select => select.value);
+                if (new Set([source.value, ...order]).size !== order.length + 1) { notify(text('timestamp_order_invalid')); return; }
+                const payload = {provider: id, source: source.value, alternatives: order, fallback: !fallback.disabled && fallback.checked};
+                busy = true; fields.disabled = true; setBusy(true);
+                try {
+                    const response = await module.ajax('save_provider_timestamp', payload);
+                    if (!response?.ok) throw new Error('Policy save failed');
+                    Object.assign(policy, {timestamp_source: payload.source === 'none' ? null : payload.source,
+                        timestamp_alternatives: [...order], bb_fallback: payload.fallback});
+                    if (id === 'builtin-ca') {
+                        const summary = document.getElementById('pdf-sealer-mode-summary');
+                        if (summary) summary.textContent = text('timestamp_summary_' + (payload.source === 'none' ? 'none' : (payload.source === 'builtin-tsa' ? 'internal' : 'external')));
+                    }
+                    const name = source.selectedOptions[0].textContent;
+                    saved(payload.source === 'none' ? text('provider_timestamp_none')
+                        : (payload.source === 'builtin-tsa' ? text('provider_timestamp_internal') : name));
+                    notify(text('external_tsa_saved'), 'success');
+                } catch (_) {
+                    invalid = true; notify(text('external_tsa_failed')); // Close and refresh before retrying an ambiguous save.
+                } finally { busy = false; fields.disabled = invalid; setBusy(false); }
+            });
+            return body;
+        },
+    };
 };

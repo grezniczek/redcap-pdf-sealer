@@ -1,5 +1,16 @@
 # Development and testing
 
+## TSA source overview and CA timestamp policy dialogs — 2026-10-04
+
+Disposable checks: `node tests/timestamp_admin_ui.js`, `node tests/providers_admin_ui.js`, and `tests/provider_admin_view.php` / `tests/pki_admin_ajax.php` on PHP 8.2 and 8.5. These use no live PKI, remote service or stored settings. Source Manage reads cached public metadata; only explicit Test source makes a timestamp request. Existing cryptographic and service acceptance remains applicable; this slice changes presentation.
+
+Pending browser acceptance:
+
+1. On TSA, confirm searchable/paged overview, compact expiry/test dates and hover. Open external Manage: verify safe policy/authentication details, cached SHA-256/Windows thumbprints and local observation time; close without testing. Test a disposable configured source and confirm the row/dialog/toast reflect success or failure. A failure clears observed expiry; transport interruption retains the dated last completed observation.
+2. Open Register external TSA. Cancel must close without registration. Invalid input/error must retain the form. A valid disposable registration closes and returns to TSA with one success toast; refresh should not repeat it. No remote request occurs during registration. Cancel/reopen clears entered credentials.
+3. On CA providers, open Manage → Timestamping. Verify the current primary, ordered alternatives and fallback; change None and confirm alternatives/fallback clear and disable. Save a deliberate test policy and check that Manage stays open, the catalog mode updates, closing/reopening and page refresh retain it, and other CAs remain unchanged. Restore the intended production test policy afterward. While saving, Close/X/retirement must be unavailable.
+4. Open built-in TSA Manage → Replace or revoke. Review subject line breaks/fingerprints and action explanations, then Cancel; this must not change certificates. A deliberate lifecycle action is optional and destructive: use only a disposable setup if testing it. Automated checks cover captured review hash, frozen reason, busy/failed/revoked guards and outcome receipts. Existing user-accepted lifecycle cryptography/Acrobat checks need not be repeated for layout alone.
+
 These commands are for development checkouts. For installation and normal operation, use the [administrator guide](../docs/ADMIN.md). Return to the [developer index](README.md) for acceptance records and packaging.
 
 ## Setup and standalone checks

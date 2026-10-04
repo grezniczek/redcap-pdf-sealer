@@ -29,7 +29,7 @@
             <tr data-provider-id="<?= $escape($provider['id']) ?>" data-retired="<?= $provider['retired'] ? '1' : '0' ?>">
                 <td><span class="badge <?= $provider['retired'] ? 'bg-secondary' : 'bg-success' ?>" data-provider-status><?= $escape($framework->tt($provider['retired'] ? 'provider_retired' : 'provider_active')) ?></span></td>
                 <td data-provider-name><?= $escape($provider['name'] ?? $framework->tt('provider_builtin')) ?></td>
-                <td><?= $escape($mode) ?></td>
+                <td data-provider-timestamp><?= $escape($mode) ?></td>
                 <td data-order="<?= $escape($expiry ?? 0) ?>"><?= $expiry === null ? '—' : $escape(gmdate('Y-m-d H:i:s \U\T\C', $expiry)) ?></td>
                 <td><button type="button" class="btn btn-link btn-sm pdf-sealer-workflow-link" data-provider-manage><?= $escape($framework->tt('provider_manage')) ?></button></td>
             </tr>
@@ -41,12 +41,7 @@
     <template id="pdf-sealer-provider-details-<?= $escape($provider['id']) ?>">
         <div class="pdf-sealer-dialog-body">
             <h6><?= $escape($provider['name'] ?? $framework->tt('provider_builtin')) ?> <span data-details-status></span></h6>
-            <p class="small"><code><?= $escape($provider['id']) ?></code><br>
-                <?= $escape($framework->tt('timestamp_mode_label')) ?>: <?= $escape($sourceChoices[$provider['timestamp_source'] ?? 'none'] ?? $framework->tt('external_tsa_unavailable')) ?><br>
-                <?php foreach ($provider['timestamp_alternatives'] as $index => $alternativeId): ?>
-                <?= $escape($framework->tt('timestamp_alternative_' . ($index + 1))) ?>: <?= $escape($sourceChoices[$alternativeId] ?? $framework->tt('external_tsa_unavailable')) ?><br>
-                <?php endforeach; ?>
-                <?php if ($provider['timestamp_source'] !== null): ?><?= $escape($framework->tt($provider['bb_fallback'] ? 'timestamp_fallback_allow' : 'timestamp_fallback_fail')) ?><?php endif; ?></p>
+            <p class="small"><code><?= $escape($provider['id']) ?></code></p>
             <?php if ($provider['id'] === 'builtin-ca'): $renderCertificate('root'); endif; ?>
             <?php foreach ($providerCertificates as $cert): if ($cert['provider_id'] !== $provider['id']) { continue; } ?>
                 <dl class="pdf-sealer-certificate">

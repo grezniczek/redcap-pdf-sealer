@@ -138,7 +138,11 @@ $renderCertificate = static function (string $role) use ($certificates, $framewo
 };
 require_once APP_PATH_DOCROOT . 'ControlCenter/header.php';
 $framework->initializeJavascriptModuleObject();
-foreach (['external_tsa_failed', 'external_tsa_passed', 'external_tsa_test_failed', 'external_tsa_testing', 'timestamp_order_invalid', 'diagnostic_never', 'pki_fingerprint', 'pki_thumbprint'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
+foreach (['tsa_type', 'tsa_last_test', 'tsa_manage_title', 'tsa_builtin_name', 'tsa_test_passed', 'tsa_test_failed', 'tsa_authentication', 'tsa_observation_help',
+    'external_tsa_register', 'external_tsa_register_ajax', 'external_tsa_test', 'external_tsa_policy', 'external_tsa_default_policy',
+    'timestamp_summary_none', 'timestamp_summary_internal', 'timestamp_summary_external', 'external_tsa_basic', 'external_tsa_anonymous', 'external_tsa_saved', 'timestamp_settings_title', 'provider_timestamp_none', 'provider_timestamp_internal',
+    'tsa_lifecycle_title', 'tsa_lifecycle_review', 'tsa_lifecycle_action', 'tsa_lifecycle_already', 'tsa_lifecycle_replace', 'tsa_lifecycle_superseded', 'tsa_lifecycle_compromise',
+    'external_tsa_failed', 'external_tsa_passed', 'external_tsa_test_failed', 'external_tsa_testing', 'timestamp_order_invalid', 'diagnostic_never', 'pki_fingerprint', 'pki_thumbprint'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
 foreach (['provider_assignment_done', 'provider_assignment_partial', 'provider_assignment_mark', 'provider_selection_count', 'provider_selection_one', 'provider_no_unassigned_projects'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
 foreach ([
     'assignment_policy_change', 'assignment_policy_label', 'assignment_policy_help', 'assignment_policy_delivery',
@@ -152,7 +156,7 @@ foreach ([
     'table_info', 'table_info_empty', 'table_info_filtered', 'table_zero',
     'table_first', 'table_last', 'table_next', 'table_previous',
 ] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
-foreach (['root_lifecycle_title', 'root_lifecycle_review', 'root_lifecycle_action', 'root_lifecycle_confirm_button', 'root_lifecycle_compromise_ack', 'root_lifecycle_dialog_unavailable', 'root_lifecycle_already', 'root_lifecycle_renew', 'root_lifecycle_superseded', 'root_lifecycle_compromise', 'pki_subject', 'root_lifecycle_failed', 'root_lifecycle_saved', 'root_lifecycle_renewed', 'root_lifecycle_replaced', 'root_lifecycle_pending', 'root_lifecycle_trust', 'root_lifecycle_projects_done', 'root_lifecycle_projects_pending', 'root_lifecycle_renew_help', 'root_lifecycle_superseded_help', 'root_lifecycle_compromise_help', 'root_lifecycle_dependents', 'tsa_lifecycle_failed', 'tsa_lifecycle_confirm_prompt', 'tsa_lifecycle_saved', 'tsa_lifecycle_replaced', 'tsa_lifecycle_changed', 'tsa_lifecycle_pending', 'tsa_lifecycle_replace_help', 'tsa_lifecycle_superseded_help', 'tsa_lifecycle_compromise_help', 'revocation_title', 'revocation_confirm', 'revocation_failed', 'revocation_confirm_prompt', 'revocation_saved', 'revocation_crl_published', 'revocation_crl_pending', 'revocation_replaced', 'revocation_signer_changed', 'revocation_replacement_pending', 'revocation_already', 'renewal_failed', 'renewal_saved', 'renewal_issuer_expiry'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
+foreach (['root_lifecycle_title', 'root_lifecycle_review', 'root_lifecycle_action', 'root_lifecycle_confirm_button', 'root_lifecycle_compromise_ack', 'root_lifecycle_dialog_unavailable', 'root_lifecycle_already', 'root_lifecycle_renew', 'root_lifecycle_superseded', 'root_lifecycle_compromise', 'pki_subject', 'root_lifecycle_failed', 'root_lifecycle_saved', 'root_lifecycle_renewed', 'root_lifecycle_replaced', 'root_lifecycle_pending', 'root_lifecycle_trust', 'root_lifecycle_projects_done', 'root_lifecycle_projects_pending', 'root_lifecycle_renew_help', 'root_lifecycle_superseded_help', 'root_lifecycle_compromise_help', 'root_lifecycle_dependents', 'tsa_lifecycle_failed', 'tsa_lifecycle_saved', 'tsa_lifecycle_replaced', 'tsa_lifecycle_changed', 'tsa_lifecycle_pending', 'tsa_lifecycle_replace_help', 'tsa_lifecycle_superseded_help', 'tsa_lifecycle_compromise_help', 'revocation_title', 'revocation_confirm', 'revocation_failed', 'revocation_confirm_prompt', 'revocation_saved', 'revocation_crl_published', 'revocation_crl_pending', 'revocation_replaced', 'revocation_signer_changed', 'revocation_replacement_pending', 'revocation_already', 'renewal_failed', 'renewal_saved', 'renewal_issuer_expiry'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
 foreach (['transition_current', 'transition_waiting_provider', 'transition_has_signer', 'transition_no_signer', 'transition_cancel_csr_first', 'transition_builtin_help', 'transition_external_help', 'transition_cancel_help', 'transition_bulk_selection', 'transition_bulk_activated', 'transition_bulk_prepared', 'transition_bulk_canceled', 'transition_bulk_failed', 'transition_bulk_refresh_failed', 'transition_info_unavailable', 'transition_choose_project', 'provider_select_project'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
 foreach ([
     'trust_valid_from', 'pki_valid_until', 'projects_action_ready', 'projects_cert_current', 'projects_cert_expired',
@@ -234,12 +238,6 @@ foreach ([
         <?php require __DIR__ . '/views/projects-admin.php'; ?>
     </section>
     <section class="pdf-sealer-panel" id="pki-panel-tsa" role="tabpanel" aria-labelledby="pki-tab-tsa" tabindex="0" hidden>
-        <h5><?= $escape($framework->tt('pki_tsa')) ?></h5>
-        <p class="text-muted"><?= $escape($framework->tt('pki_tsa_help')) ?></p>
-        <?php $renderCertificate('tsa'); ?>
-        <hr>
-        <?php require __DIR__ . '/views/tsa-lifecycle.php'; ?>
-        <hr>
         <?php require __DIR__ . '/views/timestamp-admin.php'; ?>
     </section>
     <section class="pdf-sealer-panel" id="pki-panel-diagnostic" role="tabpanel" aria-labelledby="pki-tab-diagnostic" tabindex="0" hidden>
@@ -353,7 +351,6 @@ foreach ([
     const notices = <?= json_encode(array_values(array_filter([
         $error === null ? null : ['text' => $error, 'tone' => 'error'],
         $success ? ['text' => $framework->tt('pki_init_success'), 'tone' => 'success'] : null,
-        ($_GET['tsa_notice'] ?? null) === 'saved' ? ['text' => $framework->tt('external_tsa_saved'), 'tone' => 'success'] : null,
         ($_GET['tsa_notice'] ?? null) === 'registered' ? ['text' => $framework->tt('external_tsa_registered'), 'tone' => 'success'] : null,
         ($_GET['provider_notice'] ?? null) === 'registered' ? ['text' => $framework->tt('provider_registered'), 'tone' => 'success'] : null,
     ])), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
@@ -565,14 +562,13 @@ foreach ([
             });
         });
     });
-    window.PDFSealerTsaLifecycle(module);
     window.PDFSealerRootLifecycle(module);
-    window.PDFSealerProvidersAdmin(module);
     window.PDFSealerProviderWorkflows(module);
     window.PDFSealerProjectsAdmin(module);
-    window.PDFSealerTimestampAdmin(module, <?= json_encode($timestampPolicies, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+    const timestampAdmin = window.PDFSealerTimestampAdmin(module, <?= json_encode($timestampPolicies, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
         <?= json_encode($sourceSummaries, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>, formatDiagnosticTime,
         <?= json_encode($framework->getUrl('pki-admin.php'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>);
+    window.PDFSealerProvidersAdmin(module, timestampAdmin);
 })();
 </script>
 <?php require_once APP_PATH_DOCROOT . 'ControlCenter/footer.php'; ?>

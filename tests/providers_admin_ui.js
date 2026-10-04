@@ -25,8 +25,9 @@ function fixture({retired = false, required = false, fail = false, previewFail =
     const row = new Node('tr', {dataset: {providerId: 'builtin-ca', retired: retired ? '1' : '0'}});
     const statusCell = new Node('td'), status = new Node('span', {dataset: {providerStatus: ''}}); statusCell.append(status);
     const name = new Node('td', {dataset: {providerName: ''}, textContent: 'Built-in <CA>'});
+    const timestampCell = new Node('td', {dataset: {providerTimestamp: ''}});
     const actions = new Node('td'), launcher = new Node('button', {dataset: {providerManage: ''}}); actions.append(launcher);
-    row.append(statusCell, name, actions); catalog.append(row);
+    row.append(statusCell, name, timestampCell, actions); catalog.append(row);
     const policy = node('pdf-sealer-assignment-policy', 'div', {required: required ? '1' : '0', projectsUnavailable: '0'});
     const summary = new Node('p', {dataset: {policySummary: ''}}); policy.append(summary);
     const policyButton = node('pdf-sealer-policy-change', 'button');
@@ -77,7 +78,12 @@ function fixture({retired = false, required = false, fail = false, previewFail =
         createTextNode: text => new Node('#text', {textContent: text}), querySelector: () => tab},
         window: {rcDialog: makeDialog, addEventListener() {}, PDFSealerProjectsAdmin: {providerChanged: (id, retired) => projectUpdates.push({id, retired})}, PDFSealerNotify: (text, tone) => notifications.push({text, tone})}, $: jquery,
         Event: class {constructor(type) {this.type = type;}}, Option: function(text, value) { return option(text, value); }};
-    vm.runInNewContext(source, context); context.window.PDFSealerProvidersAdmin(module);
+    vm.runInNewContext(source, context); context.window.PDFSealerProvidersAdmin(module, {policy(id, busy, saved) {
+        assert.equal(id, 'builtin-ca');
+        const body = new Node('div', {className: 'pdf-sealer-dialog-body'});
+        body.begin = () => busy(true); body.finish = mode => { saved(mode); busy(false); };
+        return body;
+    }});
     return {calls, dialogs, tables, notifications, projectUpdates, policy, row, statusCell, ids, context,
         open: async () => { const completion = catalog.events.click({target: launcher}); await tick(); return {completion}; },
         policyOpen: async () => { const completion = policyButton.events.click(); await tick(); return {completion}; }};
@@ -86,8 +92,15 @@ function fixture({retired = false, required = false, fail = false, previewFail =
     let f = fixture(), run = await f.open(), main = f.dialogs[0];
     assert.equal(f.calls.length, 1, 'Manage opening must only read');
     assert.deepEqual(Array.from(main.options.buttons), ['close']);
-    assert.deepEqual(Array.from(main.options.tabs, t => t.id), ['details', 'usage']);
+    assert.deepEqual(Array.from(main.options.tabs, t => t.id), ['details', 'timestamping', 'usage']);
     assert.ok(main.bodies.every(body => body.className === 'pdf-sealer-dialog-body'));
+    const timestamp = main.bodies[1]; timestamp.begin();
+    assert.equal(main.controls.close.disabled, true); assert.equal(await main.ctx.close(null), false);
+    assert.equal(main.options.footerStatus.disabled, true);
+    timestamp.finish('Remote TSA');
+    assert.equal(f.row.querySelector('[data-provider-timestamp]').textContent, 'Remote TSA');
+    assert.equal(main.controls.close.disabled, false);
+    assert.equal(main.options.tabs[1].body(), timestamp, 'Tab refresh must retain policy controls');
     main.handlers['tab:changed']({current: {id: 'usage'}});
     main.handlers['tab:changed']({current: {id: 'usage'}});
     assert.equal(f.tables.length, 2); assert.equal(f.tables[1].options.pageLength, 10);
