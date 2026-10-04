@@ -117,6 +117,14 @@ function fixture(views = [blank(1), blank(2)], {failPid, ambiguousPid, stale, pr
     f.tableNode.events.click({target: link}); assert.equal(f.row(1).querySelector('input').checked, true, 'Following a PID must not toggle selection');
     const icon = f.row(1).children[3].querySelector('i'); assert.equal(icon.title, 'provider_project_production');
     assert.equal(f.row(1).children[3].querySelector('span').textContent, 'provider_project_production', 'Status text must remain searchable');
+    const statuses = ['development', 'production', 'analysis', 'completed'];
+    f = fixture([...statuses.map((status, index) => ({...blank(index + 1), status})), {...blank(5), deleted: true}]);
+    ['fas fa-wrench', 'far fa-check-square', 'fas fa-minus-circle', 'fa fa-archive fs11', 'fas fa-times'].forEach((expected, index) => {
+        const statusIcon = f.row(index + 1).children[3].querySelector('i');
+        assert.equal(statusIcon.className, expected, 'Status icons must match REDCap project list');
+        assert.equal(statusIcon.style.fontSize, '14px');
+    });
+    assert.equal(f.row(5).children[3].querySelector('i').title, 'projects_deleted');
     f = fixture([blank(1), assigned(2, {pending: true, csr: true}), assigned(3, {disabled: true})]);
     assert.equal(f.table.options.pageLength, 5); assert.equal(f.table.options.lengthChange, false);
     f.select(1); assert.equal(f.actions.get('assign').disabled, false); assert.equal(f.actions.get('change').disabled, true);

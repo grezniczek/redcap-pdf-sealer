@@ -14,7 +14,7 @@ $projectProviders = array_map(static fn(array $p): array => array_intersect_key(
                 <option value="<?= $filter ?>"><?= $escape($framework->tt('projects_filter_' . $filter)) ?></option>
             <?php endforeach; ?>
         </select>
-        <button type="button" class="btn btn-link btn-sm p-0" id="pdf-sealer-project-refresh" title="<?= $escape($framework->tt('projects_refresh')) ?>" aria-label="<?= $escape($framework->tt('projects_refresh')) ?>"><i class="fas fa-sync-alt" aria-hidden="true"></i></button>
+        <button type="button" class="btn btn-link btn-xs p-0" id="pdf-sealer-project-refresh" title="<?= $escape($framework->tt('projects_refresh')) ?>" aria-label="<?= $escape($framework->tt('projects_refresh')) ?>"><i class="fas fa-sync-alt" aria-hidden="true"></i></button>
     </div>
     <div class="pdf-sealer-table-wrap">
         <table id="pdf-sealer-projects" class="table table-sm hover w-100">

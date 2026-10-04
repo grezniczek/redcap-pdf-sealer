@@ -48,10 +48,14 @@ window.PDFSealerProjectsAdmin = module => {
         cells[2].replaceChildren(node('div', p.name));
         if (!p.enabled) cells[2].append(node('div', tt('projects_disabled'), 'small text-muted'));
         if (p.deleted) cells[2].append(node('div', tt('projects_deleted'), 'small text-warning'));
-        const status = tt('provider_project_' + p.status);
-        const icons = {development: 'fa-code text-primary', production: 'fa-check-circle text-success',
-            analysis: 'fa-chart-bar text-secondary', completed: 'fa-flag-checkered text-secondary', unknown: 'fa-question-circle text-muted'};
-        const icon = node('i', undefined, 'fas ' + (icons[p.status] || icons.unknown));
+        const status = p.deleted ? tt('projects_deleted') : tt('provider_project_' + p.status);
+        // Match REDCap Classes/RenderProjectList.php, including deleted-project precedence.
+        const icons = {development: ['fas fa-wrench', '#444'], production: ['far fa-check-square', '#00A000'],
+            analysis: ['fas fa-minus-circle', '#A00000'], completed: ['fa fa-archive fs11', '#C00000'],
+            deleted: ['fas fa-times', '#C00000'], unknown: ['fas fa-question-circle', '#6c757d']};
+        const [iconClass, color] = icons[p.deleted ? 'deleted' : p.status] || icons.unknown;
+        const icon = node('i', undefined, iconClass);
+        icon.style.color = color; icon.style.fontSize = '14px';
         icon.title = status; icon.setAttribute('aria-hidden', 'true');
         cells[3].replaceChildren(icon, node('span', status, 'pdf-sealer-status-text'));
         cells[4].replaceChildren(); cells[5].replaceChildren();
