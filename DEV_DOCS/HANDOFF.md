@@ -1,5 +1,9 @@
 # Handoff prompt: PDF Sealer certificate lifecycle
 
+## Current release-candidate status — 2026-10-04
+
+The user has closed the UI round and designated the present module state a release candidate for the current Core/EM Framework implementation of `redcap_module_pdf_finalize`, which may yet change. See [the integration baseline](release_readiness.md#current-release-candidate-status--2026-10-04). Do not resume earlier suggested UI slices or external TSA removal merely because historical notes below recommend them. Await the user's next direction. Earlier archive/test evidence retains its recorded scope; this designation creates no new package, tag or publication and records no additional browser/Acrobat acceptance.
+
 ## External TSA retirement and reactivation — 2026-10-04
 
 External TSA Manage now offers reviewed Retire/Reactivate actions, showing every affected CA policy and its primary/alternative position and B-B fallback. Success closes both dialogs, updates the source status and assignment/test controls, and shows a toast. Retirement blocks new assignments and source probes; existing CA references, credentials and dated diagnostics remain. Existing references may stay in their saved position while admins adjust the policy. Only explicitly configured alternatives or B-B fallback apply.

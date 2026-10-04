@@ -1,8 +1,22 @@
 # PDF Sealer v1 readiness review
 
+## Current release-candidate status — 2026-10-04
+
+At the user's request, the current module state is designated a **release candidate for the current REDCap Core and EM Framework implementation of `redcap_module_pdf_finalize`**. The UI refinement round is complete. The hook implementation and contract may still change; compatibility must be reviewed against the eventual released Core/Framework contract.
+
+The recorded integration baseline is:
+
+| Component | Current committed baseline | Branch |
+| --- | --- | --- |
+| PDF Sealer | `f40e4163e0400441d5dead913950674aa6e54947` | `main` |
+| REDCap Core | `372ca1bc40903da646c55c4da17ea4707154b842` | `signature-and-pdf-lifecycle-hooks` |
+| EM Framework | `82a5966c3dff40a0b68bc3bd957f23223878bb04` | `signature-and-pdf-lifecycle-hooks` |
+
+All three checkouts were clean before this documentation update. This designation records implementation status; it does not designate the older archive below as a package of the current candidate. Its packaging evidence remains specific to its recorded commit. No new archive, release tag or publication was created in this slice.
+
 ## Conclusion — 2026-10-03
 
-The latest unpublished candidate is a direct archive of committed source **b271be0c9393d6ba1861180ab7370c145e3cf881**, including the accepted sealing-support notices and subsequent HTML-label changes. Dependency reproducibility, notices, namespace isolation, runtime syntax and package-content gates pass on PHP 8.2/8.5. The preceding review repaired the dependency-build omission described below; this refresh changes no runtime source. UI/UX refactor rounds remain planned before final release packaging.
+The unpublished package reviewed on this date is a direct archive of committed source **b271be0c9393d6ba1861180ab7370c145e3cf881**, including the accepted sealing-support notices and subsequent HTML-label changes. Dependency reproducibility, notices, namespace isolation, runtime syntax and package-content gates pass on PHP 8.2/8.5. The preceding review repaired the dependency-build omission described below; this refresh changes no runtime source. The UI/UX refactor rounds planned at that time are now complete, as recorded above.
 
 **Installation policy:** the module intentionally remains installable for certificate management when PDF finalization support is absent. The required Core/Framework additions are not in released versions yet. Sealing requires both feature markers described below; missing support is reported on the project status and CC management pages. A published version number alone must not be presented as proof of sealing support. The bounded HTTP helper remains a separate external TSA requirement. The inspected installation runs dedicated development branches. No release was tagged, published or installed by this review; no Core/Framework or live database/PKI state was changed.
 
@@ -84,7 +98,7 @@ Read-only source inspection confirms the necessary features in the current devel
 
 Both integration worktrees were clean during inspection. Their presence on these branches and live acceptance do not establish availability in a published release. The Framework hook documentation still marks the introduction version **TBD**. Declaring Framework version 16 alone cannot guarantee these added features, as the [administrator guide](../docs/ADMIN.md#requirements-and-installation) already explains.
 
-Before a public v1 distribution, complete the planned UI/UX refactor rounds. Then:
+The UI/UX refactor rounds are complete. Before a public v1 distribution:
 
 1. Document the two installation modes: certificate management without PDF finalization support, and sealing with both feature markers. State integration prerequisites without inventing a REDCap minimum version or blocking certificate-only installations. Published Core/Framework feature availability remains to be recorded when released.
 2. Choose the final public version/tag and build its exact committed archive. Preserve the development-only **pdf_sealer_v9.9.9** checkout convention.

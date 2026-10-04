@@ -1,5 +1,9 @@
 # PDF Sealer implementation status
 
+## Release candidate — 2026-10-04
+
+The user considers the UI round complete and designates the current module state a release candidate for the current Core/EM Framework implementation of `redcap_module_pdf_finalize`. That hook implementation may yet change. The [release-candidate record](release_readiness.md#current-release-candidate-status--2026-10-04) pins the current module/Core/Framework commits and distinguishes this implementation status from earlier package verification. This slice records the designation only; it creates no archive, tag or publication and does not imply additional browser/Acrobat tests beyond the recorded evidence. Further UI work and external TSA removal are not required slices for this candidate.
+
 ## External TSA retirement and reactivation — 2026-10-04
 
 External TSA Manage now offers reviewed Retire/Reactivate actions, showing every affected CA policy and its primary/alternative position and B-B fallback. Success closes both dialogs, updates the source status and assignment/test controls, and shows a toast. Retirement blocks new assignments and source probes; existing CA references, credentials and dated diagnostics remain. Existing references may stay in their saved position while admins adjust the policy. Only explicitly configured alternatives or B-B fallback apply.
