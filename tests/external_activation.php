@@ -4,7 +4,7 @@ declare(strict_types=1);
 use DE\RUB\PDFSealerExternalModule\Pki\{ProjectEnrollmentService,CertificateIssuer,IdentityRepository,ProjectIdentityService,PkiHealthService,ExpiryInventory};
 use DE\RUB\PDFSealerExternalModule\Dependencies\Com\Tecnick\Pdf\Sign\Cms\Certificate;
 require __DIR__ . '/project_enrollment.php';
-require (getenv('PDF_SEALER_FRAMEWORK_ROOT') ?: '/home/gr/redcap/external_modules') . '/classes/PdfFinalizeResult.php';
+require_once (getenv('PDF_SEALER_REDCAP_ROOT') ?: '/home/gr/redcap/codebase') . '/Classes/PdfFinalization/PdfFinalizeResult.php';
 function db_query(string $sql, array $params, mixed ...$rest): Rows {
     global $f;
     if (str_contains($sql,'GET_LOCK') || str_contains($sql,'RELEASE_LOCK')) {
@@ -107,7 +107,7 @@ try {
         $f->settings['ca_provider_'.$providerId] = json_encode($providerConfig);
         file_put_contents($working,$sample);
         $result = (new DE\RUB\PDFSealerExternalModule\Pdf\PdfFinalizeService($f))->finalize($working,['id'=>'seal'],
-            ['document_type'=>'econsent','project_id'=>104,'record_id'=>'1','event_id'=>1]);
+            ['terminal_action_reserved_for_core' => false, 'document_type'=>'econsent','project_id'=>104,'record_id'=>'1','event_id'=>1]);
         check($result->isModified() && $result->isTerminal(), 'External finalizer failed: '.($result->getErrorCode() ?? 'unknown'));
         $verifier->verify($sample,file_get_contents($working),$active->certificateDer,$sourceId === null ? null : $tsa->certificateDer);
         $sealed = file_get_contents($working);

@@ -98,7 +98,7 @@ try {
         $providers->saveTimestampPolicy('builtin-ca',$source,false);
         file_put_contents($path,$sample);
         $sealed=(new PdfFinalizeService($f))->finalize($path,['id'=>'seal'],
-            ['document_type'=>'econsent','project_id'=>501,'record_id'=>'1','event_id'=>1]);
+            ['terminal_action_reserved_for_core' => false, 'document_type'=>'econsent','project_id'=>501,'record_id'=>'1','event_id'=>1]);
         check($sealed->isModified(),'Recovery did not restore finalization');
         (new SampleSealVerifier())->verify($sample,file_get_contents($path),$current->certificateDer,$source===null?null:$baseTsa->certificateDer);
     }
@@ -134,7 +134,7 @@ try {
     rejects(fn()=>$projects->getOrIssue(501));
     file_put_contents($path,$sample); $before=[$f->settings,count($f->logs)];
     $blocked=(new PdfFinalizeService($f))->finalize($path,['id'=>'seal'],
-        ['document_type'=>'econsent','project_id'=>501,'record_id'=>'2','event_id'=>1]);
+        ['terminal_action_reserved_for_core' => false, 'document_type'=>'econsent','project_id'=>501,'record_id'=>'2','event_id'=>1]);
     check($blocked->getErrorCode()==='PROJECT_CERTIFICATE_REVOKED' && file_get_contents($path)===$sample
         && $bindings->find(501)->identityId===$old->id,'Blocked finalizer wrote a seal or silently issued a replacement');
     $recovered=$worker->run(time());
@@ -270,7 +270,7 @@ try {
     };
     file_put_contents($path,$sample);
     $race=(new PdfFinalizeService($raceFramework))->finalize($path,['id'=>'seal'],
-        ['document_type'=>'econsent','project_id'=>501,'record_id'=>'3','event_id'=>1]);
+        ['terminal_action_reserved_for_core' => false, 'document_type'=>'econsent','project_id'=>501,'record_id'=>'3','event_id'=>1]);
     $encryptionFails=false;
     check($raceFramework->fired && $race->getErrorCode()==='PROJECT_CERTIFICATE_REVOKED' && file_get_contents($path)===$sample,
         'Captured revoked signer published after the block boundary');

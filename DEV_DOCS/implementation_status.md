@@ -1,5 +1,11 @@
 # PDF Sealer implementation status
 
+## Core finalization executor and provider — 2026-10-04
+
+The [Core-owned finalization refactor](core_pdf_finalization_change_plan.md#slice-2--active-executor-and-provider) now has an active Core coordinator, operation runner, policy selection boundary, plan persistence and pipeline/commit correlation. The Framework supplies declared operations and targeted safeguarded dispatch, with a result adapter and delegates for its former execution/persistence APIs. Core rejects terminal EM outputs under reservation and runs its selected action last even if provider creation/discovery fails; empty EM plans do not consult Framework. Required failure throws before path/byte delivery. Production selection currently reserves no action; synthetic Core-only actions establish the extension boundary.
+
+PDF Sealer consumes the mandatory reservation flag, returns Core results, and skips reserved sealing before keys/timestamping/logging. Active contract-version markers replace setting-key/class presence checks. Installed isolated suites pass on PHP 8.2/8.5: Core 65 tests/254 assertions, Framework 32 tests/193 assertions. Fourteen disposable module commands also pass on each runtime; existing OpenSSL warnings and the integration limits are recorded in [testing](testing.md#core-finalization-executor-and-provider--2026-10-04). No live settings, PKI, remote TSA or edocs changed. Core configuration projection/editor/endpoints and enablement/default placement remain the next slice; PDF Sealer status still reads the Framework projection facade. Real storage/delivery and browser acceptance remain pending.
+
 ## Core finalization contract foundation — 2026-10-04
 
 The [Core-owned finalization refactor](core_pdf_finalization_change_plan.md#implementation-progress--2026-10-04) has started with operation-result, EM-provider, Core terminal-action, reservation-policy, and structured-outcome contracts in Core. The isolated suite passes on PHP 8.2/8.5 (39 tests, 100 assertions per runtime), with syntax checks passing for the six new PHP files. The active coordinator, Framework runner, and PDF Sealer runtime are unchanged; the result-type switch and reservation handling follow in the coordinated executor move. This is contract evidence, not pipeline, browser, or storage acceptance. No live settings/PKI/edocs changed.

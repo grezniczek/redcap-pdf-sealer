@@ -706,7 +706,7 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
         string $temporaryPdfPath,
         array $operation,
         array $context
-    ): \ExternalModules\PdfFinalizeResult {
+    ): \Vanderbilt\REDCap\Classes\PdfFinalization\PdfFinalizeResult {
         return (new PdfFinalizeService($this->framework))->finalize($temporaryPdfPath, $operation, $context);
     }
 }

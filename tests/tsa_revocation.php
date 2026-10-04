@@ -45,7 +45,7 @@ $sample=PkiDiagnosticService::samplePdf(); $path=$f->createTempFile();
 $finalize=static function(object $target)use($path,$sample){
     file_put_contents($path,$sample);
     return (new PdfFinalizeService($target))->finalize($path,['id'=>'seal'],
-        ['document_type'=>'econsent','project_id'=>501,'record_id'=>'1','event_id'=>1]);
+        ['terminal_action_reserved_for_core' => false, 'document_type'=>'econsent','project_id'=>501,'record_id'=>'1','event_id'=>1]);
 };
 try {
     $reset(); $view=$service->preview(); $old=$identities->find($view['identity_id']);

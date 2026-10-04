@@ -9,7 +9,7 @@ use DE\RUB\PDFSealerExternalModule\Pdf\PdfFinalizeService;
 
 // Disposable real crypto and fake transactional persistence; no REDCap bootstrap or live writes.
 require __DIR__ . '/project_enrollment.php';
-require (getenv('PDF_SEALER_FRAMEWORK_ROOT') ?: '/home/gr/redcap/external_modules') . '/classes/PdfFinalizeResult.php';
+require_once (getenv('PDF_SEALER_REDCAP_ROOT') ?: '/home/gr/redcap/codebase') . '/Classes/PdfFinalization/PdfFinalizeResult.php';
 if (!class_exists('ExternalModules\\AbstractExternalModule')) {
     eval('namespace ExternalModules; class AbstractExternalModule { public object $framework; }');
 }
@@ -214,7 +214,7 @@ try {
     foreach ([null,'builtin-tsa'] as $timestampSource) {
         $builtin['timestamp_source']=$timestampSource; $builtin['bb_fallback']=false; $f->settings['ca_provider_builtin-ca']=json_encode($builtin);
         file_put_contents($path,$sample);
-        $result = (new PdfFinalizeService($f))->finalize($path,['id'=>'seal'],['document_type'=>'econsent','project_id'=>103,'record_id'=>'2','event_id'=>9]);
+        $result = (new PdfFinalizeService($f))->finalize($path,['id'=>'seal'],['terminal_action_reserved_for_core' => false, 'document_type'=>'econsent','project_id'=>103,'record_id'=>'2','event_id'=>9]);
         check($result->isModified() && $result->isTerminal(),'Renewed signer finalizer failed');
         $verifier->verify($sample,file_get_contents($path),$current->certificateDer,$timestampSource === null ? null : $tsa->certificateDer);
     }

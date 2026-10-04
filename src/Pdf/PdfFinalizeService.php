@@ -18,11 +18,11 @@ use DE\RUB\PDFSealerExternalModule\Pki\ProjectIssueLock;
 use DE\RUB\PDFSealerExternalModule\Pki\SecretProtector;
 use DE\RUB\PDFSealerExternalModule\Timestamp\InternalTimestampProvider;
 use DE\RUB\PDFSealerExternalModule\Timestamp\InternalTsaService;
-use ExternalModules\PdfFinalizeResult;
+use Vanderbilt\REDCap\Classes\PdfFinalization\PdfFinalizeResult;
 use RuntimeException;
 use Throwable;
 
-/** Applies one terminal seal to the Framework-owned PDF working copy. */
+/** Applies one terminal seal to the Core-owned PDF working copy. */
 final class PdfFinalizeService
 {
     public function __construct(
@@ -33,6 +33,12 @@ final class PdfFinalizeService
     public function finalize(string $path, array $operation, array $context): PdfFinalizeResult
     {
         if (($operation['id'] ?? null) !== 'seal' || ($context['document_type'] ?? null) !== 'econsent') {
+            return PdfFinalizeResult::unchanged();
+        }
+        if (!is_bool($context['terminal_action_reserved_for_core'] ?? null)) {
+            return PdfFinalizeResult::failed('INVALID_CONTEXT', 'PDF terminal reservation context is invalid');
+        }
+        if ($context['terminal_action_reserved_for_core']) {
             return PdfFinalizeResult::unchanged();
         }
         $events = new SealEventRepository($this->framework);

@@ -219,14 +219,14 @@ try {
     $newRootId = $identities->activeId('root'); $newTsa = $identities->find($identities->activeId('tsa'));
     check($bindings->find(406)->identityId === $original[406][0],'Unprocessed project was prematurely rebound');
     $path = $f->createTempFile(); file_put_contents($path,$sample); $f->projectId = 406;
-    $sealed = (new PdfFinalizeService($f))->finalize($path,['id'=>'seal'],['document_type'=>'econsent','project_id'=>406,'record_id'=>'1','event_id'=>1]);
+    $sealed = (new PdfFinalizeService($f))->finalize($path,['id'=>'seal'],['terminal_action_reserved_for_core' => false, 'document_type'=>'econsent','project_id'=>406,'record_id'=>'1','event_id'=>1]);
     check($sealed->isModified(),'Old project/new TSA coexistence failed');
     (new SampleSealVerifier())->verify($sample,file_get_contents($path),$original[406][2]->certificateDer,$newTsa->certificateDer);
     check($worker->run(time())['renewed'] === 1,'Dependent project catch-up did not resume');
     $current = $identities->find($bindings->find(406)->identityId);
     check($current->issuerId === $newRootId && $bindings->find(406)->uuid === $original[406][1],'Project UUID/issuer lost');
     file_put_contents($path,$sample);
-    $sealed = (new PdfFinalizeService($f))->finalize($path,['id'=>'seal'],['document_type'=>'econsent','project_id'=>406,'record_id'=>'2','event_id'=>1]);
+    $sealed = (new PdfFinalizeService($f))->finalize($path,['id'=>'seal'],['terminal_action_reserved_for_core' => false, 'document_type'=>'econsent','project_id'=>406,'record_id'=>'2','event_id'=>1]);
     check($sealed->isModified(),'New project/new TSA finalizer failed');
     (new SampleSealVerifier())->verify($sample,file_get_contents($path),$current->certificateDer,$newTsa->certificateDer);
     (new SampleSealVerifier())->verify($sample,$oldPdf,$original[406][2]->certificateDer);

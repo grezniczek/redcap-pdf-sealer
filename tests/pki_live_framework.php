@@ -141,7 +141,7 @@ try {
         }
         $testRecordId = 'pdf-sealer-live-record';
         $context = [
-            'project_id' => 461, 'document_type' => 'econsent', 'generation_id' => $generationId,
+            'project_id' => 461, 'terminal_action_reserved_for_core' => false, 'document_type' => 'econsent', 'generation_id' => $generationId,
             'record_id' => $testRecordId, 'event_id' => $testEventId,
         ];
         $operation = ['id' => 'seal'];

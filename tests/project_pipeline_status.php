@@ -3,9 +3,12 @@
 declare(strict_types=1);
 
 namespace ExternalModules {
-    if (!in_array($argv[1] ?? '', ['support-none', 'support-core'], true)) {
+    if (($argv[1] ?? '') === 'support-legacy') {
+        final class PdfFinalize {}
+    } elseif (!in_array($argv[1] ?? '', ['support-none', 'support-core'], true)) {
         final class PdfFinalize
         {
+            public const CONTRACT_VERSION = 1;
             public static bool $available = true;
             public static bool $fail = false;
             public static array $entries = [];
@@ -22,7 +25,7 @@ namespace ExternalModules {
 }
 
 namespace Vanderbilt\REDCap\Classes\Settings {
-    if (in_array($argv[1] ?? '', ['', 'support-core', 'support-both'], true)) {
+    if (in_array($argv[1] ?? '', ['', 'support-core', 'support-both', 'support-legacy'], true)) {
         final class ProjectSettingKeys { public const EXTERNAL_MODULES_PDF_FINALIZE_EXECUTION_PLAN = 'pdf_finalize'; }
     } else {
         final class ProjectSettingKeys {} // An older Core has the class but lacks this new key.
@@ -32,6 +35,12 @@ namespace Vanderbilt\REDCap\Classes\Settings {
 namespace {
     use ExternalModules\PdfFinalize;
     use DE\RUB\PDFSealerExternalModule\Pdf\ProjectPipelineStatus;
+
+    if (($argv[1] ?? '') === 'support-legacy') {
+        final class PdfFinalizer {}
+    } elseif (in_array($argv[1] ?? '', ['', 'support-core', 'support-both'], true)) {
+        final class PdfFinalizer { public const CONTRACT_VERSION = 1; }
+    }
 
     require dirname(__DIR__) . '/autoload.php';
     function check(bool $condition, string $message): void
@@ -66,7 +75,7 @@ namespace {
         echo 'Sealing support and shared notice: ' . $scenario . " passed.\n";
         exit;
     }
-    foreach (['none', 'core', 'framework', 'both'] as $scenario) {
+    foreach (['none', 'core', 'framework', 'both', 'legacy'] as $scenario) {
         $process = proc_open([PHP_BINARY, __FILE__, 'support-' . $scenario], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
         check(is_resource($process), 'Could not start isolated support check');
         $output = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);

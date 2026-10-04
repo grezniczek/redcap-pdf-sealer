@@ -81,7 +81,7 @@ try {
     check(isset($inventory[hash('sha256',$tsaRoot->certificateDer)]), 'External TSA trust root omitted from expiry scan');
     $active = $projects->getOrIssue(104);
     $working = $f->createTempFile();
-    $context = ['document_type'=>'econsent','project_id'=>104,'record_id'=>'1','event_id'=>1];
+    $context = ['terminal_action_reserved_for_core' => false, 'document_type'=>'econsent','project_id'=>104,'record_id'=>'1','event_id'=>1];
     $finalizer = new PdfFinalizeService($f);
     file_put_contents($working,$sample);
     $result = $finalizer->finalize($working,['id'=>'seal'],$context);

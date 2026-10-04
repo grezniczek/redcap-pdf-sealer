@@ -70,7 +70,7 @@ try {
     $working = $f->createTempFile(); $sample = DE\RUB\PDFSealerExternalModule\Diagnostics\PkiDiagnosticService::samplePdf();
     file_put_contents($working, $sample);
     $result = (new DE\RUB\PDFSealerExternalModule\Pdf\PdfFinalizeService($f))->finalize($working, ['id' => 'seal'],
-        ['project_id' => 104, 'document_type' => 'econsent', 'record_id' => '1', 'event_id' => 1]);
+        ['project_id' => 104, 'terminal_action_reserved_for_core' => false, 'document_type' => 'econsent', 'record_id' => '1', 'event_id' => 1]);
     $f->onSettingRead = null;
     check($result->isModified() && $reads === 1, 'Finalizer re-read or mixed timestamp source generations');
     $project = $identities->find($bindings->find(104)->identityId);

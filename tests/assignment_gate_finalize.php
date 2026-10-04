@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 // Exercise the real finalizer/result contract with fake database and project logging.
 require dirname(__DIR__) . '/autoload.php';
-require (getenv('PDF_SEALER_FRAMEWORK_ROOT') ?: '/home/gr/redcap/external_modules') . '/classes/PdfFinalizeResult.php';
+require_once (getenv('PDF_SEALER_REDCAP_ROOT') ?: '/home/gr/redcap/codebase') . '/Classes/PdfFinalization/PdfFinalizeResult.php';
 use DE\RUB\PDFSealerExternalModule\Pdf\PdfFinalizeService;
 function check(bool $ok, string $message): void { if (!$ok) throw new RuntimeException($message); }
 final class Result {
@@ -55,7 +55,7 @@ try {
     $source = DE\RUB\PDFSealerExternalModule\Diagnostics\PkiDiagnosticService::samplePdf();
     file_put_contents($path,$source);
     $result = (new PdfFinalizeService($f))->finalize($path,['id'=>'seal'],[
-        'document_type'=>'econsent','project_id'=>101,'record_id'=>'18','event_id'=>1592,'generation_id'=>'test-gate',
+        'terminal_action_reserved_for_core' => false, 'document_type'=>'econsent','project_id'=>101,'record_id'=>'18','event_id'=>1592,'generation_id'=>'test-gate',
     ]);
     check($result->isFailed() && !$result->isTerminal() && $result->getErrorCode() === 'CA_ASSIGNMENT_REQUIRED', 'Wrong result contract');
     check(file_get_contents($path) === $source, 'Blocked sealing changed PDF bytes');

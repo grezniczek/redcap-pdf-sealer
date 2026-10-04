@@ -1,5 +1,25 @@
 # Development and testing
 
+## Core finalization executor and provider — 2026-10-04
+
+The active Core/Framework hook contract now requires `terminal_action_reserved_for_core` as a Boolean. Direct-hook fixtures explicitly supply false for ordinary sealing. `tests/core_terminal_reservation.php` uses a Framework double that throws on any access: true returns unchanged/nonterminal, leaves bytes untouched and avoids key/timestamp/audit access; missing or non-Boolean context fails before side effects. `tests/project_pipeline_status.php` checks active version markers and rejects legacy class/setting-key presence, including the rendered support notice.
+
+From the respective checkouts, run on PHP 8.2 and the current runtime:
+
+```sh
+# Core: direct files, synthetic actions/providers and fake settings; no REDCap bootstrap.
+php UnitTests/vendor/bin/phpunit --no-configuration --do-not-cache-result UnitTests/PdfFinalization
+# Framework: cached declarations and real hook machinery with fake rollback queries.
+PDF_FINALIZE_CORE_ROOT=/home/gr/redcap/codebase php vendor/bin/phpunit --no-configuration --do-not-cache-result tests/PdfFinalizeTest.php
+# PDF Sealer: Core reservation and support notices.
+php tests/core_terminal_reservation.php
+php tests/project_pipeline_status.php
+```
+
+Installed-checkout results: **Core 65 tests/254 assertions** and **Framework 32 tests/193 assertions**, each passing on PHP 8.2.34 and 8.5.11. Core covers failure/adoption/cleanup, reserved terminal rejection, successful terminal behavior without reservation, Core-only actions without EM plans/providers, provider construction/discovery failure, strict commitment policy, file/byte entry points, settings delegates and artifact correlation. Framework tests include legacy-result translation, Core-result filtering, declaration snapshot rejection and project/hook/module context restoration after successful and exceptional real dispatch. No live query is permitted in the dispatch fixture; rollback calls are captured locally.
+
+All fourteen disposable module commands passed on both PHP 8.2.34 and 8.5.11: `core_terminal_reservation`, `project_pipeline_status`, `assignment_gate_finalize`, `external_activation`, `project_renewal`, `root_renewal`, `root_revocation`, `tsa_revocation`, `project_revocation`, `provider_retirement`, `provider_transitions`, `pki_lifecycle_prerequisites`, `builtin_maintenance` and `external_timestamp_settings` (each under `tests/` with `.php`). These exercise the updated mandatory false flag on ordinary sealing as well as real crypto against fake persistence/transport. PHP 8.5 key-generation runs emit OpenSSL warnings including “Unable to write random state” from existing PKI/test paths despite passing assertions. Some diagnostics contain non-UTF-8 bytes; capture them as bytes or decode with replacement. The first text-only capture failed to decode one diagnostic stream; the affected and remaining commands were rerun with binary-safe capture and passed. The prior live snapshot/export/email and Acrobat records remain historical evidence for the earlier stack. This slice does not run database-backed storage tests, a live sealing harness, remote TSA requests or browser acceptance, and creates no edocs or certificate/settings changes. `redcap_devctl` tools are available for subsequent live inspection/previews. Next acceptance should cover Core plan-management state/UI first, then actual stored/delivered byte hashes and reserved Core behavior on disposable workflows.
+
 ## External TSA retirement and reactivation — 2026-10-04
 
 Run `tests/external_tsa_retirement.php`, `tests/pki_admin_ajax.php` and `tests/provider_admin_view.php` on PHP 8.2 and the current runtime, plus `node tests/timestamp_admin_ui.js` and `node tests/providers_admin_ui.js`. The retirement suite includes the existing external TSA crypto/storage tests and covers affected-policy reviews, stale/replayed actions, transaction rollback, blocked probes/new assignments, retained policy roles, explicit alternatives/B-B/strict failure, response and final-acceptance races, reactivation and malformed lifecycle state. These checks use disposable identities/storage/transport; no live request or PKI mutation is needed.
@@ -86,7 +106,7 @@ To check a REDCap-generated PDF without adding its bytes to the repository, expo
 
 ## Installation support notices
 
-Run **tests/project_pipeline_status.php** on PHP 8.2 and the current PHP runtime. Its isolated processes check neither feature, Core only, Framework only and both, using the actual **views/sealing-support.php** notice. The Core marker is the constant **Vanderbilt\REDCap\Classes\Settings\ProjectSettingKeys::EXTERNAL_MODULES_PDF_FINALIZE_EXECUTION_PLAN**; the Framework marker is the class **ExternalModules\PdfFinalize**. Missing support must report unavailable pipeline status without querying assignment; both markers must preserve existing assignment/storage checks and hide the warning. These checks passed on PHP 8.2.34 and 8.5.11 on 2026-10-03.
+Run **tests/project_pipeline_status.php** on PHP 8.2 and the current PHP runtime. Its isolated processes check neither feature, Core only, Framework only and both, using the actual **views/sealing-support.php** notice. The active Core marker is **PdfFinalizer::CONTRACT_VERSION >= 1**; the active Framework marker is **ExternalModules\PdfFinalize::CONTRACT_VERSION >= 1**. Earlier setting-key/class presence alone is rejected. The 2026-10-03 acceptance below used the earlier markers and predates this executor refactor. Missing support must report unavailable pipeline status without querying assignment; both markers must preserve existing assignment/storage checks and hide the warning. These checks passed on PHP 8.2.34 and 8.5.11 on 2026-10-03.
 
 For a clean-install browser check on a separate stack without finalization support, verify the notice on **Certificates & sealing** and **PDF Sealer status**, missing-component labels, and usable certificate management. Do not change the live development Core/Framework or PKI simply to simulate absence. On the current stack with both features, no compatibility notice is expected; assignment and PKI status remain visible. On **2026-10-03**, the user reported that tests on both sealing-capable and non-capable installations looked good. This completes the manual acceptance of the support-notice slice. The report does not separately establish every clean-install release checklist item or installation of a final release archive.
 

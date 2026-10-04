@@ -124,7 +124,7 @@ try {
     // Real finalizer uses the renewed project/TSA pair; the stored history remains unchanged.
     $sample = PkiDiagnosticService::samplePdf(); $path = $f->createTempFile(); file_put_contents($path, $sample);
     $f->projectId = 301;
-    $result = (new PdfFinalizeService($f))->finalize($path,['id'=>'seal'],['document_type'=>'econsent','project_id'=>301,'record_id'=>'1','event_id'=>1]);
+    $result = (new PdfFinalizeService($f))->finalize($path,['id'=>'seal'],['terminal_action_reserved_for_core' => false, 'document_type'=>'econsent','project_id'=>301,'record_id'=>'1','event_id'=>1]);
     check($result->isModified(), 'Renewed pair failed actual finalizer');
     (new SampleSealVerifier())->verify($sample,file_get_contents($path),$identities->find($bindings->find(301)->identityId)->certificateDer,$currentTsa->certificateDer);
 

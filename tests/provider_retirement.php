@@ -133,12 +133,12 @@ try {
     // Actual B-T finalization works with BOTH project CA and built-in TSA's CA retired.
     $current = $projects->getOrIssue(104);
     $path = $f->createTempFile(); $sample = PkiDiagnosticService::samplePdf(); file_put_contents($path,$sample);
-    $result = (new PdfFinalizeService($f))->finalize($path,['id'=>'seal'],['project_id'=>104,'document_type'=>'econsent','record_id'=>'2','event_id'=>9]);
+    $result = (new PdfFinalizeService($f))->finalize($path,['id'=>'seal'],['project_id'=>104,'terminal_action_reserved_for_core' => false, 'document_type'=>'econsent','record_id'=>'2','event_id'=>9]);
     check($result->isModified(), 'Retired CA blocked existing B-T sealing');
     (new SampleSealVerifier())->verify($sample,file_get_contents($path),$current->certificateDer,$tsa->certificateDer);
     // Failed first issuance keeps PDF bytes and gives minimal project Logging with context.
     $f->projectId = 107; file_put_contents($path,$sample);
-    $result = (new PdfFinalizeService($f))->finalize($path,['id'=>'seal'],['project_id'=>107,'document_type'=>'econsent','record_id'=>'3','event_id'=>9]);
+    $result = (new PdfFinalizeService($f))->finalize($path,['id'=>'seal'],['project_id'=>107,'terminal_action_reserved_for_core' => false, 'document_type'=>'econsent','record_id'=>'3','event_id'=>9]);
     check($result->isFailed() && $result->getErrorCode() === 'CA_PROVIDER_RETIRED' && file_get_contents($path) === $sample, 'Wrong retired first-seal result');
     $logged = end(REDCap::$events);
     check($logged[0] === 'PDF seal failed: CA provider retired' && $logged[3] === '3' && $logged[4] === 9, 'Missing retirement log context');

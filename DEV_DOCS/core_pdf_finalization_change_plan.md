@@ -1,11 +1,33 @@
 # Core-owned PDF finalization — change plan
 
-**Status:** In progress; Core contract foundation implemented, coordinator and plan-management moves pending.
+**Status:** In progress; Core contracts, coordinator/provider wiring, plan persistence and PDF Sealer reservation handling implemented. Core plan-management projection, editor and enablement handoff remain pending.
 
 **Date:** 2026-10-03.  
 **Scope:** REDCap Core, the External Module Framework, and PDF Sealer's integration contract.
 
 ## Implementation progress — 2026-10-04
+
+### Slice 2 — active executor and provider
+
+Core now executes the hook workflow through `PdfFinalizer` and `PdfFinalizationRunner`; it no longer delegates coordination to the Framework. It creates generation IDs, resolves the stored identifier list against a provider snapshot, filters document types, isolates every working copy, validates/adopts results, disposes rejected/intermediate artifacts, enforces reserved terminal ownership, and emits correlated pipeline/commit events. Both file and byte-string entry points enforce `canCommit()` and throw `PdfFinalizationRequiredException` for failed required Core finalization.
+
+`PdfFinalizationPolicyResolver` is the Core-only selection point and currently reserves no production action. Trusted Core callers can supply a policy through the optional trailing argument to the existing entry points. `hasExecutionPlan()` includes the Core potential-action gate, so future selection can admit Core-only workflows through existing export gates without an EM plan. Tests execute two different synthetic actions without a Framework provider. An unavailable provider, including construction or catalog failure, is reported and cannot prevent the reserved Core action. Empty EM plans do not consult the provider. Failure does not release reservation or reopen EM execution.
+
+The Framework implements `PdfOperationProvider` in `PdfFinalizeOperationProvider`: active declared-operation discovery, version/declaration recheck before invocation, generation-project scoping with restoration, and targeted dispatch through existing hook machinery. Its old execution methods delegate to Core; there is no independent adoption/execution loop. Existing Framework result objects are translated by the provider, while PDF Sealer now returns Core results. The legacy adapter remains for test/example consumers during the ownership move.
+
+`PdfExecutionPlanRepository` now owns persistence in Core using the existing setting key, version boundary and identifier-list semantics. Framework persistence methods are delegates, retaining stored unresolved entries and duplicates. Configuration projection/warnings, the editor/endpoints, authorization/audit and enablement/default placement are still in Framework; those are the next slice. PDF Sealer's status currently reads that projection through its existing facade.
+
+PDF Sealer checks the mandatory Boolean `terminal_action_reserved_for_core` before any Framework/PKI/logging service access for its applicable sealing operation. A reservation returns nonterminal unchanged; malformed/missing flags fail explicitly without sealing. Support detection now requires active `CONTRACT_VERSION >= 1` markers on both Core `PdfFinalizer` and Framework `PdfFinalize`; the presence of the earlier setting key or class alone is insufficient.
+
+Installed-checkout verification on PHP 8.2.34 and 8.5.11:
+
+- Core: **65 tests, 254 assertions** per runtime, including the earlier contracts, reserved ordering/rejection, cleanup, strict failure, Core-only extensibility, file/byte delivery, persistence via fake settings, and correlated artifact events.
+- Framework: **32 tests, 193 assertions** per runtime, including existing execution regressions through the Core delegate, active operation catalogs, stale declaration rejection, result bridging, and real safeguarded hook dispatch with fake rollback queries. Success and exceptions restore hook/module/project context.
+- PDF Sealer: reservation/no-side-effect and malformed-context checks, support notices (including legacy markers), and existing disposable sealing/PKI/timestamp regressions; detailed evidence is in [testing](testing.md#core-finalization-executor-and-provider--2026-10-04).
+
+These are isolated source/contract/service checks. They do not establish browser, real storage/delivery or plan-editor acceptance. `redcap_devctl` is available; this slice needs no live database or edoc access and performed no live settings, PKI, remote TSA or edoc mutation. No production Core terminal action or sealing/PKI port was installed. No release archive was created.
+
+### Slice 1 — contract foundation
 
 Slice 1 now has executable Core-owned contracts under `Classes/PdfFinalization/`:
 
@@ -23,9 +45,9 @@ The policy always supplies the Boolean reservation flag, overriding any incoming
 
 The isolated Core `UnitTests/PdfFinalization/PdfFinalizationContractsTest.php` suite passes on PHP 8.2.34 and 8.5.11: **39 tests, 100 assertions** on each runtime. All six new PHP files pass syntax checks. These tests load no application bootstrap, Framework, database, remote service, or PKI state. `Classes/PdfFinalization/README.md` documents the APIs and standalone commands.
 
-**Transition boundary:** The active `Classes/PdfFinalizer.php` and Framework executor remain unchanged. The new result type is not yet the active hook return type; PDF Sealer still uses the Framework result and has not yet been adapted to reservation. No Core action is installed or selected. Class presence alone must not be used as a marker for active Core coordination. Publish a versioned active-contract marker when the coordinator/provider wiring is installed, and adapt support detection with that transition. The synthetic new-action extensibility acceptance, working-copy enforcement, and live storage/delivery checks remain pending.
+**Transition boundary at the end of slice 1 (superseded by slice 2):** The active `Classes/PdfFinalizer.php` and Framework executor remain unchanged. The new result type is not yet the active hook return type; PDF Sealer still uses the Framework result and has not yet been adapted to reservation. No Core action is installed or selected. Class presence alone must not be used as a marker for active Core coordination. Publish a versioned active-contract marker when the coordinator/provider wiring is installed, and adapt support detection with that transition. The synthetic new-action extensibility acceptance, working-copy enforcement, and live storage/delivery checks remain pending.
 
-Next slice: move the executor and correlation into Core, implement the Framework provider, and switch result consumption together. Then move authoritative execution-plan management and update PDF Sealer's flag/status/support integration. No module package, live settings, certificates, or edocs changed in the contract-foundation slice.
+Planned follow-up after slice 1: move the executor and correlation into Core, implement the Framework provider, and switch result consumption together. Slice 2 implements this plus persistence and reservation/support adaptation; Core management and status projection remain pending. No module package, live settings, certificates, or edocs changed in the contract-foundation slice.
 
 ## 1. Objective and agreed decisions
 
@@ -48,7 +70,7 @@ This plan prepares for built-in sealing. It does not port PDF Sealer's PKI, admi
 
 ## 2. Current implementation and gaps
 
-The current stack provides Core entry points and a transactional EM finalization pipeline. The [historical finalization plan](redcap_module_pdf_finalize_implementation_plan.md) and [PR description](redcap_module_pdf_finalize_pr_description.md) retain the original rationale. This plan supersedes their ownership and unrestricted-ordering assumptions where Core reserves termination.
+The starting stack provided Core entry points and a transactional EM finalization pipeline; this table records the ownership baseline for the remaining refactor. The [historical finalization plan](redcap_module_pdf_finalize_implementation_plan.md) and [PR description](redcap_module_pdf_finalize_pr_description.md) retain the original rationale. This plan supersedes their ownership and unrestricted-ordering assumptions where Core reserves termination.
 
 | Component | Current location | Required change |
 | --- | --- | --- |

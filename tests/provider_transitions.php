@@ -101,7 +101,7 @@ try {
     $sample = PkiDiagnosticService::samplePdf(); $path = $f->createTempFile();
     $seal = static function(string $signer, ?string $tsaDer) use ($f,$path,$sample): void {
         file_put_contents($path,$sample);
-        $result = (new PdfFinalizeService($f))->finalize($path,['id'=>'seal'],['document_type'=>'econsent','project_id'=>104,'record_id'=>'2','event_id'=>9]);
+        $result = (new PdfFinalizeService($f))->finalize($path,['id'=>'seal'],['terminal_action_reserved_for_core' => false, 'document_type'=>'econsent','project_id'=>104,'record_id'=>'2','event_id'=>9]);
         check($result->isModified(), 'Transition finalizer failed');
         (new SampleSealVerifier())->verify($sample,file_get_contents($path),$signer,$tsaDer);
     };
@@ -150,7 +150,7 @@ try {
     try { $projects->getOrIssue(105); throw new LogicException('Issued old signer during transition'); } catch (ProviderTransitionPending) {}
     check($projects->inspect(105)['state'] === 'transition_pending' && [$f->settings,$f->logs] === $before, 'Pending first signer changed PKI/status');
     $f->projectId = 105; file_put_contents($path,$sample);
-    $result = (new PdfFinalizeService($f))->finalize($path,['id'=>'seal'],['document_type'=>'econsent','project_id'=>105,'record_id'=>'1','event_id'=>9]);
+    $result = (new PdfFinalizeService($f))->finalize($path,['id'=>'seal'],['terminal_action_reserved_for_core' => false, 'document_type'=>'econsent','project_id'=>105,'record_id'=>'1','event_id'=>9]);
     check($result->isFailed() && $result->getErrorCode() === 'PROVIDER_TRANSITION_PENDING' && file_get_contents($path) === $sample, 'Wrong first-seal contract');
     $logged = end(REDCap::$events); check($logged[0] === 'PDF seal failed: provider transition pending' && $logged[3] === '1' && $logged[4] === 9, 'Missing failure/context logging');
     $cancel(105); check($projects->getOrIssue(105)->providerId === 'builtin-ca', 'Canceling no-signer transition did not restore original issuance');
