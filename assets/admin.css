@@ -80,3 +80,5 @@
 #pdf-sealer-tsa-sources td:first-child, #pdf-sealer-tsa-sources td:nth-child(2) { white-space: nowrap; }
 #pdf-sealer-tsa-sources td:nth-child(3), #pdf-sealer-tsa-sources td:nth-child(4), #pdf-sealer-tsa-sources td:nth-child(5) { overflow-wrap: anywhere; }
 #pdf-sealer-tsa-sources td:nth-child(4), #pdf-sealer-tsa-sources td:nth-child(5) { font-size: .85em; }
+
+.pdf-sealer-ca-manage .modal-title .badge { font-size: 60%; font-weight: normal; margin-top: 2px; }
