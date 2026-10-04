@@ -3,7 +3,7 @@
 ?>
 <div id="pdf-sealer-assignment-policy" data-required="<?= $assignmentRequired ? '1' : '0' ?>" data-projects-unavailable="<?= $assignmentProjectsUnavailable ? '1' : '0' ?>" class="mb-3">
     <p data-policy-summary class="mb-1"><?= $escape($framework->tt($assignmentRequired ? 'assignment_policy_explicit' : 'assignment_policy_automatic')) ?></p>
-    <button type="button" class="btn btn-link btn-sm p-0" id="pdf-sealer-policy-change"><?= $escape($framework->tt('assignment_policy_change')) ?></button>
+    <button type="button" class="btn btn-link btn-sm pdf-sealer-workflow-link" id="pdf-sealer-policy-change"><?= $escape($framework->tt('assignment_policy_change')) ?></button>
 </div>
 <hr>
 <div class="pdf-sealer-table-wrap mb-3">
@@ -31,7 +31,7 @@
                 <td data-provider-name><?= $escape($provider['name'] ?? $framework->tt('provider_builtin')) ?></td>
                 <td><?= $escape($mode) ?></td>
                 <td data-order="<?= $escape($expiry ?? 0) ?>"><?= $expiry === null ? '—' : $escape(gmdate('Y-m-d H:i:s \U\T\C', $expiry)) ?></td>
-                <td><button type="button" class="btn btn-link btn-sm p-0" data-provider-manage><?= $escape($framework->tt('provider_manage')) ?></button></td>
+                <td><button type="button" class="btn btn-link btn-sm pdf-sealer-workflow-link" data-provider-manage><?= $escape($framework->tt('provider_manage')) ?></button></td>
             </tr>
         <?php endforeach; ?>
         </tbody>

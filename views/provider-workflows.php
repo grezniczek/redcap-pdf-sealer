@@ -4,11 +4,26 @@
 <hr>
 <h5><?= $escape($framework->tt('pki_admin_workflows')) ?></h5>
 <div class="pdf-sealer-workflow-links">
-    <div class="mb-2"><button type="button" class="btn btn-link btn-sm p-0" data-provider-workflow="register" aria-haspopup="dialog"><?= $escape($framework->tt('provider_register')) ?></button></div>
-    <div class="mb-2"><button type="button" class="btn btn-link btn-sm p-0" data-provider-workflow="assign" aria-haspopup="dialog"><?= $escape($framework->tt('provider_assign')) ?></button></div>
-    <div class="mb-2"><button type="button" class="btn btn-link btn-sm p-0" data-provider-workflow="transition" aria-haspopup="dialog"><?= $escape($framework->tt('transition_title')) ?></button></div>
-    <div class="mb-2"><button type="button" class="btn btn-link btn-sm p-0" data-provider-workflow="renewal" aria-haspopup="dialog"><?= $escape($framework->tt('renewal_title')) ?></button></div>
-    <div class="mb-2"><button type="button" class="btn btn-link btn-sm p-0" data-provider-workflow="revocation" aria-haspopup="dialog"><?= $escape($framework->tt('revocation_title')) ?></button></div>
+    <div class="mb-1">
+        <button type="button" class="btn btn-link btn-sm pdf-sealer-workflow-link" data-provider-workflow="register" aria-haspopup="dialog" aria-describedby="provider-workflow-register-help"><?= $escape($framework->tt('provider_register')) ?></button>
+        <p id="provider-workflow-register-help" class="small text-muted"><?= $escape($framework->tt('provider_register_summary')) ?></p>
+    </div>
+    <div class="mb-1">
+        <button type="button" class="btn btn-link btn-sm pdf-sealer-workflow-link" data-provider-workflow="assign" aria-haspopup="dialog" aria-describedby="provider-workflow-assign-help"><?= $escape($framework->tt('provider_assign')) ?></button>
+        <p id="provider-workflow-assign-help" class="small text-muted"><?= $escape($framework->tt('provider_assign_summary')) ?></p>
+    </div>
+    <div class="mb-1">
+        <button type="button" class="btn btn-link btn-sm pdf-sealer-workflow-link" data-provider-workflow="transition" aria-haspopup="dialog" aria-describedby="provider-workflow-transition-help"><?= $escape($framework->tt('transition_title')) ?></button>
+        <p id="provider-workflow-transition-help" class="small text-muted"><?= $escape($framework->tt('provider_transition_summary')) ?></p>
+    </div>
+    <div class="mb-1">
+        <button type="button" class="btn btn-link btn-sm pdf-sealer-workflow-link" data-provider-workflow="renewal" aria-haspopup="dialog" aria-describedby="provider-workflow-renewal-help"><?= $escape($framework->tt('renewal_title')) ?></button>
+        <p id="provider-workflow-renewal-help" class="small text-muted"><?= $escape($framework->tt('provider_renewal_summary')) ?></p>
+    </div>
+    <div class="mb-1">
+        <button type="button" class="btn btn-link btn-sm pdf-sealer-workflow-link" data-provider-workflow="revocation" aria-haspopup="dialog" aria-describedby="provider-workflow-revocation-help"><?= $escape($framework->tt('revocation_title')) ?></button>
+        <p id="provider-workflow-revocation-help" class="small text-muted"><?= $escape($framework->tt('provider_revocation_summary')) ?></p>
+    </div>
 </div>
 <div data-provider-workflow-host="register" hidden>
     <div class="pdf-sealer-dialog-body">

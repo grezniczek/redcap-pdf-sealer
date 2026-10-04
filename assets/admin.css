@@ -44,3 +44,5 @@
 #pdf-sealer-providers td:nth-child(4) { font-size: .85em; }
 
 .pdf-sealer-dialog-body .form-select, .pdf-sealer-dialog-body input[type="text"] { max-width: 720px; }
+.pdf-sealer-workflow-link { margin: 0; padding: 0; text-decoration: none; }
+.pdf-sealer-workflow-link + p.small { margin: 0; }
