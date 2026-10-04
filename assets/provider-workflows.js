@@ -1,4 +1,4 @@
-/* Reuse the existing reviewed forms; only their presentation and project-picker lifetime change. */
+/* External CA registration uses a footer action and preserves inputs on failure. */
 window.PDFSealerProviderWorkflows = module => {
     const launchers = [...document.querySelectorAll('[data-provider-workflow]')];
     launchers.forEach(launcher => launcher.addEventListener('click', async () => {
@@ -8,21 +8,15 @@ window.PDFSealerProviderWorkflows = module => {
         }
         const host = document.querySelector('[data-provider-workflow-host="' + launcher.dataset.providerWorkflow + '"]');
         const body = host.firstElementChild, form = body.querySelector('form');
-        const projects = [...body.querySelectorAll('[data-workflow-project]')];
         const registration = launcher.dataset.providerWorkflow === 'register';
         const dismiss = registration ? 'cancel' : 'close';
-        const initialized = [];
-        let observer, submit, assignmentCleanup, transitionCleanup, cleaned = false;
+        let observer, submit, cleaned = false;
         const cleanup = () => {
             if (cleaned) return;
             cleaned = true;
             observer?.disconnect();
-            assignmentCleanup?.();
-            transitionCleanup?.();
             if (submit) form.removeEventListener('submit', submit);
-            initialized.forEach(select => $(select).select2('destroy'));
             form.reset();
-            projects.forEach(select => $(select).trigger('change'));
             body.querySelectorAll('[data-workflow-reset-change]').forEach(select => select.dispatchEvent(new Event('change')));
             host.appendChild(body);
         };
@@ -72,16 +66,6 @@ window.PDFSealerProviderWorkflows = module => {
                         return true;
                     });
                     ctx.on('dialog:shown', () => {
-                        if (launcher.dataset.providerWorkflow === 'assign') {
-                            assignmentCleanup = window.PDFSealerProjectAssignment(module, form);
-                        }
-                        if (launcher.dataset.providerWorkflow === 'transition') {
-                            transitionCleanup = window.PDFSealerProjectTransitions(module, form);
-                        }
-                        projects.forEach(select => {
-                            $(select).select2({width: '100%', minimumResultsForSearch: 0, dropdownParent: ctx.$dlg});
-                            initialized.push(select);
-                        });
                         updateBusy();
                     });
                     observer = new MutationObserver(updateBusy);

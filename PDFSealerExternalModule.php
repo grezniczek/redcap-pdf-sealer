@@ -171,6 +171,17 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
             || $this->framework->getProjectId() !== null) {
             throw new \RuntimeException($this->framework->tt('pki_access_denied'));
         }
+        if ($action === 'project_admin_overview') {
+            if ($payload !== null && (!is_array($payload) || !is_array($payload['pids'] ?? null)
+                || !array_is_list($payload['pids']) || count($payload['pids']) < 1 || count($payload['pids']) > 50
+                || count(array_filter($payload['pids'], static fn($pid) => is_int($pid) && $pid > 0)) !== count($payload['pids']))) {
+                return ['ok' => false, 'message' => $this->framework->tt('pki_invalid_request')];
+            }
+            try {
+                return ['ok' => true, 'projects' => (new \DE\RUB\PDFSealerExternalModule\Pki\ProjectAdminOverview(
+                    $this->framework, new IdentityRepository($this->framework, new SecretProtector())))->load($payload['pids'] ?? null)];
+            } catch (\Throwable) { return ['ok' => false, 'message' => $this->framework->tt('projects_refresh_failed')]; }
+        }
         if (in_array($action, ['preview_root_lifecycle', 'renew_root_certificate', 'revoke_root_certificate'], true)) {
             return $this->manageRootLifecycle($action, $payload);
         }

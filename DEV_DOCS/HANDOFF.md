@@ -1,5 +1,17 @@
 # Handoff prompt: PDF Sealer certificate lifecycle
 
+## Shared Projects overview — 2026-10-04
+
+The CC **Projects** tab supersedes the earlier separate project workflow dialogs/tables. One five-row DataTables overview shows checkbox/PID/name/status/provider/certificate, with counted presets for all/unassigned/pending CSR/pending transition/built-in certificates/external enrollment. Selection persists across paging and search; changing presets or refreshing clears it. All selected rows must qualify for an action. Disabled/deleted retained bindings remain visible for built-in revocation.
+
+Project assignment/change/cancellation/renewal/revocation use standard movable rcDialogs with **pdf-sealer-dialog-body**, selected-project summaries, Cancel and action footer buttons. CA providers retains registration, policy, provider Manage/usage and retirement. Before opening an action dialog, the client refreshes public state and matches existing locked previews to the displayed binding/certificate. Mutations retain existing authorization, locks and review hashes. Sequential batches update/uncheck successes, retain failures, show summary toasts, distinguish revocation publication/recovery warnings, and never replay ambiguous mutations. No repeated project selectors remain.
+
+The new authenticated CC-only **project_admin_overview** endpoint loads public binding/enrollment audit metadata, module enablement, project labels and public certificate bytes; it never reads encrypted keys, issues identities or asserts sealing readiness. Targeted refresh is bounded to 50 PIDs per request. Deleted/disabled project enrollment and renewal stay unavailable; current built-in certificates remain revocable. Historical identity details are not exported. CA retirement updates target choices; reactivation requires an overview refresh for renewal eligibility.
+
+Automated UI checks and PHP 8.2.34/8.5.11 public-reader, view, authorization, transition, renewal and revocation service regressions pass. Disposable checks cover presets, selection, eligibility, all five workflows, stale previews, partial failures, ambiguous results, missing refresh and busy guards. Browser acceptance remains pending; use the current checklist in [testing](testing.md#shared-projects-overview--2026-10-04). No live PKI/settings or Core/Framework files changed. Earlier workflow UI notes below are historical; use the shared overview and current admin guide.
+
+
+
 **Resume note — 2026-10-03:** Work continues in the original chat. Read [implementation status](implementation_status.md), [lifecycle plan](builtin_pki_lifecycle_plan.md) and [testing](testing.md) first; the original prompt below is historical.
 
 - Automatic same-key root renewal and fresh-key TSA/project maintenance are implemented. Hourly Framework cron 127 is registered; daily CRL publication is cron 126. Root renewal preserves exact names/key/extensions and CRL key ID/counter/list; projects catch up in bounded batches.

@@ -141,6 +141,12 @@ namespace {
             === ['ok' => false, 'message' => 'pki_invalid_request'], 'Test alarm accepted missing confirmation or arbitrary recipients');
     }
     $config = json_decode(file_get_contents(dirname(__DIR__) . '/config.json'), true, flags: JSON_THROW_ON_ERROR);
+    check(in_array('project_admin_overview', $config['auth-ajax-actions'], true) && !in_array('project_admin_overview', $config['no-auth-ajax-actions'], true), 'Project overview must require authentication');
+    foreach ([[], ['pids'=>[]], ['pids'=>[0]], ['pids'=>['461']], ['pids'=>array_fill(0,51,461)], ['pids'=>['pid'=>461]]] as $payload) {
+        $before = [$framework->settings,$framework->queries];
+        check($module->redcap_module_ajax('project_admin_overview',$payload,null)['ok'] === false, 'Malformed overview payload accepted');
+        check([$framework->settings,$framework->queries] === $before, 'Malformed overview read/wrote data');
+    }
     check(in_array('run_diagnostic', $config['auth-ajax-actions'], true)
         && !in_array('run_diagnostic', $config['no-auth-ajax-actions'], true), 'Diagnostic AJAX authentication configuration is wrong');
     check(in_array('send_test_alarm', $config['auth-ajax-actions'], true)
@@ -258,7 +264,7 @@ namespace {
         } catch (\RuntimeException $e) {
             check($e->getMessage() === 'pki_access_denied', 'Unexpected timestamp settings authorization result');
         }
-        foreach (['preview_project_renewal', 'renew_project_certificate', 'register_timestamp_source', 'test_timestamp_source', 'save_provider_timestamp', 'register_ca_provider', 'assign_ca_provider', 'save_assignment_policy', 'preview_ca_retirement', 'set_ca_retirement', 'preview_provider_transition', 'start_provider_transition', 'cancel_provider_transition'] as $action) {
+        foreach (['project_admin_overview', 'preview_project_renewal', 'renew_project_certificate', 'register_timestamp_source', 'test_timestamp_source', 'save_provider_timestamp', 'register_ca_provider', 'assign_ca_provider', 'save_assignment_policy', 'preview_ca_retirement', 'set_ca_retirement', 'preview_provider_transition', 'start_provider_transition', 'cancel_provider_transition'] as $action) {
             try {
                 $module->redcap_module_ajax($action, [], $case['context']);
                 throw new \RuntimeException('Unauthorized provider request accepted');

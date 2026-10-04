@@ -46,4 +46,5 @@
 .pdf-sealer-dialog-body .form-select, .pdf-sealer-dialog-body input[type="text"] { max-width: 720px; }
 .pdf-sealer-workflow-link { margin: 0; padding: 0; text-decoration: none; }
 .pdf-sealer-workflow-link + p.small { margin: 0; }
-#pdf-sealer-transition-projects tbody tr[data-transition-pid] { cursor: pointer; }
+#pdf-sealer-projects tbody tr[data-project-pid] { cursor: pointer; }
+.pdf-sealer-project-review { max-height: 400px; overflow-y: auto; padding-left: 22px; }

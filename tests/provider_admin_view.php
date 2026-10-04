@@ -40,35 +40,19 @@ check(str_contains($html, 'Remote &lt;TSA&gt;') && !str_contains($html, '<img'),
 check(substr_count($html, '<template ') === 3 && str_contains($html, 'data-test-root'), 'Missing certificate detail templates');
 check(!str_contains($html, 'id="assignment-required"') && str_contains($html, 'Change assignment policy'), 'Policy editing still inline');
 check(substr_count($html, 'pdf-sealer-dialog-body') === 3, 'Missing shared dialog body style');
-$assignableProviders = array_values(array_filter($providerCatalog, static fn(array $p): bool => !$p['retired']));
-$assignmentProjects = $transitionProjects = $renewalProjects = $revocationProjects = [['project_id' => 524, 'app_title' => '<Project & title>', 'status' => 0, 'completed_time' => null]];
-$assignmentProjects = array_merge($assignmentProjects, [
-    ['project_id' => 525, 'app_title' => 'Production project', 'status' => 1, 'completed_time' => null],
-    ['project_id' => 526, 'app_title' => 'Analysis project', 'status' => 2, 'completed_time' => null],
-    ['project_id' => 527, 'app_title' => 'Completed project', 'status' => 2, 'completed_time' => '2026-10-04 12:00:00'],
-]);
-$transitionProjects[0]['provider'] = ['provider_id' => 'builtin-ca', 'identity_id' => 'signer', 'pending_provider_id' => 'external-a', 'transition_id' => 'transition', 'enrollment_id' => 'csr'];
-$transitionProjects[] = ['project_id' => 528, 'app_title' => 'Awaiting CSR', 'status' => 1, 'completed_time' => null,
-    'provider' => ['provider_id' => 'external-b', 'identity_id' => null, 'pending_provider_id' => null, 'transition_id' => null, 'enrollment_id' => 'csr']];
-$providersUnavailable = false;
+
+$projectsUnavailable = false;
+$projectOverview = [['pid' => 524, 'name' => '<Project & title>', 'status' => 'development', 'enabled' => true, 'deleted' => false,
+    'binding' => null, 'certificate' => null, 'unavailable' => false, 'eligible' => ['assign' => true]]];
 ob_start(); require dirname(__DIR__) . '/views/provider-workflows.php'; $workflows = ob_get_clean();
-check(substr_count($workflows, 'data-provider-workflow="') === 5, 'Missing workflow launchers');
-check(substr_count($workflows, 'data-provider-workflow-host="') === 5, 'Missing hidden workflow hosts');
-check(substr_count($workflows, 'pdf-sealer-dialog-body') === 5, 'Missing shared workflow body style');
-check(substr_count($workflows, '<form ') === 5, 'Missing workflow forms');
-$section = explode('<div data-provider-workflow-host=', $workflows, 2)[0];
-check(str_contains($section, 'Administrative workflows') && !str_contains($section, '<form '), 'Forms still expand the visible page');
-check(!str_contains($workflows, '<Project') && str_contains($workflows, '&lt;Project &amp; title&gt;'), 'Project labels must stay escaped');
-check(substr_count($workflows, 'data-workflow-project') === 2, 'Missing remaining dialog project pickers');
-check(substr_count($workflows, 'data-assignment-pid=') === 4 && !str_contains($workflows, 'id="provider-pid"'), 'Assignment must use a project table');
-foreach (['Development', 'Production', 'Analysis/Cleanup', 'Completed'] as $status) {
-    check(str_contains($workflows, '<td data-assignment-status>' . $status . '</td>'), 'Missing project status ' . $status);
-}
-check(str_contains($workflows, 'aria-label="Select project 524"'), 'Missing accessible project checkbox');
-check(str_contains($workflows, 'Assign CA provider to the selected projects'), 'Missing bulk assignment action');
-check(str_contains($workflows, 'id="pdf-sealer-transition-projects"') && !str_contains($workflows, 'id="transition-pid"'), 'Transition must use a project table');
-check(str_contains($workflows, '<div>Built-in CA</div>') && str_contains($workflows, 'Pending provider: &lt;img'), 'Missing escaped current/pending provider details');
-check(str_contains($workflows, 'An active signing identity is assigned.') && str_contains($workflows, 'No active signing identity is assigned.'), 'Missing signing assignment details');
-check(str_contains($workflows, 'Cancel it on the project status page') && str_contains($workflows, 'Cancel pending provider changes for the selected projects'), 'Missing CSR guard/cancellation action');
-check(preg_match_all('/\bid="([^"]+)"/', $workflows, $ids) !== false && count($ids[1]) === count(array_unique($ids[1])), 'Duplicate workflow IDs');
-echo "Provider administration and workflow view checks passed\n";
+check(substr_count($workflows, 'data-provider-workflow="') === 1 && substr_count($workflows, '<form ') === 1, 'Only registration should remain on CA providers');
+check(str_contains($workflows, 'Administrative workflows') && !str_contains($workflows, 'data-workflow-project'), 'Repeated project pickers remain');
+ob_start(); require dirname(__DIR__) . '/views/projects-admin.php'; $projects = ob_get_clean();
+check(substr_count($projects, '<table ') === 1 && substr_count($projects, 'data-project-action="') === 5, 'Shared overview/actions missing');
+check(!str_contains($projects, '<form ') && !str_contains($projects, '<Project') && !str_contains($projects, '<img'), 'Forms should live in dialogs; metadata must be escaped');
+check(str_contains($projects, 'External enrollment') && str_contains($projects, 'Pending CSR'), 'Missing presets');
+check(preg_match('/data-projects="([^"]+)"/', $projects, $match) === 1, 'Missing public overview payload');
+check(json_decode(htmlspecialchars_decode($match[1], ENT_QUOTES), true, 512, JSON_THROW_ON_ERROR)[0]['name'] === '<Project & title>', 'Public payload must round-trip safely');
+check(preg_match('/data-providers="([^"]+)"/', $projects, $match) === 1, 'Missing provider catalog');
+check(json_decode(htmlspecialchars_decode($match[1], ENT_QUOTES), true, 512, JSON_THROW_ON_ERROR)[0]['name'] === 'Built-in CA', 'Built-in name missing');
+echo "Provider and shared project administration view checks passed\n";

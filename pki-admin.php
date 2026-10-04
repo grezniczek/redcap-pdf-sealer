@@ -84,94 +84,11 @@ try {
     foreach ($sourceSummaries as $source) { $sourceChoices[$source['id']] = $source['name']; }
 } catch (Throwable) { $sourcesUnavailable = true; }
 $timestampPolicies = array_map(static fn(array $p): array => array_intersect_key($p, array_flip(['id', 'timestamp_source', 'timestamp_alternatives', 'bb_fallback'])), $providerCatalog);
-$assignableProviders = array_values(array_filter($providerCatalog, static fn(array $p): bool => !($p['retired'] ?? true)));
 $builtinRetired = false;
 foreach ($providerCatalog as $p) { if ($p['id'] === $providers::BUILTIN_CA) { $builtinRetired = $p['retired'] ?? false; } }
-$assignmentProjects = [];
-$transitionProjects = [];
-$transitionBindings = [];
-$transitionEnrollments = [];
-$renewalProjects = [];
-$renewalPids = [];
-$revocationProjects = [];
-$revocationPids = [];
-$assignedPids = [];
-$assignmentProjectsUnavailable = false;
-try {
-    // Unlike the settings dialog's project-id choices, CC must also include
-    // enabled projects where the superuser is not a project member.
-    $enabledPids = $framework->getProjectsWithModuleEnabled();
-    // Any binding (including pending issuance/enrollment) already fixes the provider.
-    $bindings = (new \DE\RUB\PDFSealerExternalModule\Pki\PrimaryLogReader($framework))->query(
-        'SELECT redcap_pid, MAX(log_id) AS latest_id WHERE message = ? AND ISNULL(project_id) GROUP BY redcap_pid',
-        ['project_identity_binding'],
-    );
-    if ($bindings === false) { throw new RuntimeException('Project bindings unavailable'); }
-    $assignedPids = [];
-    $latestIds = [];
-    while ($binding = $bindings->fetch_assoc()) {
-        $assignedPids[] = $binding['redcap_pid'];
-        $latestIds[] = $binding['latest_id'];
-    }
-    // Filter by the latest binding, not a historical built-in assignment.
-    foreach (array_chunk($latestIds, 200) as $batch) {
-        $latest = (new \DE\RUB\PDFSealerExternalModule\Pki\PrimaryLogReader($framework))->query(
-            'SELECT redcap_pid, provider_id, identity_id, pending_provider_id, transition_id WHERE message = ? AND ISNULL(project_id) AND log_id IN ('
-                . implode(',', array_fill(0, count($batch), '?')) . ')', ['project_identity_binding', ...$batch]);
-        if ($latest === false) { throw new RuntimeException('Renewal project selector unavailable'); }
-        while ($binding = $latest->fetch_assoc()) {
-            $transitionBindings[(string) $binding['redcap_pid']] = array_intersect_key($binding, array_flip(['provider_id', 'identity_id', 'pending_provider_id', 'transition_id']));
-            if (($binding['provider_id'] ?? null) === $providers::BUILTIN_CA
-                && is_string($binding['identity_id'] ?? null) && preg_match('/^[a-f0-9]{32}$/D', $binding['identity_id']) === 1) {
-                $revocationPids[] = (string) $binding['redcap_pid'];
-            }
-            if (($binding['provider_id'] ?? null) === $providers::BUILTIN_CA && !$builtinRetired
-                && is_string($binding['identity_id'] ?? null) && preg_match('/^[a-f0-9]{32}$/D', $binding['identity_id']) === 1
-                && ($binding['pending_provider_id'] ?? null) === null) {
-                $renewalPids[] = (string) $binding['redcap_pid'];
-            }
-        }
-    }
-    // Public enrollment audit metadata is enough for the table; actions still obtain a locked service preview.
-    $enrollments = (new \DE\RUB\PDFSealerExternalModule\Pki\PrimaryLogReader($framework))->query(
-        'SELECT MAX(log_id) AS latest_id WHERE message = ? AND ISNULL(project_id) GROUP BY redcap_pid', ['project_enrollment']);
-    if ($enrollments === false) { throw new RuntimeException('Enrollment list unavailable'); }
-    $enrollmentIds = [];
-    while ($enrollment = $enrollments->fetch_assoc()) { $enrollmentIds[] = $enrollment['latest_id']; }
-    foreach (array_chunk($enrollmentIds, 200) as $batch) {
-        $latest = (new \DE\RUB\PDFSealerExternalModule\Pki\PrimaryLogReader($framework))->query(
-            'SELECT redcap_pid, action, provider_id, enrollment_id WHERE message = ? AND ISNULL(project_id) AND log_id IN ('
-                . implode(',', array_fill(0, count($batch), '?')) . ')', ['project_enrollment', ...$batch]);
-        if ($latest === false) { throw new RuntimeException('Enrollment list unavailable'); }
-        while ($enrollment = $latest->fetch_assoc()) {
-            $binding = $transitionBindings[(string) $enrollment['redcap_pid']] ?? null;
-            if ($binding !== null && $enrollment['action'] === 'generate'
-                && $enrollment['provider_id'] === ($binding['pending_provider_id'] ?? $binding['provider_id'])) {
-                $transitionEnrollments[(string) $enrollment['redcap_pid']] = $enrollment['enrollment_id'];
-            }
-        }
-    }
-    // Keep assignment/transition/renewal choices enabled-only; revocation also includes retained disabled bindings.
-    $assignedPids = array_map('strval', $assignedPids);
-    $selectorPids = array_values(array_unique([...$enabledPids, ...$revocationPids]));
-    if ($selectorPids !== []) {
-        $rows = $framework->query('SELECT project_id, app_title, status, completed_time FROM redcap_projects WHERE project_id IN ('
-            . implode(',', array_fill(0, count($selectorPids), '?')) . ') ORDER BY app_title, project_id', $selectorPids);
-        if ($rows === false) { throw new RuntimeException('Project selector unavailable'); }
-        while ($row = $rows->fetch_assoc()) {
-            if (in_array((int) $row['project_id'], array_map('intval', $enabledPids), true)) {
-                if (in_array((string) $row['project_id'], $assignedPids, true)) {
-                    $transitionProjects[] = $row + ['provider' => ($transitionBindings[(string) $row['project_id']] ?? [])
-                        + ['identity_id' => null, 'pending_provider_id' => null, 'transition_id' => null,
-                            'enrollment_id' => $transitionEnrollments[(string) $row['project_id']] ?? null]];
-                }
-                else { $assignmentProjects[] = $row; }
-                if (in_array((string) $row['project_id'], $renewalPids, true)) { $renewalProjects[] = $row; }
-            }
-            if (in_array((string) $row['project_id'], $revocationPids, true)) { $revocationProjects[] = $row; }
-        }
-    }
-} catch (Throwable) { $assignmentProjectsUnavailable = true; }
+$projectOverview = []; $projectsUnavailable = false;
+try { $projectOverview = (new \DE\RUB\PDFSealerExternalModule\Pki\ProjectAdminOverview($framework, $identities))->load(); }
+catch (Throwable) { $projectsUnavailable = true; }
 $recipients = $framework->getSystemSetting('admin-alert-recipients');
 $recipients = is_array($recipients) ? implode(', ', array_filter($recipients, 'is_string')) : (is_string($recipients) ? $recipients : '');
 $snapshot = null;
@@ -237,6 +154,23 @@ foreach ([
 ] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
 foreach (['root_lifecycle_title', 'root_lifecycle_review', 'root_lifecycle_action', 'root_lifecycle_confirm_button', 'root_lifecycle_compromise_ack', 'root_lifecycle_dialog_unavailable', 'root_lifecycle_already', 'root_lifecycle_renew', 'root_lifecycle_superseded', 'root_lifecycle_compromise', 'pki_subject', 'root_lifecycle_failed', 'root_lifecycle_saved', 'root_lifecycle_renewed', 'root_lifecycle_replaced', 'root_lifecycle_pending', 'root_lifecycle_trust', 'root_lifecycle_projects_done', 'root_lifecycle_projects_pending', 'root_lifecycle_renew_help', 'root_lifecycle_superseded_help', 'root_lifecycle_compromise_help', 'root_lifecycle_dependents', 'tsa_lifecycle_failed', 'tsa_lifecycle_confirm_prompt', 'tsa_lifecycle_saved', 'tsa_lifecycle_replaced', 'tsa_lifecycle_changed', 'tsa_lifecycle_pending', 'tsa_lifecycle_replace_help', 'tsa_lifecycle_superseded_help', 'tsa_lifecycle_compromise_help', 'revocation_title', 'revocation_confirm', 'revocation_failed', 'revocation_confirm_prompt', 'revocation_saved', 'revocation_crl_published', 'revocation_crl_pending', 'revocation_replaced', 'revocation_signer_changed', 'revocation_replacement_pending', 'revocation_already', 'renewal_failed', 'renewal_saved', 'renewal_issuer_expiry'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
 foreach (['transition_current', 'transition_waiting_provider', 'transition_has_signer', 'transition_no_signer', 'transition_cancel_csr_first', 'transition_builtin_help', 'transition_external_help', 'transition_cancel_help', 'transition_bulk_selection', 'transition_bulk_activated', 'transition_bulk_prepared', 'transition_bulk_canceled', 'transition_bulk_failed', 'transition_bulk_refresh_failed', 'transition_info_unavailable', 'transition_choose_project', 'provider_select_project'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
+foreach ([
+    'trust_valid_from', 'pki_valid_until', 'projects_action_ready', 'projects_cert_current', 'projects_cert_expired',
+    'projects_cert_not_yet_valid', 'projects_cert_revoked', 'projects_deleted', 'projects_disabled',
+    'projects_done_assign', 'projects_done_cancel', 'projects_done_renew', 'projects_done_revoke',
+    'projects_eligibility_assign', 'projects_eligibility_cancel', 'projects_eligibility_change', 'projects_eligibility_renew',
+    'projects_eligibility_revoke', 'projects_empty', 'projects_failed_pids', 'projects_filter_all',
+    'projects_filter_builtin', 'projects_filter_count', 'projects_filter_csr', 'projects_filter_external',
+    'projects_filter_transition', 'projects_filter_unassigned', 'projects_no_certificate', 'projects_no_target',
+    'projects_pending_csr', 'projects_refresh_failed', 'projects_renew_confirm', 'projects_review_failed',
+    'projects_revocation_changed', 'projects_revocation_crl_pending', 'projects_revocation_replacement_pending', 'projects_select_first',
+    'projects_unassigned', 'projects_unknown', 'provider_assign', 'provider_assign_selected',
+    'provider_assign_summary', 'provider_name', 'provider_project_analysis', 'provider_project_completed',
+    'provider_project_development', 'provider_project_production', 'provider_project_unknown', 'provider_transition_summary',
+    'renewal_confirm_help', 'renewal_title', 'revocation_compromise', 'revocation_reason',
+    'revocation_superseded', 'revocation_warning', 'timestamp_settings_choose', 'transition_bulk_cancel',
+    'transition_bulk_change', 'transition_cancel', 'transition_target_label', 'transition_title',
+] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
 ?>
 <link rel="stylesheet" href="<?= $escape($framework->getUrl('assets/admin.css')) ?>">
 <div class="pdf-sealer-admin">
@@ -254,7 +188,7 @@ foreach (['transition_current', 'transition_waiting_provider', 'transition_has_s
     </div>
     <p class="pdf-sealer-trust-link"><a href="<?= $escape($module::publicTrustUrl()) ?>" target="_blank" rel="noopener"><i class="fas fa-external-link-alt" aria-hidden="true"></i> <?= $framework->tt('pki_public_trust_page') ?></a></p>
     <div class="nav nav-tabs" role="tablist" aria-label="<?= $escape($framework->tt('pki_page_title')) ?>">
-        <?php foreach (['root' => 'fa-certificate', 'providers' => 'fa-building', 'tsa' => 'fa-clock', 'diagnostic' => 'fa-stethoscope', 'alarms' => 'fa-bell'] as $tab => $icon): ?>
+        <?php foreach (['root' => 'fa-certificate', 'providers' => 'fa-building', 'projects' => 'fa-folder-open', 'tsa' => 'fa-clock', 'diagnostic' => 'fa-stethoscope', 'alarms' => 'fa-bell'] as $tab => $icon): ?>
             <button type="button" class="nav-link<?= $tab === 'root' ? ' active' : '' ?>" role="tab" id="pki-tab-<?= $tab ?>" aria-controls="pki-panel-<?= $tab ?>" aria-selected="<?= $tab === 'root' ? 'true' : 'false' ?>" tabindex="<?= $tab === 'root' ? '0' : '-1' ?>" data-pki-tab="<?= $tab ?>"><i class="fas <?= $icon ?>" aria-hidden="true"></i> <?= $escape($framework->tt('pki_tab_' . $tab)) ?></button>
         <?php endforeach; ?>
     </div>
@@ -295,6 +229,9 @@ foreach (['transition_current', 'transition_waiting_provider', 'transition_has_s
             <?php require __DIR__ . '/views/providers.php'; ?>
             <?php require __DIR__ . '/views/provider-workflows.php'; ?>
         <?php endif; ?>
+    </section>
+    <section class="pdf-sealer-panel" id="pki-panel-projects" role="tabpanel" aria-labelledby="pki-tab-projects" tabindex="0" hidden>
+        <?php require __DIR__ . '/views/projects-admin.php'; ?>
     </section>
     <section class="pdf-sealer-panel" id="pki-panel-tsa" role="tabpanel" aria-labelledby="pki-tab-tsa" tabindex="0" hidden>
         <h5><?= $escape($framework->tt('pki_tsa')) ?></h5>
@@ -404,14 +341,11 @@ foreach (['transition_current', 'transition_waiting_provider', 'transition_has_s
 </div>
 <script src="<?= $escape($framework->getUrl('assets/admin-notifications.js')) ?>"></script>
 <script src="<?= $escape($framework->getUrl('assets/timestamp-admin.js')) ?>"></script>
-<script src="<?= $escape($framework->getUrl('assets/project-renewal.js')) ?>"></script>
-<script src="<?= $escape($framework->getUrl('assets/project-revocation.js')) ?>"></script>
 <script src="<?= $escape($framework->getUrl('assets/tsa-lifecycle.js')) ?>"></script>
 <script src="<?= $escape($framework->getUrl('assets/root-lifecycle.js')) ?>"></script>
 <script src="<?= $escape($framework->getUrl('assets/providers-admin.js')) ?>"></script>
-<script src="<?= $escape($framework->getUrl('assets/provider-transition.js')) ?>"></script>
-<script src="<?= $escape($framework->getUrl('assets/provider-assignment.js')) ?>"></script>
 <script src="<?= $escape($framework->getUrl('assets/provider-workflows.js')) ?>"></script>
+<script src="<?= $escape($framework->getUrl('assets/projects-admin.js')) ?>"></script>
 <script>
 (() => {
     const module = <?= $framework->getJavascriptModuleObjectName() ?>;
@@ -631,12 +565,11 @@ foreach (['transition_current', 'transition_waiting_provider', 'transition_has_s
             });
         });
     });
-    window.PDFSealerProjectRenewal(module);
-    window.PDFSealerProjectRevocation(module);
     window.PDFSealerTsaLifecycle(module);
     window.PDFSealerRootLifecycle(module);
     window.PDFSealerProvidersAdmin(module);
     window.PDFSealerProviderWorkflows(module);
+    window.PDFSealerProjectsAdmin(module);
     window.PDFSealerTimestampAdmin(module, <?= json_encode($timestampPolicies, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
         <?= json_encode($sourceSummaries, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>, formatDiagnosticTime,
         <?= json_encode($framework->getUrl('pki-admin.php'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>);

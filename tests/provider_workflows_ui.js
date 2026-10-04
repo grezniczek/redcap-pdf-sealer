@@ -15,7 +15,7 @@ class Node {
     get firstElementChild() { return this.children[0]; }
 }
 function fixture({available = true, broken = false, response = {ok: true}, reject = false} = {}) {
-    const ids = ['register', 'assign', 'transition', 'renewal', 'revocation'];
+    const ids = ['register'];
     const launchers = [], hosts = new Map(), forms = new Map(), bodies = new Map(), picks = new Map();
     const notifications = [], dialogs = [], requests = [], redirects = []; let writes = 0, assignmentMounts = 0, assignmentCleanups = 0, transitionMounts = 0, transitionCleanups = 0;
     const fields = {disabled: false}, inputs = {
@@ -73,7 +73,7 @@ function fixture({available = true, broken = false, response = {ok: true}, rejec
 }
 (async () => {
     let f = fixture();
-    for (const id of ['register', 'assign', 'transition', 'renewal', 'revocation']) {
+    for (const id of ['register']) {
         const run = await f.open(id), dialog = f.dialogs.at(-1), form = f.forms.get(id), select = f.picks.get(id);
         assert.equal(dialog.options.title, 'Title: ' + id); assert.equal(dialog.options.draggable, true);
         const dismiss = id === 'register' ? 'cancel' : 'close';
@@ -93,10 +93,7 @@ function fixture({available = true, broken = false, response = {ok: true}, rejec
         assert.ok(f.launchers.every(button => !button.disabled));
         if (!['register', 'assign', 'transition'].includes(id)) { assert.equal(select.destroys, 1); assert.equal(select.changes, 1); }
     }
-    assert.equal(f.transitionMounts, 1); assert.equal(f.transitionCleanups, 1);
-    const run = await f.open('assign'); f.dialogs.at(-1).close(); await run.completion;
-    assert.equal(f.assignmentMounts, 2); assert.equal(f.assignmentCleanups, 2);
-    assert.equal(f.writes, 0, 'Opening, canceling and reopening must not mutate');
+    assert.equal(f.writes, 0, 'Opening and canceling must not mutate');
     // Registration validates before writing, closes only on success, and refreshes after cleanup.
     f = fixture();
     let opened = await f.open('register'), dialog = f.dialogs.at(-1), form = f.forms.get('register');
@@ -134,9 +131,9 @@ function fixture({available = true, broken = false, response = {ok: true}, rejec
     assert.equal(dialog.closed, true); assert.equal(f.fields.disabled, false); assert.equal(form.events.submit, undefined);
     f = fixture({available: false}); await (await f.open('register')).completion;
     assert.equal(f.notifications[0].text, 'provider_dialog_unavailable'); assert.equal(f.dialogs.length, 0);
-    f = fixture({broken: true}); await (await f.open('assign')).completion;
+    f = fixture({broken: true}); await (await f.open('register')).completion;
     assert.equal(f.notifications[0].text, 'provider_workflow_failed');
-    assert.equal(f.hosts.get('assign').firstElementChild, f.bodies.get('assign'));
+    assert.equal(f.hosts.get('register').firstElementChild, f.bodies.get('register'));
     assert.ok(f.launchers.every(button => !button.disabled));
     console.log('Workflow dialogs: launchers/pickers/cleanup and registration validation, footer action, failure recovery, busy guards and close/refresh passed');
 })().catch(error => {console.error(error); process.exitCode = 1;});

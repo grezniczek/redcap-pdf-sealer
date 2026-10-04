@@ -43,25 +43,7 @@ window.PDFSealerProvidersAdmin = module => {
         row.querySelector('[data-provider-status]').replaceWith(status);
         table.row(row).invalidate('dom').draw(false);
         updatePolicy(required);
-        ['provider-selection', 'transition-provider'].forEach(selectId => {
-            const select = document.getElementById(selectId);
-            if (!select) return;
-            const option = [...select.options].find(item => item.value === id);
-            if (retired && option) {
-                const selected = select.value === id;
-                option.remove();
-                if (selected) { select.value = ''; select.dispatchEvent(new Event('change')); }
-            } else if (!retired && !option) {
-                select.add(new Option(row.querySelector('[data-provider-name]').textContent, id));
-            }
-        });
-        const assignment = document.getElementById('pdf-sealer-provider-assign');
-        if (assignment) {
-            assignment.querySelector('fieldset').disabled = assignment.getAttribute('aria-busy') === 'true'
-                || assignment.dataset.projectsUnavailable === '1' || Number(assignment.dataset.remainingProjects) === 0
-                || document.getElementById('provider-selection').options.length <= 1;
-            document.getElementById('provider-selection').dispatchEvent(new Event('change'));
-        }
+        window.PDFSealerProjectsAdmin?.providerChanged?.(id, retired);
     };
     policyButton.addEventListener('click', async () => {
         if (policyButton.disabled || !available(false)) return;
