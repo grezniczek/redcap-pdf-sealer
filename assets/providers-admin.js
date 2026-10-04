@@ -155,7 +155,7 @@ window.PDFSealerProvidersAdmin = module => {
             if (!preview?.ok) throw new Error('Provider review failed');
             updateProvider(id, preview.retired, preview.assignment_required);
             let busy = false, usageNode;
-            const action = element('button', 'btn btn-link btn-sm p-0', module.tt(preview.retired ? 'provider_reactivate' : 'provider_retire'));
+            const action = element('button', 'btn btn-link btn-sm pdf-sealer-workflow-link', module.tt(preview.retired ? 'provider_reactivate' : 'provider_retire'));
             action.type = 'button';
             const result = await window.rcDialog.tabbed({title: module.tt('provider_manage_title', name), size: 'lg',
                 draggable: true, closeButton: 'close', focusAfterClose: launcher, buttons: ['close'], footerStatus: action,
