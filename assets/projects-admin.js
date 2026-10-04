@@ -82,9 +82,8 @@ window.PDFSealerProjectsAdmin = module => {
         return presets[filter.value](projects.get(Number(row.dataset.projectPid)).view);
     };
     $.fn.dataTable.ext.search.push(scopedFilter);
-    const table = $(tableNode).DataTable({pageLength: 5, lengthChange: false, order: [[2, 'asc']],
-        columnDefs: [{targets: 0, orderable: false, searchable: false, width: '22px'}, {targets: 1, width: '6ch'},
-            {targets: 3, orderable: false, width: '20px'}],
+    const table = $(tableNode).DataTable({autoWidth: false, pageLength: 5, lengthChange: false, order: [[2, 'asc']],
+        columnDefs: [{targets: 0, orderable: false, searchable: false}, {targets: 3, orderable: false}],
         language: {search: tt('table_search'), info: tt('table_info'), infoEmpty: tt('table_info_empty'),
             infoFiltered: tt('table_info_filtered'), zeroRecords: tt('table_zero'), emptyTable: tt('projects_empty'),
             paginate: {first: tt('table_first'), last: tt('table_last'), next: tt('table_next'), previous: tt('table_previous')}},

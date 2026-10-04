@@ -18,6 +18,10 @@ $projectProviders = array_map(static fn(array $p): array => array_intersect_key(
     </div>
     <div class="pdf-sealer-table-wrap">
         <table id="pdf-sealer-projects" class="table table-sm hover w-100">
+            <colgroup>
+                <col class="pdf-sealer-col-select"><col class="pdf-sealer-col-pid"><col>
+                <col class="pdf-sealer-col-status"><col><col class="pdf-sealer-col-certificate">
+            </colgroup>
             <thead><tr>
                 <th><input type="checkbox" id="pdf-sealer-project-select-page" title="<?= $escape($framework->tt('projects_select_page')) ?>" aria-label="<?= $escape($framework->tt('projects_select_page')) ?>"></th>
                 <th><?= $escape($framework->tt('provider_project_pid')) ?></th>
