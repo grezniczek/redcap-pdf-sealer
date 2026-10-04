@@ -12,11 +12,12 @@ window.PDFSealerProviderWorkflows = module => {
         const registration = launcher.dataset.providerWorkflow === 'register';
         const dismiss = registration ? 'cancel' : 'close';
         const initialized = [];
-        let observer, submit, cleaned = false;
+        let observer, submit, assignmentCleanup, cleaned = false;
         const cleanup = () => {
             if (cleaned) return;
             cleaned = true;
             observer?.disconnect();
+            assignmentCleanup?.();
             if (submit) form.removeEventListener('submit', submit);
             initialized.forEach(select => $(select).select2('destroy'));
             form.reset();
@@ -70,6 +71,9 @@ window.PDFSealerProviderWorkflows = module => {
                         return true;
                     });
                     ctx.on('dialog:shown', () => {
+                        if (launcher.dataset.providerWorkflow === 'assign') {
+                            assignmentCleanup = window.PDFSealerProjectAssignment(module, form);
+                        }
                         projects.forEach(select => {
                             $(select).select2({width: '100%', minimumResultsForSearch: 0, dropdownParent: ctx.$dlg});
                             initialized.push(select);

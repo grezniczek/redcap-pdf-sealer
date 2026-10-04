@@ -47,24 +47,41 @@
 <div data-provider-workflow-host="assign" hidden>
     <div class="pdf-sealer-dialog-body">
         <p class="small text-muted"><?= $escape($framework->tt('provider_assign_help')) ?></p>
-        <form id="pdf-sealer-provider-assign">
+        <form id="pdf-sealer-provider-assign" data-remaining-projects="<?= count($assignmentProjects) ?>" data-projects-unavailable="<?= $assignmentProjectsUnavailable ? '1' : '0' ?>">
             <?php if ($assignmentProjectsUnavailable): ?><p class="alert alert-warning"><?= $escape($framework->tt('provider_projects_unavailable')) ?></p><?php endif; ?>
             <fieldset <?= $assignableProviders === [] || $assignmentProjectsUnavailable || $assignmentProjects === [] ? 'disabled' : '' ?>>
-                <label for="provider-pid"><?= $escape($framework->tt('provider_pid')) ?></label>
-                <div class="mb-3">
-                    <select class="form-select form-select-sm" id="provider-pid" data-workflow-project required>
-                        <option value="" selected><?= $escape($framework->tt($assignmentProjects === [] ? 'provider_no_unassigned_projects' : 'provider_choose_project')) ?></option>
-                        <?php foreach ($assignmentProjects as $project): ?>
-                            <option value="<?= $escape($project['project_id']) ?>"><?= $escape('(' . $project['project_id'] . ') ' . $project['app_title']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                <div class="pdf-sealer-table-wrap mb-3">
+                    <table id="pdf-sealer-assignment-projects" class="table table-sm hover">
+                        <thead><tr>
+                            <th><?= $escape($framework->tt('provider_select')) ?></th>
+                            <th><?= $escape($framework->tt('provider_project_pid')) ?></th>
+                            <th><?= $escape($framework->tt('provider_project_name')) ?></th>
+                            <th><?= $escape($framework->tt('provider_project_status')) ?></th>
+                        </tr></thead>
+                        <tbody><?php foreach ($assignmentProjects as $project): ?>
+                            <?php $statusKey = match ((int) $project['status']) {
+                                0 => 'provider_project_development',
+                                1 => 'provider_project_production',
+                                2 => empty($project['completed_time']) ? 'provider_project_analysis' : 'provider_project_completed',
+                                default => 'provider_project_unknown',
+                            }; ?>
+                            <tr data-assignment-pid="<?= $escape($project['project_id']) ?>">
+                                <td><input type="checkbox" data-assignment-select aria-label="<?= $escape($framework->tt('provider_select_project', $project['project_id'])) ?>"></td>
+                                <td><?= $escape($project['project_id']) ?></td>
+                                <td data-assignment-name><?= $escape($project['app_title']) ?></td>
+                                <td><?= $escape($framework->tt($statusKey)) ?></td>
+                            </tr>
+                        <?php endforeach; ?></tbody>
+                    </table>
                 </div>
+                <p class="small text-muted" id="pdf-sealer-assignment-count" aria-live="polite"><?= $escape($framework->tt('provider_selection_count', 0)) ?></p>
+                <p class="small text-muted"><?= $escape($framework->tt('provider_selection_help')) ?></p>
                 <label for="provider-selection"><?= $escape($framework->tt('provider_label')) ?></label>
                 <select class="form-select form-select-sm mb-3" id="provider-selection" required>
                     <option value="" selected disabled><?= $escape($framework->tt('timestamp_settings_choose')) ?></option>
                     <?php foreach ($assignableProviders as $provider): ?><option value="<?= $escape($provider['id']) ?>"><?= $escape($provider['name'] ?? $framework->tt('provider_builtin')) ?></option><?php endforeach; ?>
                 </select>
-                <button class="btn btn-primaryrc btn-sm" type="submit"><?= $escape($framework->tt('provider_assign')) ?></button>
+                <button id="pdf-sealer-assign-projects" class="btn btn-primaryrc btn-sm" type="submit" disabled><?= $escape($framework->tt('provider_assign_selected')) ?></button>
             </fieldset>
         </form>
     </div>

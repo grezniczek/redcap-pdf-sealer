@@ -55,12 +55,12 @@ window.PDFSealerProvidersAdmin = module => {
                 select.add(new Option(row.querySelector('[data-provider-name]').textContent, id));
             }
         });
-        const project = document.getElementById('provider-pid');
-        if (project) {
-            const fields = project.closest('fieldset');
-            fields.disabled = policy.dataset.projectsUnavailable === '1' || project.options.length <= 1
+        const assignment = document.getElementById('pdf-sealer-provider-assign');
+        if (assignment) {
+            assignment.querySelector('fieldset').disabled = assignment.getAttribute('aria-busy') === 'true'
+                || assignment.dataset.projectsUnavailable === '1' || Number(assignment.dataset.remainingProjects) === 0
                 || document.getElementById('provider-selection').options.length <= 1;
-            $(project).prop('disabled', fields.disabled);
+            document.getElementById('provider-selection').dispatchEvent(new Event('change'));
         }
     };
     policyButton.addEventListener('click', async () => {

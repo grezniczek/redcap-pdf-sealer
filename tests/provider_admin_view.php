@@ -4,7 +4,11 @@ declare(strict_types=1);
 $labels = parse_ini_file(dirname(__DIR__) . '/lang/English.ini', false, INI_SCANNER_RAW);
 $framework = new class($labels) {
     public function __construct(private array $labels) {}
-    public function tt(string $key): string { return $this->labels[$key] ?? throw new RuntimeException('Missing label: ' . $key); }
+    public function tt(string $key, mixed ...$values): string {
+        $text = $this->labels[$key] ?? throw new RuntimeException('Missing label: ' . $key);
+        foreach ($values as $index => $value) { $text = str_replace('{' . $index . '}', (string) $value, $text); }
+        return $text;
+    }
 };
 $escape = static fn(mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 $module = new class {
@@ -37,7 +41,12 @@ check(substr_count($html, '<template ') === 3 && str_contains($html, 'data-test-
 check(!str_contains($html, 'id="assignment-required"') && str_contains($html, 'Change assignment policy'), 'Policy editing still inline');
 check(substr_count($html, 'pdf-sealer-dialog-body') === 3, 'Missing shared dialog body style');
 $assignableProviders = array_values(array_filter($providerCatalog, static fn(array $p): bool => !$p['retired']));
-$assignmentProjects = $transitionProjects = $renewalProjects = $revocationProjects = [['project_id' => 524, 'app_title' => '<Project & title>']];
+$assignmentProjects = $transitionProjects = $renewalProjects = $revocationProjects = [['project_id' => 524, 'app_title' => '<Project & title>', 'status' => 0, 'completed_time' => null]];
+$assignmentProjects = array_merge($assignmentProjects, [
+    ['project_id' => 525, 'app_title' => 'Production project', 'status' => 1, 'completed_time' => null],
+    ['project_id' => 526, 'app_title' => 'Analysis project', 'status' => 2, 'completed_time' => null],
+    ['project_id' => 527, 'app_title' => 'Completed project', 'status' => 2, 'completed_time' => '2026-10-04 12:00:00'],
+]);
 $providersUnavailable = false;
 ob_start(); require dirname(__DIR__) . '/views/provider-workflows.php'; $workflows = ob_get_clean();
 check(substr_count($workflows, 'data-provider-workflow="') === 5, 'Missing workflow launchers');
@@ -47,6 +56,12 @@ check(substr_count($workflows, '<form ') === 5, 'Missing workflow forms');
 $section = explode('<div data-provider-workflow-host=', $workflows, 2)[0];
 check(str_contains($section, 'Administrative workflows') && !str_contains($section, '<form '), 'Forms still expand the visible page');
 check(!str_contains($workflows, '<Project') && str_contains($workflows, '&lt;Project &amp; title&gt;'), 'Project labels must stay escaped');
-check(substr_count($workflows, 'data-workflow-project') === 4, 'Missing dialog project pickers');
+check(substr_count($workflows, 'data-workflow-project') === 3, 'Missing remaining dialog project pickers');
+check(substr_count($workflows, 'data-assignment-pid=') === 4 && !str_contains($workflows, 'id="provider-pid"'), 'Assignment must use a project table');
+foreach (['Development', 'Production', 'Analysis/Cleanup', 'Completed'] as $status) {
+    check(str_contains($workflows, '<td>' . $status . '</td>'), 'Missing project status ' . $status);
+}
+check(str_contains($workflows, 'aria-label="Select project 524"'), 'Missing accessible project checkbox');
+check(str_contains($workflows, 'Assign CA provider to the selected projects'), 'Missing bulk assignment action');
 check(preg_match_all('/\bid="([^"]+)"/', $workflows, $ids) !== false && count($ids[1]) === count(array_unique($ids[1])), 'Duplicate workflow IDs');
 echo "Provider administration and workflow view checks passed\n";

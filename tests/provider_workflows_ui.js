@@ -17,7 +17,7 @@ class Node {
 function fixture({available = true, broken = false, response = {ok: true}, reject = false} = {}) {
     const ids = ['register', 'assign', 'transition', 'renewal', 'revocation'];
     const launchers = [], hosts = new Map(), forms = new Map(), bodies = new Map(), picks = new Map();
-    const notifications = [], dialogs = [], requests = [], redirects = []; let writes = 0;
+    const notifications = [], dialogs = [], requests = [], redirects = []; let writes = 0, assignmentMounts = 0, assignmentCleanups = 0;
     const fields = {disabled: false}, inputs = {
         '#provider-name': {value: 'Test CA'}, '#provider-chain': {files: [{size: 1024, text: async () => 'PUBLIC CERT'}]},
         '#provider-source': {value: 'internal'}, '#provider-fallback': {checked: true},
@@ -33,7 +33,7 @@ function fixture({available = true, broken = false, response = {ok: true}, rejec
         select.initializations = 0; select.destroys = 0; select.changes = 0;
         resetSelect.dispatchEvent = () => { resetSelect.changed = true; };
         body.querySelector = () => form;
-        body.querySelectorAll = selector => selector === '[data-workflow-project]' ? (id === 'register' ? [] : [select]) : [resetSelect];
+        body.querySelectorAll = selector => selector === '[data-workflow-project]' ? (['register', 'assign'].includes(id) ? [] : [select]) : [resetSelect];
         hosts.set(id, host); forms.set(id, form); bodies.set(id, body); picks.set(id, select);
     });
     const createDialog = options => {
@@ -54,7 +54,7 @@ function fixture({available = true, broken = false, response = {ok: true}, rejec
     const context = {document: {
         querySelectorAll: () => launchers,
         querySelector: selector => hosts.get(selector.match(/="([^"]+)"/)[1]),
-    }, window: {PDFSealerNotify: (text, tone) => notifications.push({text, tone})},
+    }, window: {PDFSealerProjectAssignment: (_module, form) => { assert.equal(form, forms.get('assign')); assignmentMounts++; return () => { assignmentCleanups++; }; }, PDFSealerNotify: (text, tone) => notifications.push({text, tone})},
         URL, location: {href: 'https://redcap.test/external_modules/?prefix=pdf_sealer&page=pki-admin', assign: url => redirects.push(url)},
         MutationObserver: class {
             constructor(callback) { this.callback = callback; }
@@ -68,7 +68,7 @@ function fixture({available = true, broken = false, response = {ok: true}, rejec
     if (available) context.window.rcDialog = createDialog;
     vm.runInNewContext(source, context);
     context.window.PDFSealerProviderWorkflows({tt: key => key, ajax: async (action, payload) => { writes++; requests.push({action, payload}); if (reject) throw Error('Request failed'); return await response; }});
-    return {launchers, hosts, bodies, forms, picks, dialogs, notifications, inputs, fields, requests, redirects, get writes() { return writes; },
+    return {launchers, hosts, bodies, forms, picks, dialogs, notifications, inputs, fields, requests, redirects, get writes() { return writes; }, get assignmentMounts() {return assignmentMounts;}, get assignmentCleanups() {return assignmentCleanups;},
         open: async id => { const completion = launchers.find(l => l.dataset.providerWorkflow === id).events.click(); await tick(); return {completion}; }};
 }
 (async () => {
@@ -82,7 +82,7 @@ function fixture({available = true, broken = false, response = {ok: true}, rejec
         assert.equal(dialog.options.closeButton, dismiss);
         assert.equal(dialog.container.firstElementChild, f.bodies.get(id)); assert.equal(f.hosts.get(id).children.length, 0);
         assert.ok(f.launchers.every(button => button.disabled));
-        if (id !== 'register') assert.equal(select.config.dropdownParent, dialog.ctx.$dlg);
+        if (!['register', 'assign'].includes(id)) assert.equal(select.config.dropdownParent, dialog.ctx.$dlg);
         form.setAttribute('aria-busy', 'true');
         assert.equal(dialog.controls[dismiss].disabled, true); assert.equal(dialog.ctx.closeButton, false);
         assert.equal(dialog.close(), false); assert.equal(form.resets, 0);
@@ -91,10 +91,10 @@ function fixture({available = true, broken = false, response = {ok: true}, rejec
         assert.equal(f.hosts.get(id).firstElementChild, f.bodies.get(id));
         assert.equal(form.resets, 1); assert.equal(form.observer, undefined);
         assert.ok(f.launchers.every(button => !button.disabled));
-        if (id !== 'register') { assert.equal(select.destroys, 1); assert.equal(select.changes, 1); }
+        if (!['register', 'assign'].includes(id)) { assert.equal(select.destroys, 1); assert.equal(select.changes, 1); }
     }
     const run = await f.open('assign'); f.dialogs.at(-1).close(); await run.completion;
-    assert.equal(f.picks.get('assign').initializations, 2); assert.equal(f.picks.get('assign').destroys, 2);
+    assert.equal(f.assignmentMounts, 2); assert.equal(f.assignmentCleanups, 2);
     assert.equal(f.writes, 0, 'Opening, canceling and reopening must not mutate');
     // Registration validates before writing, closes only on success, and refreshes after cleanup.
     f = fixture();

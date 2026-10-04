@@ -133,7 +133,7 @@ try {
     $assignedPids = array_map('strval', $assignedPids);
     $selectorPids = array_values(array_unique([...$enabledPids, ...$revocationPids]));
     if ($selectorPids !== []) {
-        $rows = $framework->query('SELECT project_id, app_title FROM redcap_projects WHERE project_id IN ('
+        $rows = $framework->query('SELECT project_id, app_title, status, completed_time FROM redcap_projects WHERE project_id IN ('
             . implode(',', array_fill(0, count($selectorPids), '?')) . ') ORDER BY app_title, project_id', $selectorPids);
         if ($rows === false) { throw new RuntimeException('Project selector unavailable'); }
         while ($row = $rows->fetch_assoc()) {
@@ -196,7 +196,7 @@ $renderCertificate = static function (string $role) use ($certificates, $framewo
 require_once APP_PATH_DOCROOT . 'ControlCenter/header.php';
 $framework->initializeJavascriptModuleObject();
 foreach (['external_tsa_failed', 'external_tsa_passed', 'external_tsa_test_failed', 'external_tsa_testing', 'timestamp_order_invalid', 'diagnostic_never', 'pki_fingerprint', 'pki_thumbprint'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
-$framework->tt_transferToJavascriptModuleObject('provider_assigned');
+foreach (['provider_assignment_done', 'provider_assignment_partial', 'provider_assignment_mark', 'provider_selection_count', 'provider_selection_one', 'provider_no_unassigned_projects'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
 foreach ([
     'assignment_policy_change', 'assignment_policy_label', 'assignment_policy_help', 'assignment_policy_delivery',
     'assignment_policy_save', 'assignment_policy_saved', 'assignment_policy_failed', 'assignment_policy_explicit',
@@ -383,6 +383,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
 <script src="<?= $escape($framework->getUrl('assets/tsa-lifecycle.js')) ?>"></script>
 <script src="<?= $escape($framework->getUrl('assets/root-lifecycle.js')) ?>"></script>
 <script src="<?= $escape($framework->getUrl('assets/providers-admin.js')) ?>"></script>
+<script src="<?= $escape($framework->getUrl('assets/provider-assignment.js')) ?>"></script>
 <script src="<?= $escape($framework->getUrl('assets/provider-workflows.js')) ?>"></script>
 <script>
 (() => {
@@ -503,8 +504,6 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
         });
     }
 
-    const assignmentProject = $('#provider-pid');
-    assignmentProject.prop('disabled', assignmentProject.closest('fieldset').prop('disabled'));
     if (document.getElementById('pdf-sealer-provider-register')) {
         const source = document.getElementById('provider-source');
         const fallback = document.getElementById('provider-fallback');
@@ -513,51 +512,6 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
         updateFallback();
     }
 
-    const assignmentForm = document.getElementById('pdf-sealer-provider-assign');
-    if (assignmentForm) {
-        const form = assignmentForm;
-        form.addEventListener('submit', async event => {
-            event.preventDefault();
-            const fields = form.querySelector('fieldset');
-            if (fields.disabled) return;
-            form.setAttribute('aria-busy', 'true');
-            fields.disabled = true;
-            assignmentProject.prop('disabled', true);
-
-            try {
-                const projectSelect = document.getElementById('provider-pid');
-                const providerSelect = document.getElementById('provider-selection');
-                const payload = {pid: Number(projectSelect.value), provider: providerSelect.value};
-                const assignedProjectName = projectSelect.selectedOptions[0].textContent;
-                const assignedProviderName = providerSelect.selectedOptions[0].textContent;
-                const response = await module.ajax('assign_ca_provider', payload);
-                let feedback = response?.ok ? <?= json_encode($framework->tt('provider_saved'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
-                    : (response?.message || <?= json_encode($framework->tt('provider_request_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>);
-                if (response?.ok) {
-                    feedback = module.tt('provider_assigned', assignedProviderName, assignedProjectName);
-                    const transitionProject = document.getElementById('transition-pid');
-                    if (transitionProject && !Array.from(transitionProject.options).some(option => option.value === String(payload.pid))) {
-                        transitionProject.add(new Option(assignedProjectName, String(payload.pid)));
-                        transitionProject.closest('fieldset').disabled = false;
-                        $(transitionProject).prop('disabled', false);
-                    }
-                    form.reset();
-                    assignmentProject.find('option').filter(function () { return this.value === String(payload.pid); }).remove();
-                    if (assignmentProject[0].options.length === 1) {
-                        assignmentProject[0].options[0].textContent = <?= json_encode($framework->tt('provider_no_unassigned_projects'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-                    }
-                    assignmentProject.trigger('change');
-                }
-                notify(feedback, response?.ok ? 'success' : 'error');
-            } catch (error) {
-                notify(<?= json_encode($framework->tt('provider_request_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>, 'error');
-            } finally {
-                form.setAttribute('aria-busy', 'false');
-                fields.disabled = assignmentProject[0].options.length === 1;
-                assignmentProject.prop('disabled', fields.disabled);
-            }
-        });
-    }
     const input = document.getElementById('pdf-sealer-recipients');
     const button = document.getElementById('pdf-sealer-save-recipients');
     let savedRecipients = input.value;

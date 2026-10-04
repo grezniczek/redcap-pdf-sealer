@@ -31,7 +31,8 @@ function fixture({retired = false, required = false, fail = false, previewFail =
     const summary = new Node('p', {dataset: {policySummary: ''}}); policy.append(summary);
     const policyButton = node('pdf-sealer-policy-change', 'button');
     node('pki-panel-providers', 'section', {}); const tab = new Node('button');
-    const fields = new Node('fieldset'), project = node('provider-pid', 'select'); fields.append(project); project.options = [{}, {}];
+    const fields = new Node('fieldset'), assignment = node('pdf-sealer-provider-assign', 'form', {remainingProjects: '2', projectsUnavailable: '0'});
+    assignment.append(fields); assignment.getAttribute = () => null;
     const option = (text, value) => new Node('option', {textContent: text, value});
     ['provider-selection', 'transition-provider'].forEach(id => {
         const select = node(id, 'select'); select.options = []; select.add(option('Choose', ''));
@@ -119,7 +120,7 @@ function fixture({retired = false, required = false, fail = false, previewFail =
     assert.equal(f.calls[2].payload.review_hash, 'review-2'); assert.equal(f.calls[2].payload.enable_assignment_gate, true);
     assert.equal(f.row.dataset.retired, '1'); assert.equal(f.policy.dataset.required, '1');
     assert.equal(f.statusCell.children[0].textContent, 'provider_retired');
-    assert.equal(f.ids['provider-selection'].options.length, 1); assert.equal(f.ids['provider-pid'].disabled, true);
+    assert.equal(f.ids['provider-selection'].options.length, 1); assert.equal(f.ids['pdf-sealer-provider-assign'].querySelector('fieldset').disabled, true);
     assert.ok(f.tables[0].draws.every(reset => reset === false), 'Updates must preserve table page');
     assert.ok(f.notifications.length > 0);
 
@@ -127,7 +128,7 @@ function fixture({retired = false, required = false, fail = false, previewFail =
     let changeRun = main.options.footerStatus.events.click(); await tick();
     await f.dialogs[1].press('confirm'); await changeRun; await run.completion;
     assert.equal(f.row.dataset.retired, '0'); assert.equal(f.policy.dataset.required, '1');
-    assert.equal(f.ids['provider-selection'].options.length, 2); assert.equal(f.ids['provider-pid'].disabled, false);
+    assert.equal(f.ids['provider-selection'].options.length, 2); assert.equal(f.ids['pdf-sealer-provider-assign'].querySelector('fieldset').disabled, false);
     assert.equal(f.calls[2].payload.enable_assignment_gate, false);
 
     f = fixture({required: true, fail: true}); run = await f.open(); main = f.dialogs[0];
