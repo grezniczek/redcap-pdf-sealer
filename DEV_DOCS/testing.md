@@ -1,5 +1,17 @@
 # Development and testing
 
+## External TSA retirement and reactivation — 2026-10-04
+
+Run `tests/external_tsa_retirement.php`, `tests/pki_admin_ajax.php` and `tests/provider_admin_view.php` on PHP 8.2 and the current runtime, plus `node tests/timestamp_admin_ui.js` and `node tests/providers_admin_ui.js`. The retirement suite includes the existing external TSA crypto/storage tests and covers affected-policy reviews, stale/replayed actions, transaction rollback, blocked probes/new assignments, retained policy roles, explicit alternatives/B-B/strict failure, response and final-acceptance races, reactivation and malformed lifecycle state. These checks use disposable identities/storage/transport; no live request or PKI mutation is needed.
+
+Pending browser/Acrobat acceptance (use a disposable source/policy/project):
+
+1. Open external TSA Manage → Retire TSA source. Check affected CA names, primary/alternative positions and fallback summaries. Cancel and confirm that state is unchanged. Retire deliberately: both dialogs should close, the row should say Retired and a toast should appear. Reopening should retain the dated last test and offer Reactivate; Test source should be disabled. Test all skips retired sources.
+2. In CA registration and Manage → Timestamping, confirm retired sources cannot be newly assigned. Existing references should be labeled Retired and remain in their saved position; other controls can be saved, and references can be removed. On disposable policies, confirm sealing uses only the configured active alternative, or produces B-B only with explicit fallback. Without either, sealing fails (Core may still deliver the unsealed PDF; inspect the project failure event). Verify successful alternative/fallback PDFs in Acrobat.
+3. Reactivate with review/confirmation. Check the Active status, restored test/assignment controls and a fresh successful probe/B-T seal. Reactivation does not repair requests captured before retirement. Existing accepted PDF signatures and viewer trust should be unchanged.
+
+Source removal is a separate next slice; retirement retains configuration and history.
+
 ## TSA source overview and CA timestamp policy dialogs — 2026-10-04
 
 Disposable checks: `node tests/timestamp_admin_ui.js`, `node tests/providers_admin_ui.js`, and `tests/provider_admin_view.php` / `tests/pki_admin_ajax.php` on PHP 8.2 and 8.5. These use no live PKI, remote service or stored settings. Source Manage reads cached public metadata; only explicit Test source makes a timestamp request. Existing cryptographic and service acceptance remains applicable; this slice changes presentation.
@@ -26,6 +38,7 @@ php tests/dependency_isolation.php
 php tests/timestamp_spike.php
 php tests/external_timestamp.php
 php tests/external_timestamp_settings.php
+php tests/external_tsa_retirement.php
 php tests/timestamp_transport.php
 php tests/certificate_serials.php
 php tests/pki_primitives.php

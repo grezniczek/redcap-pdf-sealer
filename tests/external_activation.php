@@ -7,7 +7,9 @@ require __DIR__ . '/project_enrollment.php';
 require (getenv('PDF_SEALER_FRAMEWORK_ROOT') ?: '/home/gr/redcap/external_modules') . '/classes/PdfFinalizeResult.php';
 function db_query(string $sql, array $params, mixed ...$rest): Rows {
     global $f;
-    if (str_contains($sql,'GET_LOCK') || str_contains($sql,'RELEASE_LOCK')) return new Rows([[1]]);
+    if (str_contains($sql,'GET_LOCK') || str_contains($sql,'RELEASE_LOCK')) {
+        return isset($GLOBALS['externalTestLockQuery']) ? ($GLOBALS['externalTestLockQuery'])($sql, $params) : new Rows([[1]]);
+    }
     if (str_contains($sql,'SELECT s.value')) {
         $value = $f->getSystemSetting($params[1]);
         return new Rows($value === null ? [] : [['value'=>$value,'type'=>'string']]);

@@ -148,6 +148,14 @@ A CA provider stores a primary source and an ordered list of up to two distinct 
 
 External TSA tokens may use the RFC 3161 legacy ESSCertID certificate identifier, which hashes the signer certificate with SHA-1. This is accepted only for external timestamp tokens; SHA-1 token content digests and signature algorithms remain rejected. The built-in TSA and document signature verifier retain their stricter defaults.
 
+### External TSA retirement and acceptance
+
+Endpoint/trust/credential records remain immutable. The separate system setting `tsa_source_lifecycle_<source-id>` stores `{retired, revision}`; absence means active revision 0. Valid stored revisions start at 1 and increase on every retired/reactivated transition. Malformed state fails closed. Public summaries include retirement status and retained cached observations, without endpoint/credential disclosure.
+
+CC-only preview/confirmation takes the configuration lock. The review digest covers immutable source configuration, lifecycle state and every registered CA policy referencing the source (primary/alternative position, complete order, fallback and CA retirement state). Confirmation rechecks the digest under the lock and transaction; state plus actor/revision/usage audit commit together. Policy writes and CA registration share that lock and reject new retired references; unchanged positions can be retained for remediation. No project/key decryption or remote request occurs in the review.
+
+Source construction captures the active revision; external response guards read primary state before transport and after validation. A retired or changed revision cannot publish its response, even after reactivation. Explicit diagnostics recheck under the configuration lock before saving, so a lifecycle race cannot overwrite history with a stale observation. The finalizer also captures the selected external source/revision and rechecks it under project → configuration locks before writing the PDF. A changed selected source yields `TSA_SOURCE_UNAVAILABLE`; there is no retry/rebase inside final acceptance. Earlier response rejection follows the existing ordered-source/B-B rules. Already accepted copies may continue through Core delivery. Retirement does not revoke the external certificate or alter historical PDF bytes.
+
 ## Automatic built-in leaf renewal
 
 `BuiltinMaintenanceService` runs hourly under a dedicated advisory lock. It first maintains the root and built-in TSA under the configuration lock, releases that lock, then handles up to five existing built-in project signers using the project → configuration lock order. Renewal is due at 90 days remaining or when the recorded issuer differs from the current issuer. A monotonic 60-second budget limits new project starts; running work completes normally.

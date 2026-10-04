@@ -212,10 +212,42 @@ namespace {
     }
     check([$framework->settings, $framework->queries] === $before, 'Invalid policy request wrote storage');
 
-    foreach (['register_timestamp_source', 'test_timestamp_source', 'save_provider_timestamp'] as $action) {
+    foreach (['register_timestamp_source', 'test_timestamp_source', 'save_provider_timestamp', 'preview_timestamp_retirement', 'set_timestamp_retirement'] as $action) {
         check(in_array($action, $config['auth-ajax-actions'], true) && !in_array($action, $config['no-auth-ajax-actions'], true), 'TSA action must require authentication');
         check($module->redcap_module_ajax($action, [], null)['ok'] === false, 'Malformed TSA payload accepted');
     }
+    $sourceId = 'remote-tsa-' . str_repeat('a', 16);
+    $publicDer = 'disposable-public-chain-fixture';
+    $framework->settings['external_tsa_source_ids'] = json_encode([$sourceId]);
+    $framework->settings['tsa_source_' . $sourceId] = json_encode(['id' => $sourceId, 'kind' => 'external',
+        'name' => 'Retirement API fixture', 'endpoint' => 'https://example.test/tsr', 'policy_oid' => '',
+        'credentials' => null, 'chain' => [['der_b64' => base64_encode($publicDer), 'sha256' => hash('sha256', $publicDer)]]]);
+    check($module->redcap_module_ajax('save_provider_timestamp', ['provider' => 'builtin-ca', 'source' => $sourceId,
+        'fallback' => false, 'alternatives' => []], null)['ok'], 'Initial external source assignment failed');
+    $preview = $module->redcap_module_ajax('preview_timestamp_retirement', ['source' => $sourceId], null);
+    check($preview['ok'] && count($preview['providers']) === 1 && !$preview['retired'], 'Retirement public preview dispatch failed');
+    $before = [$framework->settings, $framework->queries];
+    foreach ([null, [], ['source' => 'builtin-tsa'], ['source' => $sourceId, 'retired' => 1, 'review_hash' => $preview['review_hash']],
+        ['source' => $sourceId, 'retired' => true, 'review_hash' => 'bad'],
+        ['source' => $sourceId, 'retired' => true, 'review_hash' => $preview['review_hash'], 'extra' => true]] as $payload) {
+        check(!$module->redcap_module_ajax('set_timestamp_retirement', $payload, null)['ok'], 'Malformed retirement accepted');
+    }
+    check([$framework->settings, $framework->queries] === $before, 'Malformed retirement read/wrote state');
+    $payload = ['source' => $sourceId, 'retired' => true, 'review_hash' => $preview['review_hash']];
+    $framework->failKey = 'tsa_source_lifecycle_' . $sourceId;
+    check(!$module->redcap_module_ajax('set_timestamp_retirement', $payload, null)['ok'], 'Retirement storage failure hidden');
+    $framework->failKey = null;
+    check($framework->settings === $before[0] && $framework->transaction === null, 'Retirement failure left partial state');
+    $result = $module->redcap_module_ajax('set_timestamp_retirement', $payload, null);
+    check($result === ['ok' => true, 'retired' => true, 'revision' => 1], 'Retirement mutation dispatch failed');
+    check(!$module->redcap_module_ajax('set_timestamp_retirement', $payload, null)['ok'], 'Retirement replay accepted');
+    check($module->redcap_module_ajax('test_timestamp_source', ['source' => $sourceId], null)
+        === ['ok' => false, 'message' => 'tsa_source_unavailable'], 'Retired probe reached transport/crypto');
+    $preview = $module->redcap_module_ajax('preview_timestamp_retirement', ['source' => $sourceId], null);
+    check($module->redcap_module_ajax('set_timestamp_retirement', ['source' => $sourceId, 'retired' => false,
+        'review_hash' => $preview['review_hash']], null) === ['ok' => true, 'retired' => false, 'revision' => 2], 'Reactivation failed');
+    check($framework->heldLocks === [], 'TSA retirement leaked a configuration lock');
+
     $tsaPayload = ['name' => 'Test TSA', 'endpoint' => 'http://example.test/tsr', 'pem' => 'invalid PEM',
         'policy' => '', 'username' => '', 'password' => ''];
     check($module->redcap_module_ajax('register_timestamp_source', $tsaPayload, null)
@@ -264,7 +296,7 @@ namespace {
         } catch (\RuntimeException $e) {
             check($e->getMessage() === 'pki_access_denied', 'Unexpected timestamp settings authorization result');
         }
-        foreach (['project_admin_overview', 'preview_project_renewal', 'renew_project_certificate', 'register_timestamp_source', 'test_timestamp_source', 'save_provider_timestamp', 'register_ca_provider', 'assign_ca_provider', 'save_assignment_policy', 'preview_ca_retirement', 'set_ca_retirement', 'preview_provider_transition', 'start_provider_transition', 'cancel_provider_transition'] as $action) {
+        foreach (['project_admin_overview', 'preview_project_renewal', 'renew_project_certificate', 'register_timestamp_source', 'test_timestamp_source', 'save_provider_timestamp', 'preview_timestamp_retirement', 'set_timestamp_retirement', 'register_ca_provider', 'assign_ca_provider', 'save_assignment_policy', 'preview_ca_retirement', 'set_ca_retirement', 'preview_provider_transition', 'start_provider_transition', 'cancel_provider_transition'] as $action) {
             try {
                 $module->redcap_module_ajax($action, [], $case['context']);
                 throw new \RuntimeException('Unauthorized provider request accepted');

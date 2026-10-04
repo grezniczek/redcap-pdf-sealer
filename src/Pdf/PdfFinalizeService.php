@@ -99,13 +99,14 @@ final class PdfFinalizeService
             $key = $project->privateKey($protector);
             $now = self::requestTime();
             $timestampChain = [];
+            $externalTimestampState = null;
             if ($mode === 'none') {
                 $sealed = $this->builder->seal($source, $project->certificateDer, $key, $issuerChain, $now);
                 $result = new PdfSealResult($sealed, 'pades-b-b');
             } else {
                 $result = $this->sealWithFallback(
                     $source, $project->certificateDer, $key, $issuerChain,
-                    $identities, $health, [$provider['timestamp_source'], ...$provider['timestamp_alternatives']], $fallback, $now, $event, $timestampChain,
+                    $identities, $health, [$provider['timestamp_source'], ...$provider['timestamp_alternatives']], $fallback, $now, $event, $timestampChain, $externalTimestampState,
                 );
             }
             $accept = function () use ($path, $result, $mode, $event, $events, $context, $pid): PdfFinalizeResult {
@@ -141,8 +142,13 @@ final class PdfFinalizeService
                     'timestamp_time' => $result->timestampTime,
                 ]);
             };
-            return $projects->acceptSeal((int) $pid, $project, function () use ($identities, $event, $result, $accept, $timestampChain) {
+            return $projects->acceptSeal((int) $pid, $project, function () use ($identities, $event, $result, $accept, $timestampChain, $externalTimestampState) {
                 if ($result->profile !== 'pades-b-t') { return $accept(); }
+                if ($externalTimestampState !== null) {
+                    // The project -> configuration locks serialize acceptance against retirement/reactivation.
+                    (new \DE\RUB\PDFSealerExternalModule\Timestamp\ExternalTimestampSources($this->framework))
+                        ->assertUsable($externalTimestampState['id'], $externalTimestampState['revision']);
+                }
                 $identities->rootRevocations()->assertChain($timestampChain);
                 if (!isset($event['timestamp_identity_id'])) { return $accept(); }
                 // ProjectIdentityService holds project -> configuration locks through acceptance.
@@ -154,6 +160,8 @@ final class PdfFinalizeService
             });
         } catch (\DE\RUB\PDFSealerExternalModule\Pki\RootRevoked) {
             return $this->failed($events, $event, $context, (int) $pid, 'ROOT_CA_REVOKED', 'Built-in CA issuing key revoked; replacement pending');
+        } catch (\DE\RUB\PDFSealerExternalModule\Timestamp\TimestampSourceUnavailable) {
+            return $this->failed($events, $event, $context, (int) $pid, 'TSA_SOURCE_UNAVAILABLE', 'External TSA lifecycle changed during sealing; retry with the configured timestamp sources');
         } catch (\DE\RUB\PDFSealerExternalModule\Pki\TsaRevoked) {
             return $this->failed($events, $event, $context, (int) $pid, 'TSA_CERTIFICATE_REVOKED', 'TSA certificate revoked during sealing; retry with the configured timestamp sources');
         } catch (\DE\RUB\PDFSealerExternalModule\Pki\ProjectRevoked) {
@@ -247,16 +255,19 @@ final class PdfFinalizeService
         int $now,
         array &$event,
         array &$timestampChain,
+        ?array &$externalTimestampState,
     ): PdfSealResult {
-        $capturedTsaIds = []; $capturedIssuers = []; $capturedChains = [];
+        $capturedTsaIds = []; $capturedIssuers = []; $capturedChains = []; $capturedExternalRevisions = [];
         $ordered = new \DE\RUB\PDFSealerExternalModule\Timestamp\OrderedTimestampProvider(
             $sourceIds,
-            function (string $sourceId, float $deadline) use ($identities, $health, &$capturedTsaIds, &$capturedIssuers, &$capturedChains) {
+            function (string $sourceId, float $deadline) use ($identities, $health, &$capturedTsaIds, &$capturedIssuers, &$capturedChains, &$capturedExternalRevisions) {
                 $timestamp = $identities->providers()->source($sourceId);
                 if ($timestamp['kind'] === 'external') {
                     $capturedChains[$sourceId] = array_map([\DE\RUB\PDFSealerExternalModule\Pki\ProviderRepository::class, 'certificateDer'], $timestamp['chain']);
-                    return (new \DE\RUB\PDFSealerExternalModule\Timestamp\ExternalTimestampSources($this->framework))
-                        ->provider($sourceId, $deadline);
+                    $sources = new \DE\RUB\PDFSealerExternalModule\Timestamp\ExternalTimestampSources($this->framework);
+                    $revision = $sources->assertUsable($sourceId)['revision'];
+                    $capturedExternalRevisions[$sourceId] = $revision;
+                    return $sources->provider($sourceId, $deadline, $revision);
                 }
                 try {
                     $tsa = $health->captureTimestamp($timestamp, time());
@@ -286,6 +297,8 @@ final class PdfFinalizeService
                 $event['timestamp_issuer_identity_id'] = $capturedIssuers[$event['timestamp_source']];
             }
             $timestampChain = $capturedChains[$event['timestamp_source']] ?? [];
+            $externalTimestampState = isset($capturedExternalRevisions[$event['timestamp_source']])
+                ? ['id' => $event['timestamp_source'], 'revision' => $capturedExternalRevisions[$event['timestamp_source']]] : null;
             $event['alternative_used'] = $ordered->selectedSource() !== null && $ordered->selectedSource() !== $sourceIds[0] ? '1' : '0';
         }
     }

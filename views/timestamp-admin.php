@@ -7,6 +7,7 @@ if (!isset($framework) || !$framework->isSuperUser() || $framework->getProjectId
 <div class="pdf-sealer-table-wrap mb-3">
 <table id="pdf-sealer-tsa-sources" class="table table-sm w-100 hover">
     <thead><tr>
+        <th><?= $escape($framework->tt('tsa_source_status')) ?></th>
         <th><?= $escape($framework->tt('tsa_type')) ?></th>
         <th><?= $escape($framework->tt('provider_table_name')) ?></th>
         <th><?= $escape($framework->tt('pki_valid_until')) ?></th>
@@ -15,6 +16,7 @@ if (!isset($framework) || !$framework->isSuperUser() || $framework->getProjectId
     </tr></thead>
     <tbody>
         <tr data-tsa-id="builtin-tsa">
+            <td>—</td>
             <td><?= $escape($framework->tt('provider_timestamp_internal')) ?></td>
             <td data-tsa-name><?= $escape($framework->tt('tsa_builtin_name')) ?></td>
             <?php $tsaExpiry = $certificates['tsa']['details']['validTo_time_t'] ?? null; ?>
@@ -24,6 +26,7 @@ if (!isset($framework) || !$framework->isSuperUser() || $framework->getProjectId
         </tr>
         <?php foreach ($sourceSummaries as $source): $tsaExpiry = $source['diagnostic']['valid_until'] ?? null; ?>
         <tr data-tsa-id="<?= $escape($source['id']) ?>">
+            <td data-tsa-status><span class="badge <?= ($source['retired'] ?? false) ? 'bg-secondary' : 'bg-success' ?>"><?= $escape($framework->tt(($source['retired'] ?? false) ? 'provider_retired' : 'provider_active')) ?></span></td>
             <td><?= $escape($framework->tt('tsa_external_type')) ?></td>
             <td data-tsa-name><?= $escape($source['name']) ?></td>
             <td data-tsa-expiry data-order="<?= $escape($tsaExpiry ?? 0) ?>"><?= $tsaExpiry === null ? '—' : $escape(gmdate('Y-m-d H:i:s \U\T\C', $tsaExpiry)) ?></td>
@@ -39,7 +42,7 @@ if (!isset($framework) || !$framework->isSuperUser() || $framework->getProjectId
 <button type="button" id="pdf-sealer-tsa-register" class="btn btn-link btn-sm pdf-sealer-workflow-link" <?= $sourcesUnavailable ? 'disabled' : '' ?>><?= $escape($framework->tt('external_tsa_register')) ?></button>
 <p class="small text-muted"><?= $escape($framework->tt('tsa_register_intro')) ?></p>
 <div class="mt-3">
-<button type="button" id="pdf-sealer-tsa-test-all" class="btn btn-link btn-sm pdf-sealer-workflow-link" <?= $sourcesUnavailable || $sourceSummaries === [] ? 'disabled' : '' ?>><?= $escape($framework->tt('tsa_test_all')) ?></button>
+<button type="button" id="pdf-sealer-tsa-test-all" class="btn btn-link btn-sm pdf-sealer-workflow-link" <?= $sourcesUnavailable || count(array_filter($sourceSummaries, static fn(array $s): bool => !($s['retired'] ?? false))) === 0 ? 'disabled' : '' ?>><?= $escape($framework->tt('tsa_test_all')) ?></button>
 <p class="small text-muted"><?= $escape($framework->tt('tsa_test_all_help')) ?></p>
 </div>
 <template id="pdf-sealer-builtin-tsa-details">
@@ -74,7 +77,7 @@ if (!isset($framework) || !$framework->isSuperUser() || $framework->getProjectId
 <fieldset <?= $providersUnavailable || $sourcesUnavailable ? 'disabled' : '' ?>>
     <label for="tsa-source"><?= $escape($framework->tt('timestamp_primary_source')) ?></label>
     <select id="tsa-source" data-timestamp-source class="form-select form-select-sm mb-3" required>
-        <?php foreach ($sourceChoices as $id => $name): ?><option value="<?= $escape($id) ?>"><?= $escape($name) ?></option><?php endforeach; ?>
+        <?php foreach ($sourceChoices as $id => $name): ?><option value="<?= $escape($id) ?>"><?= $escape(in_array($id, $retiredSourceIds ?? [], true) ? $framework->tt('tsa_retired_name', $name) : $name) ?></option><?php endforeach; ?>
     </select>
     <?php foreach ([1, 2] as $position): ?>
     <label for="tsa-alternative-<?= $position ?>"><?= $escape($framework->tt('timestamp_alternative_' . $position)) ?></label>

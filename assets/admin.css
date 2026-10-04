@@ -71,4 +71,4 @@
 
 /* Match the provider catalog's compact source/expiry presentation. */
 #pdf-sealer-tsa-sources th:first-child, #pdf-sealer-tsa-sources td:first-child { width: 70px; white-space: nowrap; }
-#pdf-sealer-tsa-sources td:nth-child(3), #pdf-sealer-tsa-sources td:nth-child(4) { font-size: .85em; }
+#pdf-sealer-tsa-sources td:nth-child(4), #pdf-sealer-tsa-sources td:nth-child(5) { font-size: .85em; }

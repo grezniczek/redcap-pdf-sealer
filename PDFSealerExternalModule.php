@@ -200,7 +200,7 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
         if (in_array($action, ['register_ca_provider', 'assign_ca_provider', 'save_assignment_policy', 'preview_ca_retirement', 'set_ca_retirement'], true)) {
             return $this->manageCaProvider($action, $payload);
         }
-        if (in_array($action, ['register_timestamp_source', 'test_timestamp_source', 'save_provider_timestamp'], true)) {
+        if (in_array($action, ['register_timestamp_source', 'test_timestamp_source', 'save_provider_timestamp', 'preview_timestamp_retirement', 'set_timestamp_retirement'], true)) {
             return $this->manageTimestampSource($action, $payload);
         }
         if ($action === 'run_diagnostic') {
@@ -552,7 +552,8 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
 
     private function manageTimestampSource(string $action, mixed $payload): array
     {
-        $failure = ['ok' => false, 'message' => $this->framework->tt('external_tsa_failed')];
+        $retirement = in_array($action, ['preview_timestamp_retirement', 'set_timestamp_retirement'], true);
+        $failure = ['ok' => false, 'message' => $this->framework->tt($retirement ? 'tsa_retirement_failed' : 'external_tsa_failed')];
         if (!is_array($payload)) {
             return $action === 'register_timestamp_source'
                 ? ['ok' => false, 'message' => $this->framework->tt('external_tsa_register_request')]
@@ -568,6 +569,14 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
                 $id = $service->register($payload['name'], $payload['endpoint'], $payload['pem'], $payload['policy'], $payload['username'], $payload['password']);
                 return ['ok' => true, 'id' => $id];
             }
+            if ($retirement) {
+                if (!is_string($payload['source'] ?? null) || preg_match('/^remote-tsa-[a-f0-9]{16}$/D', $payload['source']) !== 1
+                    || count($payload) !== ($action === 'preview_timestamp_retirement' ? 1 : 3)
+                    || ($action === 'set_timestamp_retirement' && (!is_bool($payload['retired'] ?? null)
+                        || !is_string($payload['review_hash'] ?? null) || preg_match('/^[a-f0-9]{64}$/D', $payload['review_hash']) !== 1))) { return $failure; }
+                if ($action === 'preview_timestamp_retirement') { return ['ok' => true] + $service->previewRetirement($payload['source']); }
+                return ['ok' => true] + $service->setRetired($payload['source'], $payload['retired'], $payload['review_hash']);
+            }
             if ($action === 'test_timestamp_source') {
                 if (count($payload) !== 1 || !is_string($payload['source'] ?? null)) { return $failure; }
                 return ['ok' => true, 'diagnostic' => $service->diagnose($payload['source'])];
@@ -578,6 +587,8 @@ class PDFSealerExternalModule extends \ExternalModules\AbstractExternalModule
                 || !is_bool($payload['fallback'] ?? null)) { return $failure; }
             $service->savePolicy($payload['provider'], $payload['source'] === 'none' ? null : $payload['source'], $payload['fallback'], $payload['alternatives'] ?? []);
             return ['ok' => true];
+        } catch (\DE\RUB\PDFSealerExternalModule\Timestamp\TimestampSourceUnavailable) {
+            return ['ok' => false, 'message' => $this->framework->tt('tsa_source_unavailable')];
         } catch (\DE\RUB\PDFSealerExternalModule\Timestamp\TimestampSourceRegistrationFailed $e) {
             return ['ok' => false, 'message' => $this->framework->tt('external_tsa_register_' . $e->stage)];
         } catch (\Throwable $e) {

@@ -64,6 +64,77 @@ final class ExternalTimestampSources
         return self::validate($source, $id);
     }
 
+    /** Retirement is separate from immutable endpoint/trust configuration; always read from the primary. */
+    public function lifecycle(string $id): array
+    {
+        $this->get($id);
+        $json = $this->settings->get('tsa_source_lifecycle_' . $id);
+        if ($json === null) { return ['retired' => false, 'revision' => 0]; }
+        $state = is_string($json) ? json_decode($json, true, 8, JSON_THROW_ON_ERROR) : null;
+        if (!is_array($state) || count($state) !== 2 || !is_bool($state['retired'] ?? null)
+            || !is_int($state['revision'] ?? null) || $state['revision'] < 1) {
+            throw new RuntimeException('Invalid TSA source lifecycle');
+        }
+        return $state;
+    }
+
+    public function assertUsable(string $id, ?int $revision = null): array
+    {
+        $state = $this->lifecycle($id);
+        if ($state['retired'] || ($revision !== null && $revision !== $state['revision'])) {
+            throw new TimestampSourceUnavailable('External TSA retired or lifecycle changed');
+        }
+        return $state;
+    }
+
+    public function previewRetirement(string $id): array
+    {
+        return (new PkiInitializationLock())->withLock(fn() => $this->retirementImpact($id));
+    }
+
+    private function retirementImpact(string $id): array
+    {
+        if (!in_array($id, $this->ids(), true)) { throw new RuntimeException('Unknown external TSA'); }
+        $source = $this->get($id);
+        $state = $this->lifecycle($id);
+        $providers = new ProviderRepository($this->framework, $this->settings);
+        $ids = $providers->externalIds();
+        if ($providers->hasConfiguration()) { $ids[] = ProviderRepository::BUILTIN_CA; }
+        sort($ids, SORT_STRING);
+        $usage = [];
+        foreach ($ids as $providerId) {
+            $provider = $providers->provider($providerId);
+            $order = $provider['timestamp_source'] === null ? [] : [$provider['timestamp_source'], ...$provider['timestamp_alternatives']];
+            $position = array_search($id, $order, true);
+            if ($position === false) { continue; }
+            $usage[] = ['id' => $providerId, 'name' => $provider['name'] ?? null,
+                'retired' => $providers->isRetired($providerId), 'position' => $position,
+                'timestamp_source' => $provider['timestamp_source'], 'timestamp_alternatives' => $provider['timestamp_alternatives'],
+                'bb_fallback' => $provider['bb_fallback']];
+        }
+        $impact = ['source' => $id, 'name' => $source['name'], 'retired' => $state['retired'],
+            'revision' => $state['revision'], 'providers' => $usage];
+        // Hash the immutable configuration without returning endpoints, credentials or chain blobs.
+        $hash = hash('sha256', json_encode([$impact, $source], JSON_THROW_ON_ERROR));
+        return $impact + ['review_hash' => $hash];
+    }
+
+    public function setRetired(string $id, bool $retired, string $reviewHash): array
+    {
+        if (preg_match('/^[a-f0-9]{64}$/D', $reviewHash) !== 1) { throw new RuntimeException('Invalid TSA retirement review'); }
+        $result = [];
+        $this->mutate(function () use ($id, $retired, $reviewHash, &$result): void {
+            $impact = $this->retirementImpact($id);
+            if (!hash_equals($impact['review_hash'], $reviewHash) || $impact['retired'] === $retired
+                || $impact['revision'] === PHP_INT_MAX) { throw new RuntimeException('TSA usage/state changed; review again'); }
+            $result = ['retired' => $retired, 'revision' => $impact['revision'] + 1];
+            $this->write('tsa_source_lifecycle_' . $id, $result);
+            $this->audit($retired ? 'retire' : 'reactivate', ['source_id' => $id, 'review_hash' => $reviewHash,
+                'revision' => (string) $result['revision'], 'affected_provider_count' => (string) count($impact['providers'])]);
+        });
+        return $result;
+    }
+
     public function register(string $name, #[\SensitiveParameter] string $endpoint, string $pem, string $policy,
         #[\SensitiveParameter] string $username, #[\SensitiveParameter] string $password): string
     {
@@ -102,9 +173,10 @@ final class ExternalTimestampSources
         return $id;
     }
 
-    public function provider(string $id, ?float $deadline = null): ExternalTimestampProvider
+    public function provider(string $id, ?float $deadline = null, ?int $revision = null): ExternalTimestampProvider
     {
         $source = $this->get($id);
+        $revision = $this->assertUsable($id, $revision)['revision'];
         $chain = array_map([ProviderRepository::class, 'certificateDer'], $source['chain']);
         $blocks = (new \DE\RUB\PDFSealerExternalModule\Pki\IdentityRepository($this->framework, new SecretProtector()))->rootRevocations();
         $blocks->assertChain($chain);
@@ -116,7 +188,10 @@ final class ExternalTimestampSources
         $pem = implode('', array_map(static fn(array $cert): string => Certificate::derToPem(ProviderRepository::certificateDer($cert)), $source['chain']));
         return new ExternalTimestampProvider($this->framework, $pem,
             new HttpsTimestampTransport($source['endpoint'], $auth[0], $auth[1], $deadline), $source['policy_oid'],
-            static fn() => $blocks->assertChain($chain));
+            function () use ($id, $revision, $blocks, $chain): void {
+                $this->assertUsable($id, $revision);
+                $blocks->assertChain($chain);
+            });
     }
 
     /** No endpoint, credentials or untrusted service messages are returned to the browser. */
@@ -126,7 +201,7 @@ final class ExternalTimestampSources
         foreach ($this->ids() as $id) {
             $source = $this->get($id);
             $rows[] = ['id' => $id, 'name' => $source['name'], 'policy_oid' => $source['policy_oid'],
-                'authenticated' => $source['credentials'] !== null, 'diagnostic' => $this->snapshot($id)];
+                'authenticated' => $source['credentials'] !== null, 'retired' => $this->lifecycle($id)['retired'], 'diagnostic' => $this->snapshot($id)];
         }
         return $rows;
     }
@@ -151,10 +226,10 @@ final class ExternalTimestampSources
     /** Explicit probe; never called while rendering a page or as a substitute for per-seal validation. */
     public function diagnose(string $id): array
     {
-        $this->get($id);
+        $revision = $this->assertUsable($id)['revision'];
         $result = ['checked_at' => time(), 'ok' => false, 'signer_sha256' => null, 'signer_sha1' => null, 'valid_until' => null];
         try {
-            $provider = $this->provider($id);
+            $provider = $this->provider($id, revision: $revision);
             $asn1 = new PolicyOidAsn1($provider->policyOid());
             $verifier = new SignedDataVerifier($asn1, requireSigningCertificate: true, allowLegacyEssSha1: true);
             $client = new Client(new Config('https://timestamp.invalid/'), $asn1, verifier: $verifier);
@@ -169,7 +244,8 @@ final class ExternalTimestampSources
             $result['valid_until'] = $details['validTo_time_t'];
         } catch (Throwable) { /* Persist only a generic failure; remote text may contain secrets. */ }
         $result['checked_at'] = time();
-        $this->mutate(function () use ($id, $result): void {
+        $this->mutate(function () use ($id, $result, $revision): void {
+            $this->assertUsable($id, $revision);
             $this->write('tsa_diagnostic_' . $id, $result);
             $this->audit('diagnostic', ['source_id' => $id, 'outcome' => $result['ok'] ? 'passed' : 'failed']);
         });

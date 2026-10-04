@@ -1,5 +1,13 @@
 # Handoff prompt: PDF Sealer certificate lifecycle
 
+## External TSA retirement and reactivation — 2026-10-04
+
+External TSA Manage now offers reviewed Retire/Reactivate actions, showing every affected CA policy and its primary/alternative position and B-B fallback. Success closes both dialogs, updates the source status and assignment/test controls, and shows a toast. Retirement blocks new assignments and source probes; existing CA references, credentials and dated diagnostics remain. Existing references may stay in their saved position while admins adjust the policy. Only explicitly configured alternatives or B-B fallback apply.
+
+Source lifecycle revisions are read from primary storage before/after remote responses and again under the final PDF acceptance lock. Retirement, including retirement followed by reactivation, invalidates a captured request. A lifecycle change after a source was selected rejects that sealing attempt with TSA_SOURCE_UNAVAILABLE; already accepted PDFs remain unchanged. Reviewed mutations use the shared configuration lock, transaction and audit, rejecting stale or replayed reviews. This is local source control, not revocation of an externally issued certificate.
+
+Disposable service/crypto, administrator authorization, UI and view checks pass on PHP 8.2/8.5 and Node. Browser/Acrobat acceptance remains pending in [testing](testing.md#external-tsa-retirement-and-reactivation--2026-10-04). No live settings, certificates, remote TSA requests or Core/Framework runtime files changed. Next: user browser acceptance, then removal of unused external TSA sources as a separate slice.
+
 ## TSA source overview and CA timestamp policy dialogs — 2026-10-04
 
 The TSA overview now has a rule above Administrative workflows; its last link tests all registered external sources sequentially, including rows hidden by search/paging. Completed tests update rows; failures do not stop the batch, and interrupted requests retain dated observations. One toast summarizes results. Last-test dates retain the client time zone/profile formatter.

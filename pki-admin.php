@@ -77,11 +77,15 @@ try {
     $providerCertificates = $providers->publicCertificates();
 } catch (Throwable) { $providersUnavailable = true; }
 $sourceSummaries = []; $sourcesUnavailable = false;
+$retiredSourceIds = [];
 $sourceChoices = ['none' => $framework->tt('timestamp_mode_none')];
 if ($builtinSourceAvailable) { $sourceChoices['builtin-tsa'] = $framework->tt('timestamp_mode_internal'); }
 try {
     $sourceSummaries = (new \DE\RUB\PDFSealerExternalModule\Timestamp\ExternalTimestampSources($framework))->summaries();
-    foreach ($sourceSummaries as $source) { $sourceChoices[$source['id']] = $source['name']; }
+    foreach ($sourceSummaries as $source) {
+        $sourceChoices[$source['id']] = $source['name'];
+        if ($source['retired']) { $retiredSourceIds[] = $source['id']; }
+    }
 } catch (Throwable) { $sourcesUnavailable = true; }
 $timestampPolicies = array_map(static fn(array $p): array => array_intersect_key($p, array_flip(['id', 'timestamp_source', 'timestamp_alternatives', 'bb_fallback'])), $providerCatalog);
 $builtinRetired = false;
@@ -138,7 +142,9 @@ $renderCertificate = static function (string $role) use ($certificates, $framewo
 };
 require_once APP_PATH_DOCROOT . 'ControlCenter/header.php';
 $framework->initializeJavascriptModuleObject();
-foreach (['tsa_test_all', 'tsa_test_all_running', 'tsa_test_all_result', 'tsa_type', 'tsa_last_test', 'tsa_manage_title', 'tsa_builtin_name', 'tsa_test_passed', 'tsa_test_failed', 'tsa_authentication', 'tsa_observation_help',
+foreach (['tsa_source_status', 'tsa_retire', 'tsa_reactivate', 'tsa_retirement_title', 'tsa_retirement_help', 'tsa_reactivation_help', 'tsa_retirement_usage',
+    'tsa_retirement_none', 'tsa_retirement_primary', 'tsa_retirement_alternative', 'tsa_retirement_failed', 'tsa_retirement_saved', 'tsa_source_unavailable', 'tsa_retired_name', 'timestamp_fallback_allow', 'timestamp_fallback_fail',
+    'tsa_test_all', 'tsa_test_all_running', 'tsa_test_all_result', 'tsa_type', 'tsa_last_test', 'tsa_manage_title', 'tsa_builtin_name', 'tsa_test_passed', 'tsa_test_failed', 'tsa_authentication', 'tsa_observation_help',
     'external_tsa_register', 'external_tsa_register_ajax', 'external_tsa_test', 'external_tsa_policy', 'external_tsa_default_policy',
     'timestamp_summary_none', 'timestamp_summary_internal', 'timestamp_summary_external', 'external_tsa_basic', 'external_tsa_anonymous', 'external_tsa_saved', 'timestamp_settings_title', 'provider_timestamp_none', 'provider_timestamp_internal',
     'tsa_lifecycle_title', 'tsa_lifecycle_review', 'tsa_lifecycle_action', 'tsa_lifecycle_already', 'tsa_lifecycle_replace', 'tsa_lifecycle_superseded', 'tsa_lifecycle_compromise',

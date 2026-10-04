@@ -62,8 +62,9 @@ check(str_contains($projects, 'id="pdf-sealer-project-select-page"') && !str_con
 check(str_contains($projects, 'data-status-url="https://redcap.test/external_modules/?prefix=pdf_sealer&amp;page=project-status.php"'), 'Status page URL must use the Framework and escaping');
 check(str_contains($projects, 'fa-sync-alt') && !str_contains($projects, '>Refresh overview</button>'), 'Refresh must be icon-only with an accessible label');
 $sourcesUnavailable = $providersUnavailable = false;
-$sourceSummaries = [['id' => 'remote-tsa-example', 'name' => '<Remote & TSA>', 'policy_oid' => '', 'authenticated' => true,
+$sourceSummaries = [['id' => 'remote-tsa-example', 'name' => '<Remote & TSA>', 'policy_oid' => '', 'authenticated' => true, 'retired' => true,
     'diagnostic' => ['checked_at' => 1800000000, 'ok' => true, 'valid_until' => 1900000000]]];
+$retiredSourceIds = ['remote-tsa-example'];
 ob_start(); require dirname(__DIR__) . '/views/timestamp-admin.php'; $tsa = ob_get_clean();
 check(str_contains($tsa, '&lt;Remote &amp; TSA&gt;') && !str_contains($tsa, '<Remote'), 'Source metadata must be escaped');
 check(substr_count($tsa, 'data-tsa-manage') === 2 && str_contains($tsa, 'data-order="1900000000"'), 'Missing built-in/external source rows or cached expiry');
@@ -74,4 +75,6 @@ check(!str_contains($tsa, 'secret') && !str_contains($tsa, 'https://tsa.example'
 check(str_contains($tsa, 'id="pdf-sealer-tsa-test-all"') && str_contains($tsa, 'Test all external sources now'), 'Batch test link missing');
 check(strpos($tsa, 'id="pdf-sealer-tsa-test-all"') > strpos($tsa, 'id="pdf-sealer-tsa-register"'), 'Batch testing must follow registration in workflows');
 check(preg_match('/<hr>\s*<h5>Administrative workflows<\/h5>/', $tsa) === 1, 'Workflow separator missing');
+check(str_contains($tsa, 'data-tsa-status><span class="badge bg-secondary">Retired</span>'), 'Retired TSA status missing');
+check(preg_match('/id="pdf-sealer-tsa-test-all"[^>]*disabled/', $tsa) === 1, 'All-retired catalog must disable batch testing');
 echo "Provider, shared project and TSA administration view checks passed\n";

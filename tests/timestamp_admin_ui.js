@@ -3,6 +3,7 @@ const assert = require('node:assert/strict'), fs = require('node:fs'), path = re
 const tick = () => new Promise(resolve => setImmediate(resolve));
 class Node {
     constructor(tag, data = {}) { this.tag = tag; this.dataset = data; this.children = []; this.events = {}; this.style = {}; this.disabled = false; }
+    replaceChildren(...nodes) { this.children = []; this.append(...nodes); }
     append(...nodes) { nodes.forEach(node => this.appendChild(node)); }
     appendChild(node) { if (node.parent) node.parent.children.splice(node.parent.children.indexOf(node), 1); this.children.push(node); node.parent = this; }
     get firstElementChild() { return this.children[0]; }
@@ -17,14 +18,14 @@ class Node {
     get selectedOptions() { return this.options.filter(option => option.value === this.value); }
 }
 const all = node => [node, ...node.children.flatMap(all)];
-function fixture({reply, snapshot = null, revoked = false, sourceCount = 1, formatTime = date => 'local:' + date.toISOString()} = {}) {
+function fixture({reply, snapshot = null, revoked = false, sourceRetired = false, sourceCount = 1, formatTime = date => 'local:' + date.toISOString()} = {}) {
     const ids = {}, calls = [], dialogs = [], notifications = [], redirects = [], busyValues = [], saved = [], tables = [];
     const node = (id, tag, data = {}) => ids[id] = new Node(tag, data);
     const catalog = node('pdf-sealer-tsa-sources', 'table');
     const sourceIds = Array.from({length: sourceCount}, (_, i) => i === 0 ? 'remote-tsa-test' : 'remote-tsa-test-' + i);
     for (const id of ['builtin-tsa', ...sourceIds]) {
         const row = new Node('tr', {tsaId: id}), name = new Node('td', {tsaName: ''}); name.textContent = id;
-        row.append(name, new Node('td', {tsaExpiry: ''}), new Node('td', {tsaLastTest: ''}), new Node('button', {tsaManage: ''})); catalog.append(row);
+        row.append(name, new Node('td', {tsaStatus: ''}), new Node('td', {tsaExpiry: ''}), new Node('td', {tsaLastTest: ''}), new Node('button', {tsaManage: ''})); catalog.append(row);
     }
     node('pki-panel-tsa', 'section'); node('pdf-sealer-mode-summary', 'strong'); node('pdf-sealer-tsa-test-all', 'button');
     const registration = node('pdf-sealer-tsa-register', 'button'), host = node('pdf-sealer-tsa-register-host', 'div');
@@ -60,10 +61,14 @@ function fixture({reply, snapshot = null, revoked = false, sourceCount = 1, form
         dialogs.push(dialog); return promise;
     };
     const policies = [{id: 'builtin-ca', timestamp_source: 'builtin-tsa', timestamp_alternatives: ['remote-tsa-test'], bb_fallback: true}];
-    const sources = sourceIds.map(id => ({id, name: 'External <TSA>', policy_oid: '', authenticated: true, diagnostic: snapshot}));
+    const sources = sourceIds.map(id => ({id, name: 'External <TSA>', policy_oid: '', authenticated: true, retired: sourceRetired, diagnostic: snapshot}));
+    let currentRetired = sourceRetired;
     const module = {tt: (key, ...values) => key + (values.length ? ':' + values.join(',') : ''), ajax: async (action, payload) => {
         calls.push({action, payload});
         if (action === 'preview_tsa_lifecycle') return {ok: true, revoked, review_hash: 'locked-review', certificate: {subject: '/O=Test/OU=Unit/CN=TSA', fingerprint: 'sha256', thumbprint: 'sha1'}};
+        if (action === 'preview_timestamp_retirement') return {ok: true, retired: currentRetired, review_hash: 'source-review-' + calls.length,
+            providers: [{id: 'builtin-ca', name: null, position: 0, retired: false, bb_fallback: false}]};
+        if (action === 'set_timestamp_retirement' && !reply) { currentRetired = payload.retired; return {ok: true, retired: currentRetired}; }
         return reply ? await reply(action, payload) : {ok: true, diagnostic: {ok: true, checked_at: 1900000000, valid_until: 2000000000, signer_sha256: 'fingerprint', signer_sha1: 'thumbprint'}, replacement: 'renewed', crl_published: true};
     }};
     const context = {document: {getElementById: id => ids[id], createElement: tag => new Node(tag), querySelector: () => new Node('button')},
@@ -102,11 +107,12 @@ function fixture({reply, snapshot = null, revoked = false, sourceCount = 1, form
     }
     if (previousZone === undefined) delete process.env.TZ; else process.env.TZ = previousZone;
     let f = fixture(), opened = await f.open(), dialog = f.dialogs[0];
-    assert.equal(f.calls.length, 0, 'Opening overview/Manage must not probe or mutate');
+    assert.equal(f.calls.length, 1, 'Opening external Manage must only review');
+    assert.equal(f.calls[0].action, 'preview_timestamp_retirement');
     assert.equal(f.tables[0].options.pageLength, 10); assert.equal(dialog.body.className, 'pdf-sealer-dialog-body');
     await dialog.body.querySelector('button').events.click();
-    assert.equal(f.calls[0].action, 'test_timestamp_source'); assert.equal(f.calls[0].payload.source, 'remote-tsa-test');
-    assert.equal(f.tables[0].draws, 1); assert.match(opened.row.querySelector('[data-tsa-last-test]').textContent, /tsa_test_passed.*local:/);
+    assert.equal(f.calls[1].action, 'test_timestamp_source'); assert.equal(f.calls[1].payload.source, 'remote-tsa-test');
+    assert.equal(f.tables[0].draws, 2); assert.match(opened.row.querySelector('[data-tsa-last-test]').textContent, /tsa_test_passed.*local:/);
     assert.match(opened.row.querySelector('[data-tsa-expiry]').textContent, /UTC$/);
     assert.match(dialog.body.querySelector('[data-never]')?.textContent || all(dialog.body).find(n => n['role'] === 'status').textContent, /thumbprint/);
     await dialog.ctx.close(); await opened.completion;
@@ -118,7 +124,7 @@ function fixture({reply, snapshot = null, revoked = false, sourceCount = 1, form
     f = fixture({reply: () => new Promise(resolve => {probeFinish = resolve;})}); opened = await f.open(); dialog = f.dialogs[0];
     const probe = dialog.body.querySelector('button').events.click(); await tick();
     assert.equal(dialog.controls.close.disabled, true); assert.equal(await dialog.ctx.close(), false);
-    await dialog.body.querySelector('button').events.click(); assert.equal(f.calls.length, 1);
+    await dialog.body.querySelector('button').events.click(); assert.equal(f.calls.length, 2);
     probeFinish({ok: true, diagnostic: {ok: false, checked_at: 1900000000, valid_until: null}}); await probe;
     await dialog.ctx.close(); await opened.completion;
     // Batch covers all registered external sources, continues after failures and preserves incomplete observations.
@@ -144,6 +150,39 @@ function fixture({reply, snapshot = null, revoked = false, sourceCount = 1, form
     assert.equal(f.calls.length, 2); batchFinish({ok: true, diagnostic: {ok: true, checked_at: 1900000000, valid_until: 2000000000}}); await batch;
     assert.equal(f.notifications.at(-1).tone, 'success'); assert.equal(f.ids['pdf-sealer-tsa-test-all'].disabled, false);
     f = fixture({sourceCount: 0}); await f.ids['pdf-sealer-tsa-test-all'].events.click(); assert.equal(f.calls.length, 0); assert.equal(f.ids['pdf-sealer-tsa-test-all'].disabled, true);
+    // Retirement confirms current usage/hash, updates status, disables probes/new choices and can reactivate.
+    f = fixture(); opened = await f.open(); dialog = f.dialogs[0];
+    let retirement = dialog.options.footerStatus.events.click(); await tick(); let review = f.dialogs[1];
+    assert.equal(review.options.buttons[1].label, 'tsa_retire');
+    assert.equal(dialog.controls.close.disabled, true); assert.equal(await dialog.ctx.close(), false);
+    await review.press('confirm'); await retirement; await opened.completion;
+    assert.equal(f.calls.at(-1).action, 'set_timestamp_retirement');
+    assert.deepEqual(JSON.parse(JSON.stringify(f.calls.at(-1).payload)), {source: 'remote-tsa-test', retired: true, review_hash: 'source-review-2'});
+    assert.equal(f.sources[0].retired, true); assert.equal(f.ids['pdf-sealer-tsa-test-all'].disabled, true);
+    assert.equal(opened.row.querySelector('[data-tsa-status]').firstElementChild.textContent, 'provider_retired');
+    f.policy(); assert.equal(f.policyControls.source.options.find(o => o.value === 'remote-tsa-test').disabled, true);
+    assert.equal(f.policyControls.alternatives[0].options.find(o => o.value === 'remote-tsa-test').disabled, false, 'Existing retired alternative may be retained');
+    opened = await f.open(); dialog = f.dialogs.at(-1);
+    assert.equal(dialog.body.querySelector('button').disabled, true);
+    const beforeProbe = f.calls.length; await dialog.body.querySelector('button').events.click(); assert.equal(f.calls.length, beforeProbe);
+    retirement = dialog.options.footerStatus.events.click(); await tick(); review = f.dialogs.at(-1);
+    assert.equal(review.options.buttons[1].label, 'tsa_reactivate'); await review.press('confirm'); await retirement; await opened.completion;
+    assert.equal(f.sources[0].retired, false); assert.equal(f.ids['pdf-sealer-tsa-test-all'].disabled, false);
+    f = fixture({sourceRetired: true}); await f.ids['pdf-sealer-tsa-test-all'].events.click(); assert.equal(f.calls.length, 0);
+    f = fixture({reply: () => ({ok: false})}); opened = await f.open(); dialog = f.dialogs[0];
+    retirement = dialog.options.footerStatus.events.click(); await tick(); review = f.dialogs[1];
+    await review.press('confirm'); await review.press('confirm'); assert.equal(f.calls.length, 3, 'Ambiguous retirement must not replay');
+    assert.equal(review.closed, false); assert.equal(f.sources[0].retired, false); await review.ctx.close(); await retirement;
+    await dialog.ctx.close(); await opened.completion;
+    let retirementFinish;
+    f = fixture({reply: () => new Promise(resolve => {retirementFinish = resolve;})}); opened = await f.open(); dialog = f.dialogs[0];
+    retirement = dialog.options.footerStatus.events.click(); await tick(); review = f.dialogs[1];
+    const retirementWrite = review.press('confirm'); await tick();
+    assert.equal(review.controls.cancel.disabled, true); assert.equal(await review.ctx.close(), false);
+    assert.equal(await dialog.ctx.close(), false); await review.press('confirm');
+    assert.equal(f.calls.length, 3, 'Busy retirement must not submit twice');
+    retirementFinish({ok: true, retired: true}); await retirementWrite; await retirement; await opened.completion;
+    assert.equal(dialog.closed, true); assert.equal(f.sources[0].retired, true);
     // Registration retains entered values after failure, prevents duplicate writes/dismissal, then closes before reload.
     let finish;
     f = fixture({reply: () => new Promise(resolve => {finish = resolve;})}); opened = await f.register(); dialog = f.dialogs[0];

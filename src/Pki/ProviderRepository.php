@@ -167,7 +167,14 @@ final class ProviderRepository
     {
         $provider = $this->provider($id);
         self::assertTimestampOrder($source, $alternatives);
-        foreach ($source === null ? [] : [$source, ...$alternatives] as $sourceId) { $this->source($sourceId); }
+        foreach ($source === null ? [] : [$source, ...$alternatives] as $position => $sourceId) {
+            $timestamp = $this->source($sourceId);
+            $previous = $position === 0 ? $provider['timestamp_source'] : ($provider['timestamp_alternatives'][$position - 1] ?? null);
+            // Existing retired references may be retained while adjusting fallback/other sources, but never newly assigned.
+            if ($timestamp['kind'] === 'external' && $sourceId !== $previous) {
+                (new \DE\RUB\PDFSealerExternalModule\Timestamp\ExternalTimestampSources($this->framework, $this->settings))->assertUsable($sourceId);
+            }
+        }
         $provider['timestamp_alternatives'] = $alternatives;
         $provider['timestamp_source'] = $source;
         $provider['bb_fallback'] = $source !== null && $fallback;
@@ -207,7 +214,12 @@ final class ProviderRepository
     {
         $name = trim($name);
         if ($name === '' || strlen($name) > 128 || preg_match('/[\x00-\x1f\x7f]/', $name)) { throw new RuntimeException('Invalid provider name'); }
-        if ($source !== null) { $this->source($source); }
+        if ($source !== null) {
+            $timestamp = $this->source($source);
+            if ($timestamp['kind'] === 'external') {
+                (new \DE\RUB\PDFSealerExternalModule\Timestamp\ExternalTimestampSources($this->framework, $this->settings))->assertUsable($source);
+            }
+        }
         $ids = $this->externalIds();
         foreach ($ids as $existing) {
             $provider = $this->provider($existing);

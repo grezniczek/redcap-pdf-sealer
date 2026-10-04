@@ -17,7 +17,7 @@
                 <label for="provider-source"><?= $escape($framework->tt('timestamp_mode_label')) ?></label>
                 <select class="form-select form-select-sm mb-3" id="provider-source" data-workflow-reset-change required>
                     <option value="" selected disabled><?= $escape($framework->tt('timestamp_settings_choose')) ?></option>
-                    <?php foreach ($sourceChoices as $id => $name): ?><option value="<?= $escape($id) ?>"><?= $escape($name) ?></option><?php endforeach; ?>
+                    <?php foreach ($sourceChoices as $id => $name): ?><option value="<?= $escape($id) ?>" <?= in_array($id, $retiredSourceIds ?? [], true) ? 'disabled' : '' ?>><?= $escape(in_array($id, $retiredSourceIds ?? [], true) ? $framework->tt('tsa_retired_name', $name) : $name) ?></option><?php endforeach; ?>
                 </select>
                 <label class="mb-3"><input type="checkbox" id="provider-fallback" disabled> <?= $escape($framework->tt('timestamp_fallback_allow')) ?></label><br>
             </fieldset>
