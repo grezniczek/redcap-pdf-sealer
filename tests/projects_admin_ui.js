@@ -9,6 +9,7 @@ class Node {
     addEventListener(name, handler) {this.events[name] = handler;}
     setAttribute(name, value) {this[name] = value;}
     matches(selector) {
+        if (selector.startsWith('.')) return (this.className || '').split(' ').includes(selector.slice(1));
         if (selector.startsWith('#')) return this.id === selector.slice(1);
         const m = selector.match(/^\[data-([\w-]+)(?:="([^"]*)")?\]$/);
         if (m) {const k = m[1].replace(/-([a-z])/g, (_, c) => c.toUpperCase()); return k in this.dataset && (m[2] === undefined || this.dataset[k] === m[2]);}
@@ -29,16 +30,19 @@ const assigned = (pid, {provider = 'builtin-ca', pending = false, csr = false, d
         renew: provider === 'builtin-ca' && !pending && !csr && !disabled, revoke: provider === 'builtin-ca'}});
 function fixture(views = [blank(1), blank(2)], {failPid, ambiguousPid, stale, previewFail, defer, refreshFail, revocationPending} = {}) {
     let current = structuredClone(views); const requests = [], notifications = [], dialogs = [], filters = [], actions = new Map();
-    const host = new Node('div', {id: 'pdf-sealer-project-admin', dataset: {projects: JSON.stringify(views), unavailable: '0', providers: JSON.stringify([
+    const host = new Node('div', {id: 'pdf-sealer-project-admin', dataset: {projects: JSON.stringify(views), unavailable: '0', statusUrl: 'https://redcap.test/external_modules/?prefix=pdf_sealer&page=project-status', providers: JSON.stringify([
         {id: 'builtin-ca', name: 'Built-in CA', kind: 'internal', retired: false}, {id: 'external-a', name: 'External <CA>', kind: 'external', retired: false}])}});
     const tableNode = new Node('table'), tbody = new Node('tbody'); tableNode.append(tbody);
     const filter = new Node('select', {id: 'pdf-sealer-project-filter', value: 'all'});
     for (const value of ['all', 'unassigned', 'csr', 'transition', 'builtin', 'external']) filter.append(new Node('option', {value}));
     const refresh = new Node('button', {id: 'pdf-sealer-project-refresh'}), count = new Node('p', {id: 'pdf-sealer-project-selection'});
-    host.append(tableNode, filter, refresh, count);
+    const controls = new Node('div', {id: 'pdf-sealer-project-controls'}); controls.append(filter, refresh);
+    const pageCheckbox = new Node('input', {id: 'pdf-sealer-project-select-page', type: 'checkbox'});
+    const searchBox = new Node('div', {className: 'dataTables_filter'}), container = new Node('div'); container.append(searchBox);
+    host.append(tableNode, controls, count, pageCheckbox);
     for (const action of ['assign', 'change', 'cancel', 'renew', 'revoke']) {
         const button = new Node('button', {dataset: {projectAction: action}}); actions.set(action, button);
-        host.append(button, new Node('p', {dataset: {projectActionHelp: action}}));
+        host.append(button);
     }
     const module = {tt: (key, ...values) => key + (values.length ? ':' + values.join(',') : ''), ajax: async (action, payload) => {
         requests.push({action, payload: payload && structuredClone(payload)});
@@ -64,12 +68,17 @@ function fixture(views = [blank(1), blank(2)], {failPid, ambiguousPid, stale, pr
         if (payload.pid === ambiguousPid) throw Error('Lost response');
         return {ok: true, crl_published: !revocationPending, replacement: revocationPending ? 'pending' : 'renewed'};
     }};
-    const table = {options: null, adjustments: 0, draws: [], rows: [...tbody.children],
-        clear() {this.rows = []; tbody.replaceChildren(); return this;}, draw(reset) {this.draws.push(reset); return this;},
+    const table = {options: null, adjustments: 0, draws: [], dataRows: [...tbody.children], pageIndex: 0, drawHandler: null,
+        clear() {this.dataRows = []; tbody.replaceChildren(); return this;}, draw(reset) {this.draws.push(reset); this.drawHandler?.(); return this;},
         columns: {adjust() {table.adjustments++;}}};
     table.row = row => ({invalidate: kind => {assert.equal(kind, 'dom'); return table;}});
-    table.row.add = row => {table.rows.push(row); tbody.append(row); return table;};
-    const jquery = () => ({DataTable: options => {table.options = options; table.rows = [...tbody.children]; return table;}});
+    table.row.add = row => {table.dataRows.push(row); tbody.append(row); return table;};
+    table.table = () => ({container: () => container});
+    table.rows = options => {assert.equal(options.page, 'current'); return {nodes: () => ({toArray: () => {
+        const visible = table.dataRows.filter((row, index) => filters[0]({nTable: tableNode, aoData: table.dataRows.map(nTr => ({nTr}))}, [], index));
+        return visible.slice(table.pageIndex * 5, table.pageIndex * 5 + 5);
+    }})};};
+    const jquery = () => ({on: (event, handler) => {assert.equal(event, 'draw.dt'); table.drawHandler = handler;}, DataTable: options => {table.options = options; table.dataRows = [...tbody.children]; return table;}});
     jquery.fn = {dataTable: {ext: {search: filters}}};
     const rcDialog = options => {
         let resolve; const promise = new Promise(r => {resolve = r;}); const handlers = {}, controls = {cancel: {}, confirm: {}};
@@ -81,17 +90,34 @@ function fixture(views = [blank(1), blank(2)], {failPid, ambiguousPid, stale, pr
         dialogs.push(dialog); return promise;
     };
     const context = {document: {getElementById: id => id === host.id ? host : {hidden: false}, createElement: tag => new Node(tag), createTextNode: text => new Node('#text', {textContent: text}), querySelector: () => new Node('button')},
-        window: {rcDialog, PDFSealerNotify: (text, tone) => notifications.push({text, tone}), addEventListener() {}}, $: jquery};
+        URL, location: {href: 'https://redcap.test/external_modules/?prefix=pdf_sealer&page=pki-admin'}, window: {rcDialog, PDFSealerNotify: (text, tone) => notifications.push({text, tone}), addEventListener() {}}, $: jquery};
     vm.runInNewContext(source, context); context.window.PDFSealerProjectsAdmin(module);
-    const row = pid => table.rows.find(r => Number(r.dataset.projectPid) === pid);
-    return {host, actions, table, tableNode, count, filter, refresh, requests, notifications, dialogs, context, row,
+    const row = pid => table.dataRows.find(r => Number(r.dataset.projectPid) === pid);
+    return {host, actions, table, tableNode, count, filter, refresh, pageCheckbox, searchBox, controls, requests, notifications, dialogs, context, row,
+        page(index) {table.pageIndex = index; table.draw(false);},
+        selectPage(checked) {pageCheckbox.checked = checked; pageCheckbox.events.change();},
         select(pid) {const input = row(pid).querySelector('input'); input.checked = !input.checked; tableNode.events.change({target: input});},
         async open(action) {const completion = actions.get(action).events.click(); await tick(); return {completion};},
         choose(dialog, value) {const select = all(dialog.body).find(n => n.tag === 'select'); select.value = value; select.events.change();},
-        visible() {return table.rows.filter((r, i) => filters[0]({nTable: tableNode, aoData: table.rows.map(nTr => ({nTr}))}, [], i));}};
+        visible() {return table.dataRows.filter((r, i) => filters[0]({nTable: tableNode, aoData: table.dataRows.map(nTr => ({nTr}))}, [], i));}};
 }
 (async () => {
-    let f = fixture([blank(1), assigned(2, {pending: true, csr: true}), assigned(3, {disabled: true})]);
+    let f = fixture(Array.from({length: 8}, (_, index) => blank(index + 1)));
+    assert.equal(f.controls.parent, f.searchBox, 'Preset/refresh must follow the DataTables search box');
+    assert.equal(f.pageCheckbox.disabled, false); f.page(1); f.select(8); f.page(0);
+    f.selectPage(true); assert.equal(f.count.textContent, 'provider_selection_count:6');
+    assert.ok([1,2,3,4,5,8].every(pid => f.row(pid).querySelector('input').checked));
+    assert.equal(f.row(6).querySelector('input').checked, false); assert.equal(f.pageCheckbox.checked, true);
+    f.selectPage(false); assert.equal(f.count.textContent, 'provider_selection_one:1');
+    assert.equal(f.row(8).querySelector('input').checked, true, 'Clearing current page must retain other-page checks');
+    f.select(1); assert.equal(f.pageCheckbox.indeterminate, true);
+    const link = f.row(1).querySelector('a'); assert.equal(new URL(link.href).searchParams.get('pid'), '1');
+    assert.equal(new URL(link.href).searchParams.get('page'), 'project-status');
+    assert.equal(link.target, '_blank'); assert.equal(link.rel, 'noopener');
+    f.tableNode.events.click({target: link}); assert.equal(f.row(1).querySelector('input').checked, true, 'Following a PID must not toggle selection');
+    const icon = f.row(1).children[3].querySelector('i'); assert.equal(icon.title, 'provider_project_production');
+    assert.equal(f.row(1).children[3].querySelector('span').textContent, 'provider_project_production', 'Status text must remain searchable');
+    f = fixture([blank(1), assigned(2, {pending: true, csr: true}), assigned(3, {disabled: true})]);
     assert.equal(f.table.options.pageLength, 5); assert.equal(f.table.options.lengthChange, false);
     f.select(1); assert.equal(f.actions.get('assign').disabled, false); assert.equal(f.actions.get('change').disabled, true);
     f.table.draw(false); assert.equal(f.count.textContent, 'provider_selection_one:1', 'Paging/search must retain selection');

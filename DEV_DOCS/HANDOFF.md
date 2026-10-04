@@ -1,5 +1,9 @@
 # Handoff prompt: PDF Sealer certificate lifecycle
 
+## Projects overview layout refinement — 2026-10-04
+
+Preset/refresh controls now follow DataTables Search; refresh is an accessible icon button. The narrow header checkbox selects/clears only selectable rows on the current page and tracks checked/indeterminate state after draws. Other-page selections are retained. Narrow PID cells link through the Framework-generated URL to project status in a new tab. Compact status icons have tooltips plus hidden searchable/accessible text. Workflow eligibility is described once; per-action help rows are removed. Node selection/workflow checks, escaped view checks and syntax checks pass (PHP views on 8.2/8.5). Browser layout/link/page-selection acceptance remains pending. No live PKI/settings or Core/Framework changes.
+
 ## Shared Projects overview — 2026-10-04
 
 The CC **Projects** tab supersedes the earlier separate project workflow dialogs/tables. One five-row DataTables overview shows checkbox/PID/name/status/provider/certificate, with counted presets for all/unassigned/pending CSR/pending transition/built-in certificates/external enrollment. Selection persists across paging and search; changing presets or refreshing clears it. All selected rows must qualify for an action. Disabled/deleted retained bindings remain visible for built-in revocation.

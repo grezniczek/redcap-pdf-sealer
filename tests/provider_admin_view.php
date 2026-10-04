@@ -4,6 +4,7 @@ declare(strict_types=1);
 $labels = parse_ini_file(dirname(__DIR__) . '/lang/English.ini', false, INI_SCANNER_RAW);
 $framework = new class($labels) {
     public function __construct(private array $labels) {}
+    public function getUrl(string $path): string { return 'https://redcap.test/external_modules/?prefix=pdf_sealer&page=' . $path; }
     public function tt(string $key, mixed ...$values): string {
         $text = $this->labels[$key] ?? throw new RuntimeException('Missing label: ' . $key);
         foreach ($values as $index => $value) { $text = str_replace('{' . $index . '}', htmlentities((string) $value, ENT_QUOTES, 'UTF-8'), $text); }
@@ -55,4 +56,7 @@ check(preg_match('/data-projects="([^"]+)"/', $projects, $match) === 1, 'Missing
 check(json_decode(htmlspecialchars_decode($match[1], ENT_QUOTES), true, 512, JSON_THROW_ON_ERROR)[0]['name'] === '<Project & title>', 'Public payload must round-trip safely');
 check(preg_match('/data-providers="([^"]+)"/', $projects, $match) === 1, 'Missing provider catalog');
 check(json_decode(htmlspecialchars_decode($match[1], ENT_QUOTES), true, 512, JSON_THROW_ON_ERROR)[0]['name'] === 'Built-in CA', 'Built-in name missing');
+check(str_contains($projects, 'id="pdf-sealer-project-select-page"') && !str_contains($projects, 'data-project-action-help'), 'Page-only selection and compact workflow section missing');
+check(str_contains($projects, 'data-status-url="https://redcap.test/external_modules/?prefix=pdf_sealer&amp;page=project-status.php"'), 'Status page URL must use the Framework and escaping');
+check(str_contains($projects, 'fa-sync-alt') && !str_contains($projects, '>Refresh overview</button>'), 'Refresh must be icon-only with an accessible label');
 echo "Provider and shared project administration view checks passed\n";

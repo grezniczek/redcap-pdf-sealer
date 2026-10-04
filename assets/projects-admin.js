@@ -11,6 +11,7 @@ window.PDFSealerProjectsAdmin = module => {
     const notify = (key, tone, ...values) => window.PDFSealerNotify(tt(key, ...values), tone);
     const tableNode = host.querySelector('table'), filter = host.querySelector('#pdf-sealer-project-filter');
     const refreshButton = host.querySelector('#pdf-sealer-project-refresh'), count = host.querySelector('#pdf-sealer-project-selection');
+    const pageCheckbox = host.querySelector('#pdf-sealer-project-select-page');
     const actions = [...host.querySelectorAll('[data-project-action]')];
     const catalog = Object.fromEntries(JSON.parse(host.dataset.providers).map(p => [p.id, p]));
     const projects = new Map(), selected = new Set();
@@ -32,7 +33,11 @@ window.PDFSealerProjectsAdmin = module => {
         const row = node('tr'); row.dataset.projectPid = String(project.pid);
         const input = node('input'); input.type = 'checkbox'; input.dataset.projectSelect = '';
         input.setAttribute('aria-label', tt('provider_select_project', project.pid));
-        const selection = node('td'); selection.append(input); row.append(selection, node('td', project.pid));
+        const link = node('a', project.pid), url = new URL(host.dataset.statusUrl, location.href);
+        url.searchParams.set('pid', String(project.pid)); link.href = url.href;
+        link.target = '_blank'; link.rel = 'noopener';
+        const pidCell = node('td'); pidCell.append(link);
+        const selection = node('td'); selection.append(input); row.append(selection, pidCell);
         for (let i = 0; i < 4; i++) row.append(node('td'));
         const record = {view: project, row, input}; projects.set(project.pid, record);
         render(record); return row;
@@ -43,7 +48,12 @@ window.PDFSealerProjectsAdmin = module => {
         cells[2].replaceChildren(node('div', p.name));
         if (!p.enabled) cells[2].append(node('div', tt('projects_disabled'), 'small text-muted'));
         if (p.deleted) cells[2].append(node('div', tt('projects_deleted'), 'small text-warning'));
-        cells[3].textContent = tt('provider_project_' + p.status);
+        const status = tt('provider_project_' + p.status);
+        const icons = {development: 'fa-code text-primary', production: 'fa-check-circle text-success',
+            analysis: 'fa-chart-bar text-secondary', completed: 'fa-flag-checkered text-secondary', unknown: 'fa-question-circle text-muted'};
+        const icon = node('i', undefined, 'fas ' + (icons[p.status] || icons.unknown));
+        icon.title = status; icon.setAttribute('aria-hidden', 'true');
+        cells[3].replaceChildren(icon, node('span', status, 'pdf-sealer-status-text'));
         cells[4].replaceChildren(); cells[5].replaceChildren();
         if (p.unavailable) {
             cells[4].append(node('span', tt('transition_info_unavailable'), 'small text-warning'));
@@ -69,11 +79,23 @@ window.PDFSealerProjectsAdmin = module => {
     };
     $.fn.dataTable.ext.search.push(scopedFilter);
     const table = $(tableNode).DataTable({pageLength: 5, lengthChange: false, order: [[2, 'asc']],
-        columnDefs: [{targets: 0, orderable: false, searchable: false, width: '35px'}, {targets: 1, width: '45px'}],
+        columnDefs: [{targets: 0, orderable: false, searchable: false, width: '22px'}, {targets: 1, width: '6ch'},
+            {targets: 3, orderable: false, width: '20px'}],
         language: {search: tt('table_search'), info: tt('table_info'), infoEmpty: tt('table_info_empty'),
             infoFiltered: tt('table_info_filtered'), zeroRecords: tt('table_zero'), emptyTable: tt('projects_empty'),
             paginate: {first: tt('table_first'), last: tt('table_last'), next: tt('table_next'), previous: tt('table_previous')}},
     });
+    const searchBox = table.table().container().querySelector('.dataTables_filter');
+    searchBox.append(host.querySelector('#pdf-sealer-project-controls'));
+    const pageRecords = () => table.rows({page: 'current'}).nodes().toArray()
+        .map(row => projects.get(Number(row.dataset.projectPid))).filter(record => record && !record.input.disabled);
+    const updatePageCheckbox = () => {
+        const records = pageRecords(), checked = records.filter(record => selected.has(record.view.pid)).length;
+        pageCheckbox.disabled = busy || unavailable || records.length === 0;
+        pageCheckbox.checked = records.length > 0 && checked === records.length;
+        pageCheckbox.indeterminate = checked > 0 && checked < records.length;
+    };
+    $(tableNode).on('draw.dt', updatePageCheckbox);
     const qualifying = (p, action) => p.eligible[action] && (action !== 'renew' || !catalog['builtin-ca']?.retired);
     const update = () => {
         const views = [...selected].map(pid => projects.get(pid)?.view);
@@ -84,8 +106,6 @@ window.PDFSealerProjectsAdmin = module => {
                 && (action !== 'change' || views.every(p => p?.binding?.provider_id !== provider.id)));
             const ready = eligible && targetAvailable;
             button.disabled = busy || unavailable || !ready;
-            host.querySelector('[data-project-action-help="' + action + '"]').textContent = tt(
-                ready ? 'projects_action_ready' : views.length === 0 ? 'projects_select_first' : eligible && !targetAvailable ? 'projects_no_target' : 'projects_eligibility_' + action);
         });
         count.textContent = tt(selected.size === 1 ? 'provider_selection_one' : 'provider_selection_count', selected.size);
         projects.forEach(record => { record.input.disabled = busy || unavailable || record.view.unavailable; });
@@ -94,6 +114,7 @@ window.PDFSealerProjectsAdmin = module => {
             option.textContent = tt('projects_filter_count', tt('projects_filter_' + option.value),
                 [...projects.values()].filter(r => presets[option.value](r.view)).length);
         }
+        updatePageCheckbox();
         host.setAttribute('aria-busy', String(busy));
     };
     const select = (pid, checked) => {
@@ -102,6 +123,15 @@ window.PDFSealerProjectsAdmin = module => {
         if (checked) selected.add(pid); else selected.delete(pid);
         record.input.checked = checked; update();
     };
+    pageCheckbox.addEventListener('change', () => {
+        if (pageCheckbox.disabled) return;
+        const checked = pageCheckbox.checked;
+        pageRecords().forEach(record => {
+            if (checked) selected.add(record.view.pid); else selected.delete(record.view.pid);
+            record.input.checked = checked;
+        });
+        update();
+    });
     tableNode.addEventListener('change', event => {
         if (event.target.matches('[data-project-select]')) select(Number(event.target.closest('[data-project-pid]').dataset.projectPid), event.target.checked);
     });
