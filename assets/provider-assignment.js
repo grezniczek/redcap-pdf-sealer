@@ -8,7 +8,7 @@ window.PDFSealerProjectAssignment = (module, form) => {
     const selected = new Set();
     const projects = new Map([...tableNode.querySelectorAll('[data-assignment-pid]')].map(row => {
         const input = row.querySelector('[data-assignment-select]');
-        return [row.dataset.assignmentPid, {row, input, name: row.querySelector('[data-assignment-name]').textContent}];
+        return [row.dataset.assignmentPid, {row, input, name: row.querySelector('[data-assignment-name]').textContent, status: row.querySelector('[data-assignment-status]').textContent}];
     }));
     let busy = false;
     const table = $(tableNode).DataTable({pageLength: 10, order: [[2, 'asc']],
@@ -63,12 +63,7 @@ window.PDFSealerProjectAssignment = (module, form) => {
                 project.input.replaceWith(mark); project.input = null;
                 selected.delete(pid);
                 table.row(project.row).invalidate('dom').draw(false);
-                const transition = document.getElementById('transition-pid');
-                if (transition && ![...transition.options].some(option => option.value === pid)) {
-                    transition.add(new Option('(' + pid + ') ' + project.name, pid));
-                    transition.closest('fieldset').disabled = false;
-                    $(transition).prop('disabled', false);
-                }
+                window.PDFSealerProjectTransitions.addProject(module, {pid, name: project.name, status: project.status, provider: providerId});
                 update();
             }
             window.PDFSealerNotify(module.tt(failed.length ? 'provider_assignment_partial' : 'provider_assignment_done',

@@ -89,6 +89,8 @@ $builtinRetired = false;
 foreach ($providerCatalog as $p) { if ($p['id'] === $providers::BUILTIN_CA) { $builtinRetired = $p['retired'] ?? false; } }
 $assignmentProjects = [];
 $transitionProjects = [];
+$transitionBindings = [];
+$transitionEnrollments = [];
 $renewalProjects = [];
 $renewalPids = [];
 $revocationProjects = [];
@@ -114,10 +116,11 @@ try {
     // Filter by the latest binding, not a historical built-in assignment.
     foreach (array_chunk($latestIds, 200) as $batch) {
         $latest = (new \DE\RUB\PDFSealerExternalModule\Pki\PrimaryLogReader($framework))->query(
-            'SELECT redcap_pid, provider_id, identity_id, pending_provider_id WHERE message = ? AND ISNULL(project_id) AND log_id IN ('
+            'SELECT redcap_pid, provider_id, identity_id, pending_provider_id, transition_id WHERE message = ? AND ISNULL(project_id) AND log_id IN ('
                 . implode(',', array_fill(0, count($batch), '?')) . ')', ['project_identity_binding', ...$batch]);
         if ($latest === false) { throw new RuntimeException('Renewal project selector unavailable'); }
         while ($binding = $latest->fetch_assoc()) {
+            $transitionBindings[(string) $binding['redcap_pid']] = array_intersect_key($binding, array_flip(['provider_id', 'identity_id', 'pending_provider_id', 'transition_id']));
             if (($binding['provider_id'] ?? null) === $providers::BUILTIN_CA
                 && is_string($binding['identity_id'] ?? null) && preg_match('/^[a-f0-9]{32}$/D', $binding['identity_id']) === 1) {
                 $revocationPids[] = (string) $binding['redcap_pid'];
@@ -126,6 +129,25 @@ try {
                 && is_string($binding['identity_id'] ?? null) && preg_match('/^[a-f0-9]{32}$/D', $binding['identity_id']) === 1
                 && ($binding['pending_provider_id'] ?? null) === null) {
                 $renewalPids[] = (string) $binding['redcap_pid'];
+            }
+        }
+    }
+    // Public enrollment audit metadata is enough for the table; actions still obtain a locked service preview.
+    $enrollments = (new \DE\RUB\PDFSealerExternalModule\Pki\PrimaryLogReader($framework))->query(
+        'SELECT MAX(log_id) AS latest_id WHERE message = ? AND ISNULL(project_id) GROUP BY redcap_pid', ['project_enrollment']);
+    if ($enrollments === false) { throw new RuntimeException('Enrollment list unavailable'); }
+    $enrollmentIds = [];
+    while ($enrollment = $enrollments->fetch_assoc()) { $enrollmentIds[] = $enrollment['latest_id']; }
+    foreach (array_chunk($enrollmentIds, 200) as $batch) {
+        $latest = (new \DE\RUB\PDFSealerExternalModule\Pki\PrimaryLogReader($framework))->query(
+            'SELECT redcap_pid, action, provider_id, enrollment_id WHERE message = ? AND ISNULL(project_id) AND log_id IN ('
+                . implode(',', array_fill(0, count($batch), '?')) . ')', ['project_enrollment', ...$batch]);
+        if ($latest === false) { throw new RuntimeException('Enrollment list unavailable'); }
+        while ($enrollment = $latest->fetch_assoc()) {
+            $binding = $transitionBindings[(string) $enrollment['redcap_pid']] ?? null;
+            if ($binding !== null && $enrollment['action'] === 'generate'
+                && $enrollment['provider_id'] === ($binding['pending_provider_id'] ?? $binding['provider_id'])) {
+                $transitionEnrollments[(string) $enrollment['redcap_pid']] = $enrollment['enrollment_id'];
             }
         }
     }
@@ -138,7 +160,11 @@ try {
         if ($rows === false) { throw new RuntimeException('Project selector unavailable'); }
         while ($row = $rows->fetch_assoc()) {
             if (in_array((int) $row['project_id'], array_map('intval', $enabledPids), true)) {
-                if (in_array((string) $row['project_id'], $assignedPids, true)) { $transitionProjects[] = $row; }
+                if (in_array((string) $row['project_id'], $assignedPids, true)) {
+                    $transitionProjects[] = $row + ['provider' => ($transitionBindings[(string) $row['project_id']] ?? [])
+                        + ['identity_id' => null, 'pending_provider_id' => null, 'transition_id' => null,
+                            'enrollment_id' => $transitionEnrollments[(string) $row['project_id']] ?? null]];
+                }
                 else { $assignmentProjects[] = $row; }
                 if (in_array((string) $row['project_id'], $renewalPids, true)) { $renewalProjects[] = $row; }
             }
@@ -210,7 +236,7 @@ foreach ([
     'table_first', 'table_last', 'table_next', 'table_previous',
 ] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
 foreach (['root_lifecycle_title', 'root_lifecycle_review', 'root_lifecycle_action', 'root_lifecycle_confirm_button', 'root_lifecycle_compromise_ack', 'root_lifecycle_dialog_unavailable', 'root_lifecycle_already', 'root_lifecycle_renew', 'root_lifecycle_superseded', 'root_lifecycle_compromise', 'pki_subject', 'root_lifecycle_failed', 'root_lifecycle_saved', 'root_lifecycle_renewed', 'root_lifecycle_replaced', 'root_lifecycle_pending', 'root_lifecycle_trust', 'root_lifecycle_projects_done', 'root_lifecycle_projects_pending', 'root_lifecycle_renew_help', 'root_lifecycle_superseded_help', 'root_lifecycle_compromise_help', 'root_lifecycle_dependents', 'tsa_lifecycle_failed', 'tsa_lifecycle_confirm_prompt', 'tsa_lifecycle_saved', 'tsa_lifecycle_replaced', 'tsa_lifecycle_changed', 'tsa_lifecycle_pending', 'tsa_lifecycle_replace_help', 'tsa_lifecycle_superseded_help', 'tsa_lifecycle_compromise_help', 'revocation_title', 'revocation_confirm', 'revocation_failed', 'revocation_confirm_prompt', 'revocation_saved', 'revocation_crl_published', 'revocation_crl_pending', 'revocation_replaced', 'revocation_signer_changed', 'revocation_replacement_pending', 'revocation_already', 'renewal_failed', 'renewal_saved', 'renewal_issuer_expiry'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
-foreach (['transition_current', 'transition_target', 'transition_saved_pending', 'transition_saved_activated', 'transition_saved_canceled'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
+foreach (['transition_current', 'transition_waiting_provider', 'transition_has_signer', 'transition_no_signer', 'transition_cancel_csr_first', 'transition_builtin_help', 'transition_external_help', 'transition_cancel_help', 'transition_bulk_selection', 'transition_bulk_activated', 'transition_bulk_prepared', 'transition_bulk_canceled', 'transition_bulk_failed', 'transition_bulk_refresh_failed', 'transition_info_unavailable', 'transition_choose_project', 'provider_select_project'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
 ?>
 <link rel="stylesheet" href="<?= $escape($framework->getUrl('assets/admin.css')) ?>">
 <div class="pdf-sealer-admin">
@@ -383,6 +409,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
 <script src="<?= $escape($framework->getUrl('assets/tsa-lifecycle.js')) ?>"></script>
 <script src="<?= $escape($framework->getUrl('assets/root-lifecycle.js')) ?>"></script>
 <script src="<?= $escape($framework->getUrl('assets/providers-admin.js')) ?>"></script>
+<script src="<?= $escape($framework->getUrl('assets/provider-transition.js')) ?>"></script>
 <script src="<?= $escape($framework->getUrl('assets/provider-assignment.js')) ?>"></script>
 <script src="<?= $escape($framework->getUrl('assets/provider-workflows.js')) ?>"></script>
 <script>
@@ -433,77 +460,6 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
     });
     selectTab(location.hash.slice(1));
     window.addEventListener('hashchange', () => selectTab(location.hash.slice(1)));
-    const transitionForm = document.getElementById('pdf-sealer-transition');
-    if (transitionForm) {
-        const fields = transitionForm.querySelector('fieldset');
-        const project = $('#transition-pid');
-        project.prop('disabled', fields.disabled);
-        const target = document.getElementById('transition-provider');
-        const review = document.getElementById('transition-review');
-        const confirm = document.getElementById('transition-confirm');
-        const catalog = <?= json_encode(array_column(array_map(static fn(array $p): array => ['id' => $p['id'], 'name' => $p['name'] ?? $framework->tt('provider_builtin'), 'kind' => $p['kind']], $providerCatalog), null, 'id'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-        const failed = <?= json_encode($framework->tt('transition_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-        let preview = null;
-        const updateAction = () => {
-            const cancel = Boolean(preview?.transition_id);
-            const internal = catalog[target.value]?.kind === 'internal';
-            confirm.textContent = cancel ? <?= json_encode($framework->tt('transition_cancel'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
-                : internal ? <?= json_encode($framework->tt('transition_activate_builtin'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
-                : <?= json_encode($framework->tt('transition_prepare'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-            document.getElementById('transition-action-help').textContent = cancel
-                ? <?= json_encode($framework->tt('transition_cancel_help'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
-                : internal ? <?= json_encode($framework->tt('transition_builtin_help'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
-                : <?= json_encode($framework->tt('transition_external_help'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-            confirm.disabled = !preview || (!cancel && (Boolean(preview.enrollment_id) || !target.value || target.value === preview.provider_id));
-        };
-        target.addEventListener('change', updateAction);
-        project.on('change', () => { preview = null; review.hidden = true; });
-        transitionForm.addEventListener('submit', async event => {
-            event.preventDefault();
-            if (fields.disabled || !project.val()) return;
-            transitionForm.setAttribute('aria-busy', 'true');
-            fields.disabled = true; project.prop('disabled', true); review.hidden = true;
-            try {
-                const response = await module.ajax('preview_provider_transition', {pid: Number(project.val())});
-                if (!response?.ok) throw new Error('Preview failed');
-                preview = response; target.value = '';
-                Array.from(target.options).forEach(option => { option.disabled = option.value === response.provider_id; });
-                document.getElementById('transition-current').textContent = module.tt('transition_current', catalog[response.provider_id]?.name || response.provider_id)
-                    + ' ' + (response.identity_id ? <?= json_encode($framework->tt('transition_has_signer'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?> : <?= json_encode($framework->tt('transition_no_signer'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>);
-                document.getElementById('transition-pending').textContent = response.pending_provider_id
-                    ? module.tt('transition_target', catalog[response.pending_provider_id]?.name || response.pending_provider_id) : '';
-                document.getElementById('transition-target-choice').hidden = Boolean(response.transition_id);
-                document.getElementById('transition-csr').hidden = !response.enrollment_id || Boolean(response.transition_id);
-                review.hidden = false; updateAction();
-            } catch (error) { preview = null; notify(failed, 'error'); }
-            finally {
-                fields.disabled = false; project.prop('disabled', false); transitionForm.setAttribute('aria-busy', 'false');
-            }
-        });
-        confirm.addEventListener('click', async () => {
-            if (fields.disabled || !preview) return;
-            const cancel = Boolean(preview.transition_id);
-            const pid = preview.pid;
-            const provider = cancel ? preview.pending_provider_id : target.value;
-            const projectName = project[0].selectedOptions[0].textContent;
-            transitionForm.setAttribute('aria-busy', 'true');
-            fields.disabled = true; project.prop('disabled', true);
-            try {
-                const payload = {pid, review_hash: preview.review_hash};
-                if (!cancel) payload.provider = provider;
-                const response = await module.ajax(cancel ? 'cancel_provider_transition' : 'start_provider_transition', payload);
-                if (!response?.ok) throw new Error('Transition failed');
-                transitionForm.reset(); project.trigger('change'); preview = null; review.hidden = true;
-                notify(module.tt('transition_saved_' + response.state, catalog[provider]?.name || provider, projectName));
-            } catch (error) {
-                preview = null; review.hidden = true;
-                notify(failed, 'error');
-            } finally {
-                fields.disabled = false; project.prop('disabled', false); transitionForm.setAttribute('aria-busy', 'false');
-            }
-        });
-    }
-
     if (document.getElementById('pdf-sealer-provider-register')) {
         const source = document.getElementById('provider-source');
         const fallback = document.getElementById('provider-fallback');

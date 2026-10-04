@@ -35,10 +35,11 @@ function fixture({size = 12, request = async () => ({ok: true}), unavailable = f
         const cell = new Node('td'), input = new Node('input'); input.dataset.assignmentSelect = ''; input.checked = false;
         cell.append(input); row.append(cell);
         const name = new Node('td'); name.dataset.assignmentName = ''; name.textContent = 'Project ' + String(i).padStart(2, '0'); row.append(name);
+        const status = new Node('td'); status.dataset.assignmentStatus = ''; status.textContent = 'Production'; row.append(status);
         tbody.append(row); rows.set(pid, row); inputs.set(pid, input);
     }
     const transitionFields = new Node('fieldset'), transition = new Node('select'); transition.options = [{value: ''}]; transitionFields.append(transition); transitionFields.disabled = true;
-    const calls = [], notifications = [], draws = [];
+    const calls = [], notifications = [], draws = [], addedProjects = [];
     let tableOptions, page = 0, filter = '', destroyed = false;
     const render = () => {
         [...tbody.children].forEach(row => tbody.removeChild(row));
@@ -54,13 +55,13 @@ function fixture({size = 12, request = async () => ({ok: true}), unavailable = f
         return labels[key].replace(/{([0-9]+)}/g, (_, i) => String(values[i]));
     }, ajax: async (action, payload) => { calls.push({action, payload}); return request(payload, calls.length); }};
     const context = {document: {createElement: tag => new Node(tag), getElementById: id => id === 'transition-pid' ? transition : null},
-        window: {PDFSealerNotify: (text, tone) => notifications.push({text, tone})},
+        window: {PDFSealerProjectTransitions: {addProject: (_module, project) => addedProjects.push(project)}, PDFSealerNotify: (text, tone) => notifications.push({text, tone})},
         Option: function(textContent, value) {return {textContent, value};},
         $: node => ({prop: (key, value) => {node[key] = value;}, DataTable: options => {tableOptions = options; render(); return table;}})};
     vm.runInNewContext(source, context);
     const mount = () => context.window.PDFSealerProjectAssignment(module, form);
     const destroy = mount();
-    return {form, fields, provider, button, count, calls, notifications, rows, inputs, transition, transitionFields, draws, tableNode,
+    return {form, fields, provider, button, count, calls, notifications, addedProjects, rows, inputs, transition, transitionFields, draws, tableNode,
         get options() {return tableOptions;}, get destroyed() {return destroyed;}, destroy, mount,
         page: n => {page = n; render();}, filter: text => {filter = text; page = 0; render();},
         selectProvider: async () => {provider.value = 'external-a'; await provider.fire('change');},
@@ -92,7 +93,7 @@ function fixture({size = 12, request = async () => ({ok: true}), unavailable = f
     assert.ok(f.draws.every(reset => reset === false), 'Assignment must preserve table paging/filter');
     assert.equal(f.notifications.length, 1); assert.equal(f.notifications[0].tone, 'error');
     assert.ok(f.notifications[0].text.includes('1 project(s)') && f.notifications[0].text.includes('112, 105'));
-    assert.equal(f.transition.options[1].value, '101'); assert.equal(f.transitionFields.disabled, false);
+    assert.deepEqual(JSON.parse(JSON.stringify(f.addedProjects)), [{pid: '101', name: 'Project 01', status: 'Production', provider: 'external-a'}]);
     f.destroy(); assert.equal(f.destroyed, true); assert.equal(f.inputs.get('105').checked, false);
     assert.equal(f.form.events.submit.size, 0); assert.equal(f.tableNode.events.change.size, 0);
     f.provider.value = ''; const cleanup = f.mount(); assert.equal(f.form.dataset.remainingProjects, '11');

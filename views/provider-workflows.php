@@ -69,7 +69,7 @@
                                 <td><input type="checkbox" data-assignment-select aria-label="<?= $escape($framework->tt('provider_select_project', $project['project_id'])) ?>"></td>
                                 <td><?= $escape($project['project_id']) ?></td>
                                 <td data-assignment-name><?= $escape($project['app_title']) ?></td>
-                                <td><?= $escape($framework->tt($statusKey)) ?></td>
+                                <td data-assignment-status><?= $escape($framework->tt($statusKey)) ?></td>
                             </tr>
                         <?php endforeach; ?></tbody>
                     </table>
@@ -89,30 +89,55 @@
 <div data-provider-workflow-host="transition" hidden>
     <div class="pdf-sealer-dialog-body">
         <p class="small text-muted"><?= $escape($framework->tt('transition_intro')) ?></p>
-        <form id="pdf-sealer-transition">
+        <?php $providerPresentation = array_column(array_map(static fn(array $p): array =>
+            ['id' => $p['id'], 'name' => $p['name'] ?? $framework->tt('provider_builtin'), 'kind' => $p['kind']], $providerCatalog), null, 'id');
+        $providerNames = array_column($providerPresentation, 'name', 'id'); ?>
+        <form id="pdf-sealer-transition" data-projects-unavailable="<?= $assignmentProjectsUnavailable ? '1' : '0' ?>"
+            data-providers="<?= $escape(json_encode($providerPresentation, JSON_THROW_ON_ERROR)) ?>">
             <fieldset <?= $assignmentProjectsUnavailable || $transitionProjects === [] ? 'disabled' : '' ?>>
-                <label for="transition-pid"><?= $escape($framework->tt('provider_pid')) ?></label>
-                <div class="mb-3"><select class="form-select form-select-sm" id="transition-pid" data-workflow-project required>
-                    <option value="" selected><?= $escape($framework->tt('transition_choose_project')) ?></option>
-                    <?php foreach ($transitionProjects as $project): ?>
-                        <option value="<?= $escape($project['project_id']) ?>"><?= $escape('(' . $project['project_id'] . ') ' . $project['app_title']) ?></option>
-                    <?php endforeach; ?>
-                </select></div>
-                <button type="submit" class="btn btn-outline-secondary btn-sm"><?= $escape($framework->tt('transition_review')) ?></button>
-                <div id="transition-review" class="mt-3" hidden>
-                    <p id="transition-current"></p>
-                    <p id="transition-pending"></p>
-                    <p id="transition-csr" class="alert alert-warning" hidden><?= $escape($framework->tt('transition_cancel_csr_first')) ?></p>
-                    <div id="transition-target-choice">
-                        <label for="transition-provider"><?= $escape($framework->tt('transition_target_label')) ?></label>
-                        <select class="form-select form-select-sm mb-3" id="transition-provider">
-                            <option value="" selected><?= $escape($framework->tt('timestamp_settings_choose')) ?></option>
-                            <?php foreach ($assignableProviders as $provider): ?><option value="<?= $escape($provider['id']) ?>"><?= $escape($provider['name'] ?? $framework->tt('provider_builtin')) ?></option><?php endforeach; ?>
-                        </select>
-                    </div>
-                    <p id="transition-action-help"></p>
-                    <button type="button" class="btn btn-warning btn-sm" id="transition-confirm"></button>
+                <div class="pdf-sealer-table-wrap mb-3">
+                    <table id="pdf-sealer-transition-projects" class="table table-sm hover">
+                        <thead><tr>
+                            <th><?= $escape($framework->tt('provider_select')) ?></th>
+                            <th><?= $escape($framework->tt('provider_project_pid')) ?></th>
+                            <th><?= $escape($framework->tt('provider_project_name')) ?></th>
+                            <th><?= $escape($framework->tt('provider_project_status')) ?></th>
+                            <th><?= $escape($framework->tt('provider_label')) ?></th>
+                        </tr></thead>
+                        <tbody><?php foreach ($transitionProjects as $project): ?>
+                            <?php $state = $project['provider'];
+                            $statusKey = match ((int) $project['status']) {
+                                0 => 'provider_project_development', 1 => 'provider_project_production',
+                                2 => empty($project['completed_time']) ? 'provider_project_analysis' : 'provider_project_completed',
+                                default => 'provider_project_unknown',
+                            }; ?>
+                            <tr data-transition-pid="<?= $escape($project['project_id']) ?>" data-transition-state="<?= $escape(json_encode($state, JSON_THROW_ON_ERROR)) ?>">
+                                <td><input type="checkbox" data-transition-select aria-label="<?= $escape($framework->tt('provider_select_project', $project['project_id'])) ?>"></td>
+                                <td><?= $escape($project['project_id']) ?></td>
+                                <td><?= $escape($project['app_title']) ?></td>
+                                <td><?= $escape($framework->tt($statusKey)) ?></td>
+                                <td data-transition-info>
+                                    <div><?= $escape($providerNames[$state['provider_id']] ?? $state['provider_id']) ?></div>
+                                    <div class="small text-muted"><?= $escape($framework->tt($state['identity_id'] ? 'transition_has_signer' : 'transition_no_signer')) ?></div>
+                                    <?php if ($state['pending_provider_id']): ?><div class="small"><?= $framework->tt('transition_waiting_provider', $providerNames[$state['pending_provider_id']] ?? $state['pending_provider_id']) ?></div><?php endif; ?>
+                                    <?php if ($state['enrollment_id'] && !$state['transition_id']): ?><div class="small text-warning"><?= $escape($framework->tt('transition_cancel_csr_first')) ?></div><?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?></tbody>
+                    </table>
                 </div>
+                <p class="small text-muted" id="pdf-sealer-transition-count" aria-live="polite"><?= $escape($framework->tt('provider_selection_count', 0)) ?></p>
+                <p class="small text-muted"><?= $escape($framework->tt('transition_bulk_selection')) ?></p>
+                <label for="transition-provider"><?= $escape($framework->tt('transition_target_label')) ?></label>
+                <select class="form-select form-select-sm mb-3" id="transition-provider">
+                    <option value="" selected><?= $escape($framework->tt('timestamp_settings_choose')) ?></option>
+                    <?php foreach ($assignableProviders as $provider): ?><option value="<?= $escape($provider['id']) ?>"><?= $escape($provider['name'] ?? $framework->tt('provider_builtin')) ?></option><?php endforeach; ?>
+                </select>
+                <p id="transition-action-help" class="small text-muted"></p>
+                <button type="submit" class="btn btn-warning btn-sm" id="transition-confirm" disabled><?= $escape($framework->tt('transition_bulk_change')) ?></button>
+                <hr>
+                <p class="small text-muted"><?= $escape($framework->tt('transition_cancel_help')) ?></p>
+                <button type="button" class="btn btn-link btn-sm pdf-sealer-workflow-link" id="transition-cancel-selected" disabled><?= $escape($framework->tt('transition_bulk_cancel')) ?></button>
             </fieldset>
         </form>
     </div>
