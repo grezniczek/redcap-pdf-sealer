@@ -19,6 +19,7 @@ window.PDFSealerTsaLifecycle = async (module, launcher) => {
         return {text: details.join(' '), tone: response.replacement === 'renewed' && response.crl_published !== false ? 'success' : 'warning'};
     };
     return window.rcDialog({title: module.tt('tsa_lifecycle_title'), size: 'lg', draggable: true,
+        customClass: 'pdf-sealer-tsa-lifecycle',
         closeButton: 'cancel', focusAfterClose: launcher,
         buttons: ['cancel', {id: 'confirm', label: module.tt('root_lifecycle_confirm_button'), intent: 'warning'}],
         body(ctx) {

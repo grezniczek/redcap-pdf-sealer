@@ -107,6 +107,7 @@ window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime, pageUrl
         let busy = false, invalid = false;
         const actionKey = preview.retired ? 'tsa_reactivate' : 'tsa_retire';
         return window.rcDialog({title: module.tt('tsa_retirement_title', text(actionKey), source.name),
+            customClass: 'pdf-sealer-tsa-retirement',
             size: 'md', draggable: true, closeButton: 'cancel', focusAfterClose: launcher,
             buttons: ['cancel', {id: 'confirm', label: text(actionKey), intent: preview.retired ? 'primary' : 'warning'}],
             body() {
@@ -177,6 +178,7 @@ window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime, pageUrl
                 body.append(observation, action, element('p', 'small text-muted mt-2', text('tsa_observation_help')));
             } else action = body.querySelector('[data-tsa-lifecycle]');
             const result = await window.rcDialog({title: source?.name || row.querySelector('[data-tsa-name]').textContent,
+                customClass: 'pdf-sealer-tsa-manage',
                 subtitle: module.tt('tsa_manage_subtitle', id),
                 size: 'lg', draggable: true, closeButton: 'close', focusAfterClose: launcher, buttons: ['close'], footerStatus: retirementAction, body: () => body,
                 setup(ctx) {
@@ -245,6 +247,7 @@ window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime, pageUrl
         let busy = false, submit;
         try {
             const result = await window.rcDialog({title: text('external_tsa_register'), size: 'lg', draggable: true,
+                customClass: 'pdf-sealer-tsa-registration',
                 closeButton: 'cancel', focusAfterClose: registration,
                 buttons: ['cancel', {use: 'save', id: 'register', label: text('external_tsa_register')}], body: () => body,
                 setup(ctx) {

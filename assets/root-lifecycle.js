@@ -62,6 +62,7 @@ window.PDFSealerRootLifecycle = module => {
             let busy = false;
             let fields;
             const result = await window.rcDialog({
+                customClass: 'pdf-sealer-root-lifecycle',
                 title: module.tt('root_lifecycle_title'),
                 size: 'lg',
                 draggable: true,

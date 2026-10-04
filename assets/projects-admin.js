@@ -214,6 +214,7 @@ window.PDFSealerProjectsAdmin = module => {
             }
             let fields, provider, reason, help, executing = false;
             await window.rcDialog({title: tt(spec.title), size: 'lg', draggable: true, closeButton: 'cancel', focusAfterClose: button,
+                customClass: 'pdf-sealer-project-' + action,
                 buttons: ['cancel', {id: 'confirm', label: tt(spec.confirm), intent: action === 'revoke' ? 'danger' : 'primary'}],
                 body(ctx) {
                     const body = node('div', undefined, 'pdf-sealer-dialog-body'); fields = node('fieldset');

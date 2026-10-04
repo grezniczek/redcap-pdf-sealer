@@ -23,6 +23,7 @@ window.PDFSealerProviderWorkflows = module => {
         launchers.forEach(button => { button.disabled = true; });
         try {
             const result = await window.rcDialog({title: launcher.textContent.trim(), size: 'lg', draggable: true,
+                customClass: 'pdf-sealer-ca-registration',
                 closeButton: dismiss, focusAfterClose: launcher,
                 buttons: registration ? ['cancel', {use: 'save', id: 'register', label: module.tt('provider_register')}] : ['close'],
                 body: () => body,

@@ -51,6 +51,7 @@ window.PDFSealerProvidersAdmin = (module, timestampAdmin) => {
         let busy = false, fields, checkbox;
         try {
             const result = await window.rcDialog({title: module.tt('assignment_policy_change'), draggable: true,
+                customClass: 'pdf-sealer-assignment-policy',
                 size: 'md', closeButton: 'cancel', focusAfterClose: policyButton,
                 buttons: ['cancel', {id: 'save', label: module.tt('assignment_policy_save'), intent: 'primary'}],
                 body() {
@@ -103,6 +104,7 @@ window.PDFSealerProvidersAdmin = (module, timestampAdmin) => {
         const actionKey = preview.retired ? 'provider_reactivate' : 'provider_retire';
         let busy = false, invalid = false, gate;
         return window.rcDialog({title: module.tt(actionKey) + ': ' + name, size: 'md', draggable: true,
+            customClass: 'pdf-sealer-ca-retirement',
             closeButton: 'cancel', focusAfterClose: focusTarget,
             buttons: ['cancel', {id: 'confirm', label: module.tt(actionKey), intent: preview.retired ? 'primary' : 'warning'}],
             body(ctx) {
@@ -160,6 +162,7 @@ window.PDFSealerProvidersAdmin = (module, timestampAdmin) => {
             const title = element('span', 'd-inline-flex align-items-center gap-2');
             title.append(badge(preview.retired), element('span', '', name));
             const result = await window.rcDialog.tabbed({title, subtitle: module.tt('provider_manage_subtitle', id), size: 'lg',
+                customClass: 'pdf-sealer-ca-manage',
                 draggable: true, closeButton: 'close', focusAfterClose: launcher, buttons: ['close'], footerStatus: action,
                 tabs: [
                     {id: 'details', label: module.tt('provider_details'), body() {
