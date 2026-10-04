@@ -27,6 +27,12 @@ Framework hook dispatch rolls back before and after every hook. The harness ther
 
 **2026-09-26 result:** all five fixtures passed through both entry points in PID 461 using configured PAdES B-T; both negative cases and cleanup checks passed. Independent dev-control inspection confirmed no synthetic project logs remained. This verifies the finalization handoff but does not invoke snapshot persistence, file upload, or an HTTP download.
 
+## Core ownership refactor — 2026-10-04
+
+The extended `tests/pdf_pipeline_live.php` passes on PHP 8.2.34/8.5.11 in PID 524 with the refactored Core coordinator, Framework provider and real Sealer hook. Both entry points preserve all five fixtures' rendering/text/links and produce independently verified B-T signatures/timestamps with matching final-byte hashes. Under a synthetic reserved Core policy, Sealer returns nonterminal unchanged, Core adopts its own result last, and required Core failure prevents commitment. The synthetic Core operation is a test action, not a Core sealing implementation. Transactional test logs are rolled back and generated files removed; existing signer/provider state is preserved. Details are in [testing](testing.md#native-coreframework-acceptance--2026-10-04).
+
+This verifies the native finalization handoff after refactoring. A fresh stored-snapshot/download comparison is still required; earlier saved-artifact/Acrobat results below predate the refactor. No new edoc, record, external TSA request or email was created in this slice.
+
 ## Browser step: saved snapshot and delivery
 
 1. In PID 461, complete a new synthetic eConsent with a drawn test signature. Use only test data. Note the record ID and, if relevant, event/repeat instance.

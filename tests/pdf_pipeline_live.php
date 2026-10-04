@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 // Development instances only. Preview by default; --run performs rollback-contained log writes.
-if (getenv('PDF_SEALER_LIVE_TEST') !== '1') {
+if (PHP_SAPI !== 'cli' || getenv('PDF_SEALER_LIVE_TEST') !== '1') {
     throw new RuntimeException('Set PDF_SEALER_LIVE_TEST=1 on a development instance');
 }
 if (!in_array($argv[1] ?? '--preview', ['--preview', '--run'], true) || $argc > 2) {
@@ -13,7 +13,13 @@ $core = rtrim(getenv('PDF_SEALER_REDCAP_ROOT') ?: '/home/gr/redcap/codebase', '/
 $pid = filter_var(getenv('PDF_SEALER_TEST_PID') ?: '461', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 if ($pid === false) { throw new RuntimeException('Invalid test project ID'); }
 $_SERVER['PHP_SELF'] = 'pdf_sealer_pipeline_live.php';
+define('NOAUTH', true);
+define('CRON', true);
 require $core . '/Config/init_global.php';
+set_exception_handler(static function (Throwable $exception): void {
+    fwrite(STDERR, $exception->getMessage() . "\n");
+    exit(1);
+});
 require __DIR__ . '/support/pdf_timestamp_checks.php';
 require __DIR__ . '/support/redcap_pdf_fixtures.php';
 
@@ -31,6 +37,10 @@ use DE\RUB\PDFSealerExternalModule\Pki\ProjectIssueLock;
 use DE\RUB\PDFSealerExternalModule\Pki\SecretProtector;
 use ExternalModules\ExternalModules;
 use ExternalModules\PdfFinalize;
+use Vanderbilt\REDCap\Classes\PdfFinalization\PdfFinalizeResult;
+use Vanderbilt\REDCap\Classes\PdfFinalization\PdfFinalizationPolicy;
+use Vanderbilt\REDCap\Classes\PdfFinalization\PdfFinalizationRequiredException;
+use Vanderbilt\REDCap\Classes\PdfFinalization\PdfTerminalAction;
 
 $framework = ExternalModules::getFrameworkInstance('pdf_sealer', 'v9.9.9');
 ExternalModules::setProjectId((string) $pid);
@@ -64,7 +74,7 @@ checkSeal($autocommit !== false && (int) $autocommit->fetch_row()[0] === 1, 'Run
 $before = [$bindings->find($pid), $identities->activeId('root'), $identities->activeId('tsa'),
     $settings->get('default_ca_provider'), $settings->get('ca_provider_builtin-ca'), $settings->get('tsa_source_builtin-tsa')];
 echo "Preflight: PID $pid, existing PKI/signer ready, single sealer pipeline, expected $expectedProfile.\n";
-echo "Run scope: five synthetic fixtures through Core file/bytes entry points; document-type bypass and already-certified rejection; test log writes rolled back. No setting changes, edoc writes, or email.\n";
+echo "Run scope: five synthetic fixtures through Core file/bytes entry points; document-type bypass, certified rejection and synthetic reserved Core actions; test log writes rolled back. No setting changes, edoc writes, or email.\n";
 if (($argv[1] ?? '--preview') !== '--run') { exit; }
 
 $directory = sys_get_temp_dir() . '/pdf_sealer_pipeline_' . bin2hex(random_bytes(8));
@@ -85,13 +95,18 @@ try {
     $context = ['document_type' => 'econsent', 'record_id' => $record, 'event_id' => $eventId,
         'generation_reason' => 'pdf_sealer_cli_acceptance', 'storage_target' => 'test_only'];
     $generations = [];
-    $readEvents = static function (string $generation) use ($directory): array {
+    $readEventSequence = static function (string $generation) use ($directory): array {
         $events = [];
         foreach (file($directory . '/pipeline.log', FILE_IGNORE_NEW_LINES) ?: [] as $line) {
             if (preg_match('/REDCap PDF finalization: (\{.*\})$/', $line, $match) !== 1) { continue; }
             $event = json_decode($match[1], true, flags: JSON_THROW_ON_ERROR);
-            if (($event['generation_id'] ?? null) === $generation) { $events[$event['event']] = $event; }
+            if (($event['generation_id'] ?? null) === $generation) { $events[] = $event; }
         }
+        return $events;
+    };
+    $readEvents = static function (string $generation) use ($readEventSequence): array {
+        $events = [];
+        foreach ($readEventSequence($generation) as $event) { $events[$event['event']] = $event; }
         return $events;
     };
     foreach ($cases as $name => [$sourcePath, $pages, $links]) {
@@ -144,6 +159,48 @@ try {
         && file_get_contents($certified) === $beforeFailure, 'Already-certified failure did not preserve input');
     $generations[] = $generation;
     checkSeal(isset($readEvents($generation)['controlled_failure']), 'Expected controlled failure was not logged');
+
+    foreach ([false, true] as $failCore) {
+        $action = new class($source, $failCore) implements PdfTerminalAction {
+            public bool $called = false;
+            public function __construct(private string $source, private bool $fail) {}
+            public function getIdentifier(): string { return 'core:acceptance-terminal'; }
+            public function getLabel(): string { return 'Acceptance terminal action'; }
+            public function finalize(string $path, array $context): PdfFinalizeResult
+            {
+                $this->called = true;
+                checkSeal($context['terminal_action_reserved_for_core'] === true && file_get_contents($path) === $this->source,
+                    'Reserved Core action did not receive original unsealed bytes after EM dispatch');
+                if ($this->fail) { return PdfFinalizeResult::failed('ACCEPTANCE_FAILURE', 'Synthetic Core failure'); }
+                file_put_contents($path, $this->source . "\n% Core terminal acceptance\n");
+                return PdfFinalizeResult::modified($path, true);
+            }
+        };
+        $policy = new PdfFinalizationPolicy($action, true);
+        try {
+            $final = PdfFinalizer::finalizeContents($source, $pid, $context, $generation, $policy);
+            checkSeal(!$failCore && $final === $source . "\n% Core terminal acceptance\n", 'Core terminal bytes were not adopted');
+        } catch (PdfFinalizationRequiredException) {
+            checkSeal($failCore, 'Successful Core action was refused');
+        }
+        $generations[] = $generation;
+        checkSeal($action->called, 'Core terminal action was not invoked');
+        $sequence = $readEventSequence($generation);
+        $completed = array_values(array_filter($sequence, static fn(array $event): bool => $event['event'] === 'operation_completed'));
+        checkSeal($completed[0]['operation_identifier'] === 'pdf_sealer:seal' && $completed[0]['status'] === 'unchanged'
+            && $completed[0]['terminal'] === false, 'Real Sealer did not yield nonterminal unchanged under reservation');
+        $events = $readEvents($generation);
+        checkSeal($events['pipeline_completed']['invoked_count'] === 2
+            && $events['pipeline_completed']['can_commit'] === !$failCore
+            && $events['pipeline_completed']['core_terminal_status'] === ($failCore ? 'failed' : 'succeeded'),
+            'Reserved Core status/commit policy differs from result');
+        checkSeal(count($completed) === ($failCore ? 1 : 2), 'Core failure reopened the EM segment');
+        if (!$failCore) {
+            checkSeal($completed[1]['operation_source'] === 'core' && $completed[1]['terminal'] === true
+                && $events['pipeline_completed']['final_sha256'] === hash('sha256', $final), 'Core action was not last or hash differs');
+        }
+        echo 'Reserved Core ' . ($failCore ? 'required-failure' : 'success') . ": real Sealer yielded unchanged; terminal order/commit policy passed.\n";
+    }
 
 } finally {
     if ($transaction) {

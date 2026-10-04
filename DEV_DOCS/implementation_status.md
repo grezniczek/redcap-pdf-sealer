@@ -1,5 +1,11 @@
 # PDF Sealer implementation status
 
+## Native Core/Framework acceptance — 2026-10-04
+
+The refactored stack passes native backend acceptance on PHP 8.2/8.5. Two integration fixes preserve meaningful audit-failure detection and absent project overrides during failed enablement. The new preview-first management harness checks real rights, Core plan saves/audits and Framework placement/enablement in PID 533; rollback and independent dev-control inspection confirm restoration. The extended live pipeline in PID 524 verifies five REDCap fixtures through both entry points, B-T signatures/timestamps/content/hashes, and real Sealer yielding nonterminal unchanged before a synthetic Core action executes last. Required Core failure blocks commitment. Existing identities/provider settings are unchanged; no edocs, external TSA requests or email were created.
+
+Core **90 tests/356 assertions** and Framework **32 tests/193 assertions** pass on both runtimes. Interactive browser/remaining enablement paths and fresh stored/delivered artifact acceptance remain pending because computer-use discovery could not launch. See [testing](testing.md#native-coreframework-acceptance--2026-10-04) and [slice 4](core_pdf_finalization_change_plan.md#slice-4--native-management-and-pipeline-acceptance). Production Core sealing and XML/PMT transport remain deferred. Earlier slice reports below retain their historical scope.
+
 ## Core execution-plan management — 2026-10-04
 
 Core now owns operation-state projection, workflow warnings/previews, designer saves, permissions, CSRF, audit/recovery, and the editor/endpoints. **Project Setup → PDF Finalization** works without active EMs; Framework management and enablement delegate to that same interface. Fixed Core actions appear outside the editable EM list, with policies selected through the runtime resolver. Duplicate/unavailable entries and existing direct-copy storage semantics remain; global enablement does not insert operations. PDF Sealer status reads Core and distinguishes full eConsent reservation from conditional/mixed workflow restrictions.

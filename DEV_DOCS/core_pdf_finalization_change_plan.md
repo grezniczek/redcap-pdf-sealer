@@ -1,11 +1,19 @@
 # Core-owned PDF finalization — change plan
 
-**Status:** In progress; Core contracts, coordinator/provider wiring, plan management and PDF Sealer reservation/status integration implemented. Browser/enablement and real artifact delivery acceptance remain pending.
+**Status:** Core contracts, coordinator/provider wiring, plan management and PDF Sealer integration implemented; native backend acceptance passes. Interactive browser/remaining enablement paths and real artifact delivery acceptance remain pending.
 
 **Date:** 2026-10-03.  
 **Scope:** REDCap Core, the External Module Framework, and PDF Sealer's integration contract.
 
 ## Implementation progress — 2026-10-04
+
+### Slice 4 — native management and pipeline acceptance
+
+Native acceptance identified and corrected audit-result handling (`Logging::logEvent()` rather than the void `REDCap::logEvent()` wrapper) and Framework recovery of an absent enabled override (`getSetting()` rather than the inheriting `getProjectSetting()`). The audit fixture now reflects the real API. No ownership or hook-contract change was needed.
+
+The new gated, preview-first management harness passed on PHP 8.2/8.5 in PID 533. It exercises real Core rights, view/projection, settings/audits and Framework enablement, including failed enablement preserving an absent override, duplicate/unavailable retention and explicit nonassignment. Writes are rollback-contained; independent dev-control checks confirm restoration. The extended pipeline harness passed in PID 524 on both runtimes: five actual REDCap PDF fixtures through both entry points with signature/timestamp/content/hash checks, plus real Sealer dispatch under successful and failed synthetic reserved Core actions. Sealer yields unchanged; Core executes last and required failure blocks commitment.
+
+Core **90 tests/356 assertions** and Framework **32 tests/193 assertions** still pass on both runtimes. [Testing](testing.md#native-coreframework-acceptance--2026-10-04) records exact prerequisites and limitations. Computer-use tooling could not launch, so no interactive browser acceptance is claimed. Activation-request/global-enable UI and actual stored/delivered artifact correlation remain next. No production Core terminal implementation, PKI port, edoc or outbound email was added; XML/PMT transport remains deferred.
 
 ### Slice 3 — Core plan management and Sealer status
 

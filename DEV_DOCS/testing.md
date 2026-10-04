@@ -1,5 +1,31 @@
 # Development and testing
 
+## Native Core/Framework acceptance — 2026-10-04
+
+Backend acceptance after the ownership refactor passes on **PHP 8.2.34 and 8.5.11**. It exposed two native API mismatches that isolated doubles had missed:
+
+- Core plan auditing now uses `Logging::logEvent()`, whose result is an inserted ID or `false`. `REDCap::logEvent()` discards that result. The isolated fixture now models both signatures, preserving the existing audit-failure/recovery regressions.
+- Framework enablement snapshots its project-only `enabled` value through `getSetting()`. `getProjectSetting()` inherits the system value and could therefore create a new override during failure recovery when none previously existed.
+
+From the module checkout, preview before running on an explicitly selected development fixture:
+
+```sh
+PDF_SEALER_LIVE_TEST=1 PDF_SEALER_TEST_PID=533 PDF_SEALER_TEST_USERNAME=gr \
+  php8.2 -d xdebug.mode=off tests/pdf_plan_management_live.php --preview
+# After reviewing the scope and mutation previews, use the same environment with --run.
+PDF_SEALER_LIVE_TEST=1 PDF_SEALER_TEST_PID=524 \
+  php8.2 -d xdebug.mode=off tests/pdf_pipeline_live.php --preview
+# Also run on the current PHP runtime.
+```
+
+`pdf_plan_management_live.php` requires native Design/Setup membership, an active development project, no saved plan or Sealer override, Sealer disabled, no enable hook/defaults, and transactional tables. CLI user selection exercises native rights and audit attribution; it does not authenticate a browser or test HTTP CSRF. Preview loads real declarations, pending-operation/workflow projections and the localized Core view without saving. Run checks explicit empty state, missing-placement rejection, failed enablement with an invalid default injected into the process-local config cache, recovery without an inherited override, successful placement/enablement, duplicates and unavailable retention, unchanged-save audit suppression, rejection of submitted Core identifiers, and explicit nonassignment. The injected config is restored in `finally`; installed config and PKI are untouched. Native audit rows must match the exact changed-plan sequence and designer attribution. All test writes are rolled back, including user/project activity.
+
+PID **533** passed on both runtimes. Independent `redcap_devctl` inspection confirmed no remaining plan, Sealer setting or plan audit, and unchanged activity timestamps. SQL previews covered the affected setting, log and activity tables before execution. One early failing preflight generated a native crash diagnostic, and the earlier pipeline preview logged one page hit; those exact test artifacts were removed through previewed `redcap_devctl` cleanup. Both harnesses now catch test failures and run as CLI cron contexts to avoid page-hit logging. `redcap_devctl` currently cannot invoke application-service acceptance with transaction containment; a previewable service-test runner would be a useful enhancement. Its SQL tools were used for inspection/previews, not as a substitute for native service execution.
+
+PID **524** passed the extended pipeline harness on both runtimes with an existing signer and internal **PAdES B-T** timestamping. All five REDCap-generated fixtures passed through file and contents entry points: complete-document signature/CMS, independent timestamp verification, identical rendering/text/links, original-input preservation, terminal adoption and final-byte hash correlation. Document-type bypass and already-certified rejection passed. Two synthetic Core actions exercise the real Sealer/Framework dispatch: reservation produces nonterminal unchanged, successful Core bytes are adopted last, and required Core failure prevents commitment without reopening EM execution. The synthetic success appends a PDF comment; it is not a production Core seal. Test logs/artifacts are discarded, and existing bindings, active identities and provider configuration remain unchanged. No edocs, project records, certificate issuance, external TSA requests or email are involved.
+
+Core remains **90 tests/356 assertions** and Framework **32 tests/193 assertions** on both runtimes. Native acceptance complements those isolated tests; it does not establish interactive Bootstrap behavior, activation-request/global-enablement UI, durable cross-request saves, or actual snapshot/download/email delivery. Computer-use discovery failed twice because its app server executable could not launch, so browser acceptance remains pending. Use the management checklist below and [saved-artifact acceptance](pdf_pipeline_acceptance.md#browser-step-saved-snapshot-and-delivery). Earlier results below are historical for their respective slices.
+
 ## Core execution-plan management — 2026-10-04
 
 Use the Core and Framework isolated commands in the executor section below, plus:
