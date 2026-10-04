@@ -154,7 +154,7 @@ foreach ([
     'assignment_policy_change', 'assignment_policy_label', 'assignment_policy_help', 'assignment_policy_delivery',
     'assignment_policy_save', 'assignment_policy_saved', 'assignment_policy_failed', 'assignment_policy_explicit',
     'assignment_policy_automatic', 'provider_builtin', 'provider_details', 'provider_usage',
-    'provider_manage_title', 'provider_active', 'provider_retired', 'provider_retire',
+    'provider_manage_subtitle', 'provider_active', 'provider_retired', 'provider_retire',
     'provider_reactivate', 'provider_pid', 'provider_active_signer', 'provider_pending_enrollment',
     'transition_pending_label', 'provider_retirement_counts', 'provider_retirement_help', 'provider_reactivation_help',
     'provider_retirement_gate', 'provider_lifecycle_failed', 'provider_lifecycle_saved', 'provider_review_failed',

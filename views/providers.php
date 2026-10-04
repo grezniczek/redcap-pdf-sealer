@@ -7,7 +7,7 @@
 </div>
 <hr>
 <div class="pdf-sealer-table-wrap mb-3">
-    <table id="pdf-sealer-providers" class="table table-sm w-100 hover">
+    <table id="pdf-sealer-providers" class="table table-sm w-100 hover" data-status-url="<?= $escape($framework->getUrl('project-status.php')) ?>">
         <thead><tr>
             <th><?= $escape($framework->tt('provider_status')) ?></th>
             <th><?= $escape($framework->tt('provider_table_name')) ?></th>
@@ -40,8 +40,6 @@
 <?php foreach ($providerCatalog as $provider): ?>
     <template id="pdf-sealer-provider-details-<?= $escape($provider['id']) ?>">
         <div class="pdf-sealer-dialog-body">
-            <h6><?= $escape($provider['name'] ?? $framework->tt('provider_builtin')) ?> <span data-details-status></span></h6>
-            <p class="small"><code><?= $escape($provider['id']) ?></code></p>
             <?php if ($provider['id'] === 'builtin-ca'): $renderCertificate('root'); endif; ?>
             <?php foreach ($providerCertificates as $cert): if ($cert['provider_id'] !== $provider['id']) { continue; } ?>
                 <dl class="pdf-sealer-certificate">

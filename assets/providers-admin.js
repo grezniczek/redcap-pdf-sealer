@@ -157,13 +157,13 @@ window.PDFSealerProvidersAdmin = (module, timestampAdmin) => {
             let busy = false, usageNode, dialogContext, timestampBody;
             const action = element('button', 'btn btn-link btn-sm pdf-sealer-workflow-link', module.tt(preview.retired ? 'provider_reactivate' : 'provider_retire'));
             action.type = 'button';
-            const result = await window.rcDialog.tabbed({title: module.tt('provider_manage_title', name), size: 'lg',
+            const title = element('span', 'd-inline-flex align-items-center gap-2');
+            title.append(badge(preview.retired), element('span', '', name));
+            const result = await window.rcDialog.tabbed({title, subtitle: module.tt('provider_manage_subtitle', id), size: 'lg',
                 draggable: true, closeButton: 'close', focusAfterClose: launcher, buttons: ['close'], footerStatus: action,
                 tabs: [
                     {id: 'details', label: module.tt('provider_details'), body() {
-                        const body = document.getElementById('pdf-sealer-provider-details-' + id).content.cloneNode(true);
-                        body.querySelector('[data-details-status]').append(badge(preview.retired));
-                        return body;
+                        return document.getElementById('pdf-sealer-provider-details-' + id).content.cloneNode(true);
                     }},
                     {id: 'timestamping', label: module.tt('timestamp_settings_title'), body() {
                         if (!timestampBody) timestampBody = timestampAdmin.policy(id, value => {
@@ -187,7 +187,11 @@ window.PDFSealerProvidersAdmin = (module, timestampAdmin) => {
                         const tbody = element('tbody', '');
                         preview.projects.forEach(project => {
                             const tr = element('tr', '');
-                            [project.pid, project.identity_id !== null ? '✓' : '—', project.enrollment_id !== null ? '✓' : '—', project.transition_id ? '✓' : '—']
+                            const link = element('a', '', project.pid), url = new URL(tableNode.dataset.statusUrl, location.href);
+                            url.searchParams.set('pid', String(project.pid)); link.href = url.href;
+                            link.target = '_blank'; link.rel = 'noopener';
+                            const pidCell = element('td', ''); pidCell.append(link); tr.append(pidCell);
+                            [project.identity_id !== null ? '✓' : '—', project.enrollment_id !== null ? '✓' : '—', project.transition_id ? '✓' : '—']
                                 .forEach(value => tr.append(element('td', '', value)));
                             tbody.append(tr);
                         });

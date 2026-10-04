@@ -21,7 +21,7 @@ const all = node => [node, ...node.children.flatMap(all)];
 function fixture({retired = false, required = false, fail = false, previewFail = false, deferred = null} = {}) {
     const ids = {}, calls = [], dialogs = [], tables = [], notifications = [], projectUpdates = [];
     const node = (id, tag, data = {}) => ids[id] = new Node(tag, {dataset: data});
-    const catalog = node('pdf-sealer-providers', 'table');
+    const catalog = node('pdf-sealer-providers', 'table', {statusUrl: 'https://redcap.test/external_modules/?prefix=pdf_sealer&page=project-status.php'});
     const row = new Node('tr', {dataset: {providerId: 'builtin-ca', retired: retired ? '1' : '0'}});
     const statusCell = new Node('td'), status = new Node('span', {dataset: {providerStatus: ''}}); statusCell.append(status);
     const name = new Node('td', {dataset: {providerName: ''}, textContent: 'Built-in <CA>'});
@@ -34,7 +34,7 @@ function fixture({retired = false, required = false, fail = false, previewFail =
     node('pki-panel-providers', 'section', {}); const tab = new Node('button');
     ids['pdf-sealer-provider-details-builtin-ca'] = {content: {cloneNode() {
         const body = new Node('div', {className: 'pdf-sealer-dialog-body'});
-        body.append(new Node('span', {dataset: {detailsStatus: ''}})); return body;
+        return body;
     }}};
     let currentRetired = retired, currentRequired = required;
     const module = {tt: (key, ...values) => key + (values.length ? ':' + values.join(',') : ''),
@@ -77,6 +77,7 @@ function fixture({retired = false, required = false, fail = false, previewFail =
     const context = {document: {getElementById: id => ids[id], createElement: tag => new Node(tag),
         createTextNode: text => new Node('#text', {textContent: text}), querySelector: () => tab},
         window: {rcDialog: makeDialog, addEventListener() {}, PDFSealerProjectsAdmin: {providerChanged: (id, retired) => projectUpdates.push({id, retired})}, PDFSealerNotify: (text, tone) => notifications.push({text, tone})}, $: jquery,
+        URL, location: {href: 'https://redcap.test/external_modules/?prefix=pdf_sealer&page=pki-admin.php'},
         Event: class {constructor(type) {this.type = type;}}, Option: function(text, value) { return option(text, value); }};
     vm.runInNewContext(source, context); context.window.PDFSealerProvidersAdmin(module, {policy(id, busy, saved) {
         assert.equal(id, 'builtin-ca');
@@ -92,8 +93,16 @@ function fixture({retired = false, required = false, fail = false, previewFail =
     let f = fixture(), run = await f.open(), main = f.dialogs[0];
     assert.equal(f.calls.length, 1, 'Manage opening must only read');
     assert.deepEqual(Array.from(main.options.buttons), ['close']);
+    assert.equal(main.options.title.children[0].textContent, 'provider_active');
+    assert.equal(main.options.title.children[1].textContent, 'Built-in <CA>');
+    assert.equal(main.options.subtitle, 'provider_manage_subtitle:builtin-ca');
     assert.deepEqual(Array.from(main.options.tabs, t => t.id), ['details', 'timestamping', 'usage']);
     assert.ok(main.bodies.every(body => body.className === 'pdf-sealer-dialog-body'));
+    const usageLink = main.bodies[2].querySelector('a'), statusUrl = new URL(usageLink.href);
+    assert.equal(statusUrl.searchParams.get('prefix'), 'pdf_sealer');
+    assert.equal(statusUrl.searchParams.get('page'), 'project-status.php');
+    assert.equal(statusUrl.searchParams.get('pid'), '524');
+    assert.equal(usageLink.target, '_blank'); assert.equal(usageLink.rel, 'noopener');
     const timestamp = main.bodies[1]; timestamp.begin();
     assert.equal(main.controls.close.disabled, true); assert.equal(await main.ctx.close(null), false);
     assert.equal(main.options.footerStatus.disabled, true);
