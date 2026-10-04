@@ -1,5 +1,9 @@
 # PDF Sealer implementation status
 
+## Fresh eConsent download acceptance — 2026-10-04
+
+PID 524 record 10 passes user-reported browser/Acrobat certification and timestamp acceptance after the user added a signature field. Independent verification of the supplied download confirms complete-document certification, the public root chain, a valid embedded timestamp over CMS signature bytes, and unchanged page rendering/text/footer link. Dev-control identifies edoc 2378 and the native B-T success log. The stored/downloaded hash comparison remains pending because the read-only edoc tools fail with an invalid JSON envelope; the stored path is identified for a user-performed hash. See [pipeline acceptance](pdf_pipeline_acceptance.md#record-10-post-refactor-download-verification--stored-hash-pending).
+
 ## Browser plan-management acceptance complete — 2026-10-04
 
 The user passed retained unavailable assignment save/reopen, re-enablement with retained placement, and unchanged resolved-plan save/reopen in PID 533. Independent dev-control inspection confirms one sealing assignment, Sealer enabled, and no additional plan-change audit beyond the four earlier deliberate changes. PID 524 remains unchanged. This completes the guided plan-management browser matrix; [testing](testing.md#browser-retained-assignment-and-unchanged-saves--2026-10-04) distinguishes user-reported intermediate UI behavior from independently checked state/audits. Fresh stored eConsent snapshot/download acceptance after refactoring remains pending in PID 524.

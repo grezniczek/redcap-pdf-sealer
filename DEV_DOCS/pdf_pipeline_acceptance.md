@@ -31,7 +31,7 @@ Framework hook dispatch rolls back before and after every hook. The harness ther
 
 The extended `tests/pdf_pipeline_live.php` passes on PHP 8.2.34/8.5.11 in PID 524 with the refactored Core coordinator, Framework provider and real Sealer hook. Both entry points preserve all five fixtures' rendering/text/links and produce independently verified B-T signatures/timestamps with matching final-byte hashes. Under a synthetic reserved Core policy, Sealer returns nonterminal unchanged, Core adopts its own result last, and required Core failure prevents commitment. The synthetic Core operation is a test action, not a Core sealing implementation. Transactional test logs are rolled back and generated files removed; existing signer/provider state is preserved. Details are in [testing](testing.md#native-coreframework-acceptance--2026-10-04).
 
-This verifies the native finalization handoff after refactoring. A fresh stored-snapshot/download comparison is still required; earlier saved-artifact/Acrobat results below predate the refactor. No new edoc, record, external TSA request or email was created in this slice.
+This verifies the native finalization handoff after refactoring. The fresh record 10 download/Acrobat checks are recorded below; its stored-byte hash comparison remains pending. Earlier saved-artifact/Acrobat results predate the refactor. No new edoc, record, external TSA request or email was created by the automated harness.
 
 ## Browser step: saved snapshot and delivery
 
@@ -45,6 +45,35 @@ For the current ownership-refactor acceptance, use **PID 524 (PDF Sealer Test)**
 The agent then uses `redcap_devctl` to identify and inspect the matching stored edoc, calculate its SHA-256, and export a read-only copy to a temporary local file. It compares stored and downloaded bytes, checks size/MIME consistency, verifies the complete-document signature and embedded timestamp, and correlates the concise sealing log with the record/event. No existing edoc is replaced or resealed. Temporary exports are removed after verification; the user's downloaded copy is retained unless asked otherwise.
 
 A matching hash verifies that downloading preserved the stored artifact. A valid whole-document signature on those bytes verifies that storage/delivery did not invalidate the seal. It does not prove every other PDF pathway behaves identically. Attachment-heavy eConsent workflows and confirmation-email attachment delivery need separate acceptance if they are in the v1 deployment scope. Sending test email requires explicit authorization.
+
+## Record 10 post-refactor download verification — stored hash pending
+
+On 2026-10-04 the user added a drawn-signature field to PID 524's Example Survey (it had no signature field), completed a new synthetic eConsent for record **10**, and downloaded `C:\Users\grezn\Downloads\pid524_formExampleSurvey_id10_2026-10-04_234310.pdf`. The user reports Acrobat accepted it as certified, timestamped and without warnings, with the Root CA already trusted. This is user-reported Acrobat acceptance.
+
+Read-only `redcap_devctl` database inspection identifies edoc **2378**, event **1589**, survey **1016**, instance **1**, snapshot **268**, with `contains_completed_consent=1`. Metadata reports **71,947 bytes**, `application/pdf`, and storage time **2026-10-04 23:43:09** in the instance's local time. The download matches the recorded filename and size. Native project log **1291** records `PDF seal succeeded`, `Profile: PAdES B-T`, for record 10/event 1589 at that time.
+
+The downloaded file's SHA-256 is:
+
+```text
+30f0ad6f1268411b8c796a7ceac76f09461f58f5925d8d49c916e52484bd70b1
+```
+
+Independent verification of the downloaded bytes passes:
+
+- qpdf accepts the PDF, and pdfsig recognizes one valid `ETSI.CAdES.detached` signature covering the complete file. ByteRange is `[0, 38444, 71214, 733]`; DocMDP is P=1 and the signature widget references that certification signature.
+- OpenSSL verifies the detached CMS and its certificate chain. The embedded root matches the independently queried public identity inventory, SHA-256 `089f702cc4d8610aceff0bee43f40f8a789758790ccd22352fd2ea4e2ebf13d8`. No private-key fields were queried or decrypted. A modified protected byte fails signature verification.
+- One embedded RFC 3161 signature timestamp verifies with OpenSSL against the actual CMS signature bytes and the same root. Generation time is **2026-10-04 21:43:10 UTC**, serial `DC7F51F7941D964B755D464DDD6EC082`, policy `2.25.186172099785128831488612506224552954430`.
+- The preceding unsigned revision is retained (38,037 bytes). Its one-page Poppler render and extracted text match the finished PDF, and its single footer link target/rectangle is preserved. The PDF contains the drawn-signature image and its transparency mask.
+
+The stored/downloaded byte comparison is **pending**. `edoc_inspect`, `edoc_hash`, and `edoc_export` again fail with “The REDCap CLI did not return a valid JSON envelope”; the failed export leaves no output file. Matching metadata and a valid download do not independently establish equality with stored bytes. The tool enhancement noted below remains needed: expose sanitized underlying CLI diagnostics and restore read-only edoc inspection/hash/export.
+
+Database metadata identifies the stored file as `/home/gr/edocs/20261004234310_pid524_e2WGZq.pdf`. A user-performed read-only hash can complete this check without changing permissions or the artifact:
+
+```sh
+sudo sha256sum /home/gr/edocs/20261004234310_pid524_e2WGZq.pdf
+```
+
+The agent made no live mutations. Temporary copies, certificate material and verification files are removed after verification; the user's download is retained. The downloaded artifact and browser/Acrobat pathway pass, while stored-byte equality remains an explicitly outstanding check.
 
 ## Record 18 stored/downloaded acceptance — passed
 

@@ -1,5 +1,11 @@
 # Development and testing
 
+## Fresh eConsent download and Acrobat acceptance — 2026-10-04
+
+The user added a signature field to PID 524's Example Survey, completed record 10, downloaded its saved eConsent snapshot, and reports warning-free Acrobat certification/timestamp acceptance with the root already trusted. Independent qpdf/pdfsig/OpenSSL checks on the supplied download pass for whole-document certification, its public root chain, the embedded timestamp over CMS signature bytes, and original rendering/text/footer-link preservation. Dev-control database reads identify edoc 2378 and a matching native B-T success log for record 10/event 1589. See [pipeline acceptance](pdf_pipeline_acceptance.md#record-10-post-refactor-download-verification--stored-hash-pending) for hashes and detailed evidence.
+
+Stored/downloaded byte equality remains pending: dev-control's three read-only edoc tools fail with the same invalid-JSON-envelope error previously encountered. The exact stored filename has been identified for a user-performed hash. No tool-driven live mutations were made; temporary verification files are removed and the user's download is retained.
+
 ## Browser retained assignment and unchanged saves — 2026-10-04
 
 The user reports all three checks passed in PID 533: disabling Sealer while retaining its saved assignment, saving/reopening that unavailable entry, and re-enabling Sealer without requiring new placement; the retained assignment then resolved without its unavailable warning. Saving/reopening the unchanged resolved plan also passed.
