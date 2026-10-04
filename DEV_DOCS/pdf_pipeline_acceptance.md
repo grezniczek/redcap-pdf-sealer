@@ -35,7 +35,9 @@ This verifies the native finalization handoff after refactoring. A fresh stored-
 
 ## Browser step: saved snapshot and delivery
 
-1. In PID 461, complete a new synthetic eConsent with a drawn test signature. Use only test data. Note the record ID and, if relevant, event/repeat instance.
+For the current ownership-refactor acceptance, use **PID 524 (PDF Sealer Test)** with its existing **Example Survey** (`survey`) eConsent workflow and single saved `pdf_sealer:seal` assignment. The earlier PID 461 results below remain historical evidence.
+
+1. In PID 524, complete a new synthetic eConsent through Example Survey with a drawn test signature. Use only test data. Note the record ID and, if relevant, event/repeat instance.
 2. Locate its **saved eConsent snapshot** in the File Repository/archive and download that exact artifact. Do not use a fresh Print/PDF export for this byte comparison: regeneration can create a new certificate signature and timestamp even when the visible content is unchanged.
 3. Place the downloaded file at an accessible path and provide the record ID and path. The stored snapshot's edoc ID is useful if visible but is not required.
 4. In Acrobat, confirm certification without a modification warning, the visible signature image, the footer link, and an embedded timestamp. Report certificate trust/revocation findings separately.

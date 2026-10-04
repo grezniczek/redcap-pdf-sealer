@@ -1,8 +1,12 @@
 # PDF Sealer implementation status
 
+## Browser plan-management acceptance complete — 2026-10-04
+
+The user passed retained unavailable assignment save/reopen, re-enablement with retained placement, and unchanged resolved-plan save/reopen in PID 533. Independent dev-control inspection confirms one sealing assignment, Sealer enabled, and no additional plan-change audit beyond the four earlier deliberate changes. PID 524 remains unchanged. This completes the guided plan-management browser matrix; [testing](testing.md#browser-retained-assignment-and-unchanged-saves--2026-10-04) distinguishes user-reported intermediate UI behavior from independently checked state/audits. Fresh stored eConsent snapshot/download acceptance after refactoring remains pending in PID 524.
+
 ## Browser assigned enablement and duplicate persistence — 2026-10-04
 
-The user passed assigned Sealer enablement, duplicate save/reopen with its warning, and removal/save/reopen of the extra occurrence in PID 533. Independent dev-control inspection confirms one saved sealing assignment with Sealer enabled and the expected native audit sequence (one, two, one occurrences), all attributed to `gr`. PID 524 remains unchanged. See [testing](testing.md#browser-assigned-enablement-and-duplicate-persistence--2026-10-04). Retained unavailable assignments, unchanged saves and fresh artifact delivery remain pending.
+The user passed assigned Sealer enablement, duplicate save/reopen with its warning, and removal/save/reopen of the extra occurrence in PID 533. Independent dev-control inspection confirms one saved sealing assignment with Sealer enabled and the expected native audit sequence (one, two, one occurrences), all attributed to `gr`. PID 524 remains unchanged. See [testing](testing.md#browser-assigned-enablement-and-duplicate-persistence--2026-10-04). Subsequent retained-assignment and unchanged-save acceptance is recorded above.
 
 ## Browser plan save and unassigned enablement — 2026-10-04
 

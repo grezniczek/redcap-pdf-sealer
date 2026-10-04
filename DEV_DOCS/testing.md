@@ -1,12 +1,20 @@
 # Development and testing
 
+## Browser retained assignment and unchanged saves — 2026-10-04
+
+The user reports all three checks passed in PID 533: disabling Sealer while retaining its saved assignment, saving/reopening that unavailable entry, and re-enabling Sealer without requiring new placement; the retained assignment then resolved without its unavailable warning. Saving/reopening the unchanged resolved plan also passed.
+
+Independent read-only `redcap_devctl` inspection confirms `["pdf_sealer:seal"]` with Sealer enabled. The native plan-change audit still contains exactly the four prior entries (1059, 1062, 1064, 1065); saving the unavailable entry, re-enabling with retained placement, and saving the unchanged resolved plan added no plan-change audits. The intermediate disabled state and warning behavior are user-reported. PID 524 remains unchanged. No tool-driven live mutations were made.
+
+This completes the guided browser plan-management checks performed in PIDs 533 and 524: opening/canceling, workflow and duplicate previews, explicit-empty saves, canceled/unassigned/assigned enablement, duplicate persistence/removal, unavailable assignment retention/restoration, and unchanged-save audit suppression. Fresh stored-snapshot/download acceptance after the ownership refactor remains pending; use PID 524's existing Example Survey eConsent workflow as described in [pipeline acceptance](pdf_pipeline_acceptance.md#browser-step-saved-snapshot-and-delivery).
+
 ## Browser assigned enablement and duplicate persistence — 2026-10-04
 
 The user reports all three checks passed in PID 533: disabling and re-enabling Sealer with one explicit sealing assignment; saving/reopening two occurrences with a duplicate warning; and removing the extra occurrence, saving/reopening one assignment without that warning.
 
 Independent read-only `redcap_devctl` inspection confirms the final plan is `["pdf_sealer:seal"]` and Sealer is enabled. Native plan-change audits attributed to `gr` record the expected sequence: ID 1062 with one occurrence, ID 1064 with two occurrences, and ID 1065 with one occurrence again, following the earlier explicit empty save (ID 1059). The browser warnings and intermediate module states are user-reported. PID 524's plan and enablement remain unchanged. No tool-driven live mutations were made.
 
-Next browser acceptance: disable Sealer without deleting its saved assignment, save/reopen the unavailable entry, re-enable Sealer and confirm the retained assignment resolves, then save the unchanged plan. Fresh PDF delivery remains subsequent acceptance.
+The subsequent retained-assignment and unchanged-save results are recorded above. Fresh PDF delivery remains subsequent acceptance.
 
 ## Browser plan save and unassigned enablement — 2026-10-04
 
