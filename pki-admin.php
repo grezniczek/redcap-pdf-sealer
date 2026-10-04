@@ -205,7 +205,7 @@ foreach ([
     'provider_reactivate', 'provider_pid', 'provider_active_signer', 'provider_pending_enrollment',
     'transition_pending_label', 'provider_retirement_counts', 'provider_retirement_help', 'provider_reactivation_help',
     'provider_retirement_gate', 'provider_lifecycle_failed', 'provider_lifecycle_saved', 'provider_review_failed',
-    'provider_dialog_unavailable', 'provider_workflow_failed', 'provider_usage_empty', 'table_search', 'table_length',
+    'provider_dialog_unavailable', 'provider_workflow_failed', 'provider_register', 'provider_request_failed', 'provider_usage_empty', 'table_search', 'table_length',
     'table_info', 'table_info_empty', 'table_info_filtered', 'table_zero',
     'table_first', 'table_last', 'table_next', 'table_previous',
 ] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
@@ -505,43 +505,35 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
 
     const assignmentProject = $('#provider-pid');
     assignmentProject.prop('disabled', assignmentProject.closest('fieldset').prop('disabled'));
-    ['register', 'assign'].forEach(action => {
-        const form = document.getElementById('pdf-sealer-provider-' + action);
-        if (!form) return;
-        if (action === 'register') {
-            const source = document.getElementById('provider-source');
-            const fallback = document.getElementById('provider-fallback');
-            const updateFallback = () => { fallback.disabled = source.value === 'none' || source.value === ''; if (fallback.disabled) fallback.checked = false; };
-            source.addEventListener('change', updateFallback);
-            updateFallback();
-        }
+    if (document.getElementById('pdf-sealer-provider-register')) {
+        const source = document.getElementById('provider-source');
+        const fallback = document.getElementById('provider-fallback');
+        const updateFallback = () => { fallback.disabled = source.value === 'none' || source.value === ''; if (fallback.disabled) fallback.checked = false; };
+        source.addEventListener('change', updateFallback);
+        updateFallback();
+    }
+
+    const assignmentForm = document.getElementById('pdf-sealer-provider-assign');
+    if (assignmentForm) {
+        const form = assignmentForm;
         form.addEventListener('submit', async event => {
             event.preventDefault();
             const fields = form.querySelector('fieldset');
             if (fields.disabled) return;
             form.setAttribute('aria-busy', 'true');
             fields.disabled = true;
-            if (action === 'assign') assignmentProject.prop('disabled', true);
+            assignmentProject.prop('disabled', true);
 
             try {
-                let payload;
-                let assignedProjectName, assignedProviderName;
-                if (action === 'register') {
-                    const file = document.getElementById('provider-chain').files[0];
-                    if (!file || file.size > 131072) throw new Error('Invalid upload');
-                    payload = {name: document.getElementById('provider-name').value, pem: await file.text(),
-                        source: document.getElementById('provider-source').value, fallback: document.getElementById('provider-fallback').checked};
-                } else {
-                    const projectSelect = document.getElementById('provider-pid');
-                    const providerSelect = document.getElementById('provider-selection');
-                    payload = {pid: Number(projectSelect.value), provider: providerSelect.value};
-                    assignedProjectName = projectSelect.selectedOptions[0].textContent;
-                    assignedProviderName = providerSelect.selectedOptions[0].textContent;
-                }
-                const response = await module.ajax(action + '_ca_provider', payload);
+                const projectSelect = document.getElementById('provider-pid');
+                const providerSelect = document.getElementById('provider-selection');
+                const payload = {pid: Number(projectSelect.value), provider: providerSelect.value};
+                const assignedProjectName = projectSelect.selectedOptions[0].textContent;
+                const assignedProviderName = providerSelect.selectedOptions[0].textContent;
+                const response = await module.ajax('assign_ca_provider', payload);
                 let feedback = response?.ok ? <?= json_encode($framework->tt('provider_saved'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
                     : (response?.message || <?= json_encode($framework->tt('provider_request_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>);
-                if (response?.ok && action === 'assign') {
+                if (response?.ok) {
                     feedback = module.tt('provider_assigned', assignedProviderName, assignedProjectName);
                     const transitionProject = document.getElementById('transition-pid');
                     if (transitionProject && !Array.from(transitionProject.options).some(option => option.value === String(payload.pid))) {
@@ -556,19 +548,16 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
                     }
                     assignmentProject.trigger('change');
                 }
-                if (response?.ok && action === 'register') {
-                    const url = new URL(location.href); url.searchParams.set('provider_notice', 'registered');
-                    url.hash = 'providers'; location.assign(url.href);
-                } else { notify(feedback, response?.ok ? 'success' : 'error'); }
+                notify(feedback, response?.ok ? 'success' : 'error');
             } catch (error) {
                 notify(<?= json_encode($framework->tt('provider_request_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>, 'error');
             } finally {
                 form.setAttribute('aria-busy', 'false');
-                fields.disabled = action === 'assign' && assignmentProject[0].options.length === 1;
-                if (action === 'assign') assignmentProject.prop('disabled', fields.disabled);
+                fields.disabled = assignmentProject[0].options.length === 1;
+                assignmentProject.prop('disabled', fields.disabled);
             }
         });
-    });
+    }
     const input = document.getElementById('pdf-sealer-recipients');
     const button = document.getElementById('pdf-sealer-save-recipients');
     let savedRecipients = input.value;
