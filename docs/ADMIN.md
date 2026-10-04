@@ -122,7 +122,7 @@ Reactivation restores the source for new requests and assignments; each response
 ## Enable sealing in projects
 
 1. Enable PDF Sealer in the project.
-2. Confirm that the management/status pages do not report missing PDF finalization support. In that project's **External Modules PDF finalization settings**, assign **Apply a cryptographic document seal** once. Place it after operations that should alter the PDF; successful sealing is terminal.
+2. Confirm that the management/status pages do not report missing PDF finalization support. In **Project Setup → PDF Finalization** (also accessible from External Modules), assign **Apply a cryptographic document seal** once. Place it after operations that should alter the PDF; successful EM sealing is terminal when Core has no reservation. Review the workflow previews: if Core reserves the fixed final step for an applicable workflow, PDF Sealer returns unchanged and skips sealing. A reserved step does not establish Core action readiness or success.
 3. Review **PDF Sealer status** for assignment warnings and instance PKI readiness. An earlier terminal operation or duplicate assignment needs review.
 4. Complete an appropriate test eConsent workflow. The project certificate is issued lazily when sealing is first used.
 5. Check the saved PDF and the project's **Logging** outcome. A passing diagnostic or an assigned operation alone does not demonstrate that the project's workflow reached sealing.

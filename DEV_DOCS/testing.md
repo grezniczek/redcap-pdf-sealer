@@ -1,5 +1,30 @@
 # Development and testing
 
+## Core execution-plan management — 2026-10-04
+
+Use the Core and Framework isolated commands in the executor section below, plus:
+
+```sh
+# From the Core checkout; no live REDCap bootstrap or database.
+node --test UnitTests/PdfFinalization/ordered-assignment.test.js UnitTests/PdfFinalization/plan-editor.test.js
+# From PDF Sealer; fake Core management state and Framework/PKI guards.
+php tests/project_pipeline_status.php
+php tests/core_terminal_reservation.php
+```
+
+Core now passes **90 tests/356 assertions** on PHP 8.2.34 and 8.5.11 (25 management tests/102 assertions added); Framework remains **32 tests/193 assertions** on both versions. The six Node tests and both focused Sealer commands pass. Installed Core tests pass on both runtimes; installed Framework tests and Node assets were rechecked after the coordinated source installation. Changed PHP syntax, Core/module language parsing and repository whitespace checks pass.
+
+Management checks use fake settings, nested native project-rights results, administrator/impersonation/expiry flags, audit responses and bounded query doubles. Actual Core save handlers are copied into a disposable directory with a bootstrap/security double to verify POST, native CSRF forwarding and design-rights enforcement. They exercise silent persistence failure, audit failure, absent/empty distinction, trusted pending candidates, enablement failure/recovery, explicit nonassignment, unavailable-entry retention, duplicates, global placement queries without insertion, fixed synthetic terminal actions and Core-only rendering. Opening/previews invoke no finalizers or writes. Browser-controller tests execute the real Core script with DOM/request doubles for read-only enablement, fixed-action exclusion from serialization, stale preview responses, busy guards and cancellation. These do not establish actual browser/Bootstrap or live persistence behavior.
+
+Pending browser/enablement acceptance on a disposable project:
+
+1. Open **Project Setup → PDF Finalization**, then the Framework management button. Confirm both open the same editor, workflow previews and saved order. Check an empty/no-operation project as well. Opening/canceling must not create a setting or execute sealing.
+2. Add/reorder/duplicate/remove an available operation, save deliberately, reopen and check the exact order and project audit event. Retain an unavailable saved assignment and verify the warning. An explicit empty save should remain distinct from no configured plan. Read-only/impersonated users must not obtain edit rights through module enablement.
+3. On an existing configured plan, enable a previously absent finalization EM. Check explicit placement, explicit nonassignment, cancel without enabling and successful Save & Enable. Failure must retain the prior plan/enabled override; generic recovery does not undo arbitrary hook effects. Check the activation-request path and global-enable skip behavior using approved disposable state.
+4. A future/synthetic Core-selected action must appear fixed after applicable EM entries, retain its label when prerequisites are unavailable, and stay outside saved identifiers. Compare reserved versus unrelated/conditional workflow previews and Sealer status. No production action is selected by the current resolver; automated synthetic policy checks supply the present evidence.
+
+No live DB/edoc inspection or mutation was needed. `redcap_devctl` is available for previewed acceptance changes. Live snapshots/downloads/email attachment correlation and Acrobat acceptance remain the following integration slice. No outbound email was sent, and XML/PMT execution-plan transfer is still deferred.
+
 ## Core finalization executor and provider — 2026-10-04
 
 The active Core/Framework hook contract now requires `terminal_action_reserved_for_core` as a Boolean. Direct-hook fixtures explicitly supply false for ordinary sealing. `tests/core_terminal_reservation.php` uses a Framework double that throws on any access: true returns unchanged/nonterminal, leaves bytes untouched and avoids key/timestamp/audit access; missing or non-Boolean context fails before side effects. `tests/project_pipeline_status.php` checks active version markers and rejects legacy class/setting-key presence, including the rendered support notice.

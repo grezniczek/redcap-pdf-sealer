@@ -6,20 +6,30 @@ namespace ExternalModules {
     if (($argv[1] ?? '') === 'support-legacy') {
         final class PdfFinalize {}
     } elseif (!in_array($argv[1] ?? '', ['support-none', 'support-core'], true)) {
-        final class PdfFinalize
+        final class PdfFinalize { public const CONTRACT_VERSION = 1; }
+    }
+}
+
+namespace Vanderbilt\REDCap\Classes\PdfFinalization {
+    if (in_array($argv[1] ?? '', ['', 'support-core', 'support-both'], true)) {
+        final class PdfExecutionPlanManager
         {
             public const CONTRACT_VERSION = 1;
             public static bool $available = true;
             public static bool $fail = false;
             public static array $entries = [];
+            public static array $workflows = [];
             public static int $configurationReads = 0;
-            public static function isProjectExecutionPlanStorageAvailable(): bool { return self::$available; }
             public static function getProjectConfigurationState(int $pid): array
             {
                 ++self::$configurationReads;
                 if ($pid !== 461 || self::$fail) { throw new \RuntimeException('Unavailable'); }
-                return ['execution_plan' => self::$entries];
+                return ['execution_plan' => self::$entries, 'workflows' => self::$workflows];
             }
+        }
+        final class PdfExecutionPlanRepository
+        {
+            public static function isProjectExecutionPlanStorageAvailable(): bool { return PdfExecutionPlanManager::$available; }
         }
     }
 }
@@ -33,7 +43,7 @@ namespace Vanderbilt\REDCap\Classes\Settings {
 }
 
 namespace {
-    use ExternalModules\PdfFinalize;
+    use Vanderbilt\REDCap\Classes\PdfFinalization\PdfExecutionPlanManager as PdfFinalize;
     use DE\RUB\PDFSealerExternalModule\Pdf\ProjectPipelineStatus;
 
     if (($argv[1] ?? '') === 'support-legacy') {
@@ -57,7 +67,7 @@ namespace {
         $status = ProjectPipelineStatus::inspect(461, 'pdf_sealer');
         check($status === ['state' => $core && $frameworkPresent ? 'not_assigned' : 'unavailable', 'positions' => []],
             'Unsupported environment queried/reported a project assignment');
-        if ($frameworkPresent) { check(PdfFinalize::$configurationReads === ($core ? 1 : 0), 'Unsupported Core read the pipeline'); }
+        if ($core) { check(PdfFinalize::$configurationReads === ($frameworkPresent ? 1 : 0), 'Unsupported Framework read the pipeline'); }
         $strings = parse_ini_file(dirname(__DIR__) . '/lang/English.ini');
         $framework = new class($strings) {
             public function __construct(private array $strings) {}
@@ -102,6 +112,24 @@ namespace {
     PdfFinalize::$entries[1]['resolved'] = false;
     check($inspect()['state'] === 'unresolved', 'Unavailable assigned operation reported runnable');
     PdfFinalize::$entries[1]['resolved'] = true;
+    PdfFinalize::$entries[1]['warnings'] = [];
+    PdfFinalize::$workflows = [[
+        'context' => ['document_type' => 'econsent'], 'terminal_action_reserved_for_core' => true,
+        'covers_document_type' => true,
+    ]];
+    check($inspect()['state'] === 'reserved_for_core', 'Core reservation looked like active EM sealing');
+    PdfFinalize::$workflows[0]['covers_document_type'] = false;
+    check($inspect()['state'] === 'warning', 'A conditional preview claimed all sealing was skipped');
+    PdfFinalize::$workflows[] = [
+        'context' => ['document_type' => 'econsent'], 'terminal_action_reserved_for_core' => false,
+        'covers_document_type' => false,
+    ];
+    check($inspect()['state'] === 'warning', 'Mixed workflow policies looked fully reserved');
+    PdfFinalize::$workflows = [[
+        'context' => ['document_type' => 'record_pdf'], 'terminal_action_reserved_for_core' => true,
+        'covers_document_type' => true,
+    ]];
+    check($inspect()['state'] === 'assigned', 'Record PDF reservation affected consent sealing status');
     PdfFinalize::$entries[1]['document_types'] = ['record_pdf'];
     check($inspect()['state'] === 'unresolved', 'Non-eConsent operation reported runnable');
     PdfFinalize::$fail = true;

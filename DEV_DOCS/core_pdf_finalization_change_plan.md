@@ -1,11 +1,27 @@
 # Core-owned PDF finalization — change plan
 
-**Status:** In progress; Core contracts, coordinator/provider wiring, plan persistence and PDF Sealer reservation handling implemented. Core plan-management projection, editor and enablement handoff remain pending.
+**Status:** In progress; Core contracts, coordinator/provider wiring, plan management and PDF Sealer reservation/status integration implemented. Browser/enablement and real artifact delivery acceptance remain pending.
 
 **Date:** 2026-10-03.  
 **Scope:** REDCap Core, the External Module Framework, and PDF Sealer's integration contract.
 
 ## Implementation progress — 2026-10-04
+
+### Slice 3 — Core plan management and Sealer status
+
+`PdfExecutionPlanManager` now owns operation catalog projection, ordered assignment state, warnings, workflow previews, placement decisions, designer saves and audit/recovery. It consumes full declarations from the existing provider and preserves the stored identifier-list setting, duplicate occurrences and unavailable entries. Core uses the neutral warning `operation_unavailable` rather than asking Framework for a second module inventory just to distinguish unavailable modules from removed operations. A new unavailable identifier cannot be inserted through a designer save; previously stored unavailable intent remains editable and retainable.
+
+Project Setup → PDF Finalization opens the Core-owned editor and endpoints, even without a Framework/provider or active EM operations. The existing Framework management button and routes delegate to the same implementation. Framework supplies pending declarations and enablement/restoration callbacks; Core owns the placement handshake and plan snapshots. Configured projects require an explicit decision when a new module has no placement, including explicitly leaving its operations unassigned. Global enablement queries Core for placement requirements and retains Framework's existing enabled-module overrides without inserting operations.
+
+Core project membership permits read-only inspection; writes require Design/Setup rights or a nonimpersonating administrator. Both standalone saves and enablement-submitted plans enforce this requirement. The save endpoint checks the native CSRF token explicitly; the legacy Framework wrapper captures it before bootstrap consumes it. Changed plans are audited, persistence is verified by readback, and write/audit/explicit-enablement failures restore prior plan state. Framework restores its enabled override on a failed explicit placement handshake. This is compensating recovery, not an atomic transaction spanning EM hooks; arbitrary hook side effects and initialized defaults are outside generic rollback.
+
+The editor requests updated previews from Core after order changes. `PdfFinalizationPolicyResolver::getWorkflowPolicies()` selects policies through the same `resolve()` used at runtime, without checking readiness or executing finalizers. Core steps are displayed after the applicable EM segment as fixed actions and never enter the editable/submitted identifier list. Reserved workflows explain the nonterminal requirement without disallowing terminal-capable EM declarations or falsely reporting that their accepted terminal result will stop later steps. Future conditional/instrument-specific contexts must be enumerated in Core and marked as representative rather than covering an entire document type. Adding an action or preview requires only Core changes.
+
+PDF Sealer status consumes Core's management contract and projection. Fully reserved eConsent types report **Core finalization reserved** and explain that EM sealing returns unchanged; conditional/mixed reservations prompt review of the previews. Reservations for unrelated document types do not affect eConsent sealing status. Assignment and reservation remain distinct from readiness and success. Administrator guidance points to the Core interface.
+
+Verification: **Core 90 tests/356 assertions**, **Framework 32 tests/193 assertions** on PHP 8.2.34/8.5.11; **six Node tests**; focused PDF Sealer support/status and no-side-effect reservation checks on both PHP versions; changed PHP syntax and whitespace checks. Core checks include actual save handlers with isolated bootstrap/security doubles, project membership, impersonation, expiry, CSRF, audit/write failure, absent versus empty recovery, pending enablement, fixed action previews and Core-only view rendering. Browser controller checks cover permissions, fixed-action exclusion, stale previews and busy/cancel guards. Details and pending manual acceptance are in [testing](testing.md#core-execution-plan-management--2026-10-04).
+
+No live database, settings, PKI, remote TSA or edocs were accessed or changed. Direct-copy semantics remain; XML/PMT plan transport stays deferred. No production Core terminal action or sealing/PKI port is installed. This supersedes slice 2's pending management/status ownership notes below.
 
 ### Slice 2 — active executor and provider
 

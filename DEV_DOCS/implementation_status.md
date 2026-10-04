@@ -1,5 +1,11 @@
 # PDF Sealer implementation status
 
+## Core execution-plan management — 2026-10-04
+
+Core now owns operation-state projection, workflow warnings/previews, designer saves, permissions, CSRF, audit/recovery, and the editor/endpoints. **Project Setup → PDF Finalization** works without active EMs; Framework management and enablement delegate to that same interface. Fixed Core actions appear outside the editable EM list, with policies selected through the runtime resolver. Duplicate/unavailable entries and existing direct-copy storage semantics remain; global enablement does not insert operations. PDF Sealer status reads Core and distinguishes full eConsent reservation from conditional/mixed workflow restrictions.
+
+Core's isolated suite passes **90 tests/356 assertions** and Framework's suite passes **32 tests/193 assertions** on PHP 8.2/8.5; six Node checks and the focused Sealer status/reservation checks pass. Write/audit and explicit enablement failure use compensating recovery; arbitrary EM hook effects/default initialization are not generically transactional. No live settings, PKI, remote TSA or edocs changed. See the [change plan](core_pdf_finalization_change_plan.md#slice-3--core-plan-management-and-sealer-status) and [pending browser/enablement acceptance](testing.md#core-execution-plan-management--2026-10-04). Actual PDF delivery acceptance follows; XML/PMT transport and production Core sealing remain outside this slice. Earlier pending management notes below are historical.
+
 ## Core finalization executor and provider — 2026-10-04
 
 The [Core-owned finalization refactor](core_pdf_finalization_change_plan.md#slice-2--active-executor-and-provider) now has an active Core coordinator, operation runner, policy selection boundary, plan persistence and pipeline/commit correlation. The Framework supplies declared operations and targeted safeguarded dispatch, with a result adapter and delegates for its former execution/persistence APIs. Core rejects terminal EM outputs under reservation and runs its selected action last even if provider creation/discovery fails; empty EM plans do not consult Framework. Required failure throws before path/byte delivery. Production selection currently reserves no action; synthetic Core-only actions establish the extension boundary.
