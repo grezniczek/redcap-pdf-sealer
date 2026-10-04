@@ -2,6 +2,8 @@
 
 ## TSA source overview and CA timestamp policy dialogs — 2026-10-04
 
+The TSA overview now has a rule above Administrative workflows; its last link tests all registered external sources sequentially, including rows hidden by search/paging. Completed tests update rows; failures do not stop the batch, and interrupted requests retain dated observations. One toast summarizes results. Last-test dates retain the client time zone/profile formatter.
+
 The TSA tab now uses a ten-row searchable DataTables overview for built-in/external sources, with compact UTC certificate expiry and locally formatted last-test results. External expiry is the cached successful probe's signer expiry, never a continuous availability/chain-expiry assertion. Source Manage opens public policy/authentication details and cached diagnostics; explicit Test source updates the dialog and row with toast feedback. Opening a page/dialog performs no remote request. URLs and credentials remain outside public summaries.
 
 Register external TSA uses a movable rcDialog with Cancel/Register footer actions, native validation and retained inputs after errors. Busy requests block duplicate submission and dismissal. Success closes before a Framework-URL refresh to the TSA tab. Built-in Manage contains a standard reviewed replacement/revocation dialog; existing locked hashes, revoked-state limits, reason capture and CRL/recovery distinctions remain. Ambiguous lifecycle/policy mutations cannot replay from the same dialog. Accepted lifecycle changes close both dialogs and refresh with a one-shot outcome toast.

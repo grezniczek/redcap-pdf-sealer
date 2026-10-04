@@ -52,6 +52,43 @@ window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime, pageUrl
             infoEmpty: text('table_info_empty'), infoFiltered: text('table_info_filtered'), zeroRecords: text('table_zero'),
             paginate: {first: text('table_first'), last: text('table_last'), next: text('table_next'), previous: text('table_previous')}},
         columnDefs: [{targets: 0, width: '70px'}, {targets: 4, orderable: false, searchable: false}]});
+    const testAll = document.getElementById('pdf-sealer-tsa-test-all');
+    let batchBusy = false, testsRunning = 0;
+    const updateTestAll = () => {
+        testAll.disabled = batchBusy || testsRunning > 0 || sources.length === 0;
+        testAll.textContent = text(batchBusy ? 'tsa_test_all_running' : 'tsa_test_all');
+    };
+    const testSource = async source => {
+        testsRunning++; updateTestAll();
+        try {
+            const response = await module.ajax('test_timestamp_source', {source: source.id});
+            if (!response?.ok) throw new Error('Source test failed');
+            source.diagnostic = response.diagnostic;
+            renderRow(source); table.row(rows.get(source.id)).invalidate('dom').draw(false);
+            return source.diagnostic;
+        } finally { testsRunning--; updateTestAll(); }
+    };
+    testAll.addEventListener('click', async () => {
+        if (testAll.disabled || batchBusy || testsRunning > 0 || sources.length === 0) return;
+        batchBusy = true; updateTestAll();
+        const launchers = sources.map(source => rows.get(source.id).querySelector('[data-tsa-manage]'));
+        launchers.forEach(button => { button.disabled = true; });
+        let passed = 0, failed = 0, incomplete = 0;
+        try {
+            // Include every registered source, regardless of DataTables paging/search. Keep requests sequential.
+            for (const source of sources) {
+                try {
+                    const snapshot = await testSource(source);
+                    if (snapshot.ok) passed++; else failed++;
+                } catch (_) { incomplete++; } // Preserve the dated last completed result when the request is interrupted.
+            }
+            notify(module.tt('tsa_test_all_result', passed, failed, incomplete), failed || incomplete ? 'warning' : 'success');
+        } finally {
+            batchBusy = false; updateTestAll();
+            launchers.forEach(button => { button.disabled = false; });
+        }
+    });
+    updateTestAll();
     const adjust = () => { if (!document.getElementById('pki-panel-tsa').hidden) table.columns.adjust(); };
     document.querySelector('[data-pki-tab="tsa"]').addEventListener('click', adjust);
     window.addEventListener('hashchange', adjust); adjust();
@@ -60,6 +97,7 @@ window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime, pageUrl
         if (!launcher || launcher.disabled || !available()) return;
         const row = launcher.closest('[data-tsa-id]'), id = row.dataset.tsaId;
         const source = sources.find(item => item.id === id);
+        if (source && batchBusy) return;
         launcher.disabled = true;
         let busy = false;
         try {
@@ -85,7 +123,7 @@ window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime, pageUrl
                         launcher.disabled = false; return true;
                     });
                     action.addEventListener('click', async () => {
-                        if (busy) return;
+                        if (busy || (source && batchBusy)) return;
                         busy = true; action.disabled = true; ctx.buttons.disable('close'); ctx.setCloseButton(false);
                         try {
                             if (!source) {
@@ -93,10 +131,8 @@ window.PDFSealerTimestampAdmin = (module, policies, sources, formatTime, pageUrl
                                 if (changed) { busy = false; await ctx.close(changed); }
                             } else {
                                 observation.textContent = text('external_tsa_testing');
-                                const response = await module.ajax('test_timestamp_source', {source: id});
-                                if (!response?.ok) throw new Error('Source test failed');
-                                source.diagnostic = response.diagnostic;
-                                renderObservation(source, observation); renderRow(source); table.row(row).invalidate('dom').draw(false);
+                                await testSource(source);
+                                renderObservation(source, observation);
                                 notify(text(source.diagnostic.ok ? 'external_tsa_passed' : 'external_tsa_test_failed'), source.diagnostic.ok ? 'success' : 'error');
                             }
                         } catch (_) {

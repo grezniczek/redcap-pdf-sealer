@@ -6,6 +6,8 @@ Disposable checks: `node tests/timestamp_admin_ui.js`, `node tests/providers_adm
 
 Pending browser acceptance:
 
+- TSA workflow follow-up: confirm the rule above Administrative workflows and **Test all external sources now** as its last item. Run it and check row updates across table pages/search, summary toast, duplicate/busy guards, and locally formatted last-test dates using your profile preference. The obsolete continuous-monitoring phrase is removed from the introductory text.
+
 1. On TSA, confirm searchable/paged overview, compact expiry/test dates and hover. Open external Manage: verify safe policy/authentication details, cached SHA-256/Windows thumbprints and local observation time; close without testing. Test a disposable configured source and confirm the row/dialog/toast reflect success or failure. A failure clears observed expiry; transport interruption retains the dated last completed observation.
 2. Open Register external TSA. Cancel must close without registration. Invalid input/error must retain the form. A valid disposable registration closes and returns to TSA with one success toast; refresh should not repeat it. No remote request occurs during registration. Cancel/reopen clears entered credentials.
 3. On CA providers, open Manage → Timestamping. Verify the current primary, ordered alternatives and fallback; change None and confirm alternatives/fallback clear and disable. Save a deliberate test policy and check that Manage stays open, the catalog mode updates, closing/reopening and page refresh retain it, and other CAs remain unchanged. Restore the intended production test policy afterward. While saving, Close/X/retirement must be unavailable.

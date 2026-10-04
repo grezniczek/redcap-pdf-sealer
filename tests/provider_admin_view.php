@@ -71,4 +71,7 @@ check(str_contains($tsa, 'id="pdf-sealer-tsa-register-host" hidden') && !str_con
 check(str_contains($tsa, 'id="pdf-sealer-timestamp-policy"') && !str_contains($tsa, 'id="tsa-provider"'), 'Policy must be scoped to the managed CA');
 check(substr_count($tsa, 'data-timestamp-alternative') === 2 && str_contains($tsa, 'pdf-sealer-dialog-body'), 'Ordered alternatives/shared style missing');
 check(!str_contains($tsa, 'secret') && !str_contains($tsa, 'https://tsa.example'), 'Source secrets must not enter overview metadata');
+check(str_contains($tsa, 'id="pdf-sealer-tsa-test-all"') && str_contains($tsa, 'Test all external sources now'), 'Batch test link missing');
+check(strpos($tsa, 'id="pdf-sealer-tsa-test-all"') > strpos($tsa, 'id="pdf-sealer-tsa-register"'), 'Batch testing must follow registration in workflows');
+check(preg_match('/<hr>\s*<h5>Administrative workflows<\/h5>/', $tsa) === 1, 'Workflow separator missing');
 echo "Provider, shared project and TSA administration view checks passed\n";

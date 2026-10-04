@@ -34,9 +34,14 @@ if (!isset($framework) || !$framework->isSuperUser() || $framework->getProjectId
     </tbody>
 </table>
 </div>
+<hr>
 <h5><?= $escape($framework->tt('pki_admin_workflows')) ?></h5>
 <button type="button" id="pdf-sealer-tsa-register" class="btn btn-link btn-sm pdf-sealer-workflow-link" <?= $sourcesUnavailable ? 'disabled' : '' ?>><?= $escape($framework->tt('external_tsa_register')) ?></button>
 <p class="small text-muted"><?= $escape($framework->tt('tsa_register_intro')) ?></p>
+<div class="mt-3">
+<button type="button" id="pdf-sealer-tsa-test-all" class="btn btn-link btn-sm pdf-sealer-workflow-link" <?= $sourcesUnavailable || $sourceSummaries === [] ? 'disabled' : '' ?>><?= $escape($framework->tt('tsa_test_all')) ?></button>
+<p class="small text-muted"><?= $escape($framework->tt('tsa_test_all_help')) ?></p>
+</div>
 <template id="pdf-sealer-builtin-tsa-details">
     <div class="pdf-sealer-dialog-body">
         <p class="text-muted"><?= $escape($framework->tt('pki_tsa_help')) ?></p>

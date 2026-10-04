@@ -17,15 +17,16 @@ class Node {
     get selectedOptions() { return this.options.filter(option => option.value === this.value); }
 }
 const all = node => [node, ...node.children.flatMap(all)];
-function fixture({reply, snapshot = null, revoked = false} = {}) {
+function fixture({reply, snapshot = null, revoked = false, sourceCount = 1, formatTime = date => 'local:' + date.toISOString()} = {}) {
     const ids = {}, calls = [], dialogs = [], notifications = [], redirects = [], busyValues = [], saved = [], tables = [];
     const node = (id, tag, data = {}) => ids[id] = new Node(tag, data);
     const catalog = node('pdf-sealer-tsa-sources', 'table');
-    for (const id of ['builtin-tsa', 'remote-tsa-test']) {
+    const sourceIds = Array.from({length: sourceCount}, (_, i) => i === 0 ? 'remote-tsa-test' : 'remote-tsa-test-' + i);
+    for (const id of ['builtin-tsa', ...sourceIds]) {
         const row = new Node('tr', {tsaId: id}), name = new Node('td', {tsaName: ''}); name.textContent = id;
         row.append(name, new Node('td', {tsaExpiry: ''}), new Node('td', {tsaLastTest: ''}), new Node('button', {tsaManage: ''})); catalog.append(row);
     }
-    node('pki-panel-tsa', 'section'); node('pdf-sealer-mode-summary', 'strong');
+    node('pki-panel-tsa', 'section'); node('pdf-sealer-mode-summary', 'strong'); node('pdf-sealer-tsa-test-all', 'button');
     const registration = node('pdf-sealer-tsa-register', 'button'), host = node('pdf-sealer-tsa-register-host', 'div');
     const registerBody = new Node('div'), form = new Node('form'), fields = new Node('fieldset'); registerBody.append(form); form.append(fields); host.append(registerBody);
     form.payload = {name: 'Service <name>', endpoint: 'https://tsa.test', policy: '', username: '', password: 'secret', pem: 'PUBLIC CHAIN'};
@@ -59,7 +60,7 @@ function fixture({reply, snapshot = null, revoked = false} = {}) {
         dialogs.push(dialog); return promise;
     };
     const policies = [{id: 'builtin-ca', timestamp_source: 'builtin-tsa', timestamp_alternatives: ['remote-tsa-test'], bb_fallback: true}];
-    const sources = [{id: 'remote-tsa-test', name: 'External <TSA>', policy_oid: '', authenticated: true, diagnostic: snapshot}];
+    const sources = sourceIds.map(id => ({id, name: 'External <TSA>', policy_oid: '', authenticated: true, diagnostic: snapshot}));
     const module = {tt: (key, ...values) => key + (values.length ? ':' + values.join(',') : ''), ajax: async (action, payload) => {
         calls.push({action, payload});
         if (action === 'preview_tsa_lifecycle') return {ok: true, revoked, review_hash: 'locked-review', certificate: {subject: '/O=Test/OU=Unit/CN=TSA', fingerprint: 'sha256', thumbprint: 'sha1'}};
@@ -74,7 +75,7 @@ function fixture({reply, snapshot = null, revoked = false} = {}) {
         }}),
     };
     for (const asset of ['timestamp-admin.js', 'tsa-lifecycle.js']) vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets', asset), 'utf8'), context);
-    const admin = context.window.PDFSealerTimestampAdmin(module, policies, sources, date => 'local:' + date.toISOString(), context.location.href);
+    const admin = context.window.PDFSealerTimestampAdmin(module, policies, sources, formatTime, context.location.href);
     return {calls, dialogs, notifications, redirects, tables, policies, sources, form, fields, host, registerBody, registration, ids, context, module, busyValues, saved,
         get policyControls() {return policyControls;},
         policy: () => admin.policy('builtin-ca', value => busyValues.push(value), value => saved.push(value)),
@@ -83,6 +84,23 @@ function fixture({reply, snapshot = null, revoked = false} = {}) {
     };
 }
 (async () => {
+    // Exercise the page's actual profile formatter in a client zone that differs from UTC.
+    const page = fs.readFileSync(path.join(__dirname, '../pki-admin.php'), 'utf8');
+    assert.match(page, /DateTimeRC::get_user_format_full\(\)/);
+    const expression = page.match(/const formatDiagnosticTime = (date => \{[\s\S]*?\n    \});/)[1];
+    const previousZone = process.env.TZ; process.env.TZ = 'Europe/Berlin';
+    for (const [profile, expected] of [['D/M/Y_12', '04/10/2026 3:16:17pm '], ['Y-M-D_24', '2026-10-04 15:16:17 ']]) {
+        const formatter = vm.runInNewContext(expression, {diagnosticDateTimeFormat: profile, Intl});
+        const date = new Date('2026-10-04T13:16:17Z'); assert.ok(formatter(date).startsWith(expected));
+        const local = fixture({formatTime: formatter, reply: () => ({ok: true, diagnostic: {ok: true, checked_at: date.getTime() / 1000, valid_until: 2000000000}})});
+        await local.ids['pdf-sealer-tsa-test-all'].events.click();
+        const row = local.ids['pdf-sealer-tsa-sources'].children[1];
+        assert.ok(row.querySelector('[data-tsa-last-test]').textContent.includes(expected));
+        const opened = await local.open(); const dialog = local.dialogs[0];
+        assert.ok(all(dialog.body).find(n => n['role'] === 'status').textContent.includes(expected));
+        await dialog.ctx.close(); await opened.completion;
+    }
+    if (previousZone === undefined) delete process.env.TZ; else process.env.TZ = previousZone;
     let f = fixture(), opened = await f.open(), dialog = f.dialogs[0];
     assert.equal(f.calls.length, 0, 'Opening overview/Manage must not probe or mutate');
     assert.equal(f.tables[0].options.pageLength, 10); assert.equal(dialog.body.className, 'pdf-sealer-dialog-body');
@@ -103,6 +121,29 @@ function fixture({reply, snapshot = null, revoked = false} = {}) {
     await dialog.body.querySelector('button').events.click(); assert.equal(f.calls.length, 1);
     probeFinish({ok: true, diagnostic: {ok: false, checked_at: 1900000000, valid_until: null}}); await probe;
     await dialog.ctx.close(); await opened.completion;
+    // Batch covers all registered external sources, continues after failures and preserves incomplete observations.
+    f = fixture({sourceCount: 3, reply: (_action, payload) => {
+        if (payload.source === 'remote-tsa-test') return {ok: true, diagnostic: {ok: false, checked_at: 1900000000, valid_until: null}};
+        if (payload.source === 'remote-tsa-test-1') throw Error('Interrupted request');
+        return {ok: true, diagnostic: {ok: true, checked_at: 1900000000, valid_until: 2000000000}};
+    }});
+    await f.ids['pdf-sealer-tsa-test-all'].events.click();
+    assert.deepEqual(f.calls.map(call => call.payload.source), ['remote-tsa-test', 'remote-tsa-test-1', 'remote-tsa-test-2']);
+    assert.ok(f.calls.every(call => call.action === 'test_timestamp_source'));
+    assert.equal(f.notifications.at(-1).text, 'tsa_test_all_result:1,1,1'); assert.equal(f.notifications.at(-1).tone, 'warning');
+    assert.equal(f.tables[0].draws, 2); assert.equal(f.sources[1].diagnostic, null);
+    assert.equal(f.ids['pdf-sealer-tsa-test-all'].disabled, false);
+    let batchFinish;
+    f = fixture({sourceCount: 2, reply: () => new Promise(resolve => {batchFinish = resolve;})});
+    const batch = f.ids['pdf-sealer-tsa-test-all'].events.click(); await tick();
+    assert.equal(f.calls.length, 1, 'Batch requests must be sequential');
+    assert.equal(f.ids['pdf-sealer-tsa-test-all'].disabled, true);
+    await f.ids['pdf-sealer-tsa-test-all'].events.click(); await (await f.open()).completion;
+    assert.equal(f.calls.length, 1); assert.equal(f.dialogs.length, 0, 'External Manage must wait for its batch test');
+    batchFinish({ok: true, diagnostic: {ok: true, checked_at: 1900000000, valid_until: 2000000000}}); await tick();
+    assert.equal(f.calls.length, 2); batchFinish({ok: true, diagnostic: {ok: true, checked_at: 1900000000, valid_until: 2000000000}}); await batch;
+    assert.equal(f.notifications.at(-1).tone, 'success'); assert.equal(f.ids['pdf-sealer-tsa-test-all'].disabled, false);
+    f = fixture({sourceCount: 0}); await f.ids['pdf-sealer-tsa-test-all'].events.click(); assert.equal(f.calls.length, 0); assert.equal(f.ids['pdf-sealer-tsa-test-all'].disabled, true);
     // Registration retains entered values after failure, prevents duplicate writes/dismissal, then closes before reload.
     let finish;
     f = fixture({reply: () => new Promise(resolve => {finish = resolve;})}); opened = await f.register(); dialog = f.dialogs[0];
