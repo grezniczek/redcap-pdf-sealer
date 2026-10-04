@@ -70,7 +70,6 @@ window.PDFSealerRootLifecycle = module => {
             let fields;
             const result = await window.rcDialog({
                 title: module.tt('root_lifecycle_title'),
-                subtitle: module.tt('root_lifecycle_review'),
                 size: 'lg',
                 draggable: true,
                 closeButton: 'cancel',
@@ -79,7 +78,8 @@ window.PDFSealerRootLifecycle = module => {
                 buttons: ['cancel', {id: 'confirm', label: module.tt('root_lifecycle_confirm_button'), intent: 'primary'}],
                 body(ctx) {
                     const body = element('div', 'pdf-sealer-dialog-body');
-                    body.append(certificateDetails(preview), element('p', 'small text-muted',
+                    body.append(element('h6', 'h6', module.tt('root_lifecycle_review')),
+                        certificateDetails(preview), element('p', 'small text-muted',
                         module.tt('root_lifecycle_dependents', preview.known_dependent_certificates)));
                     if (preview.revoked) body.append(element('p', 'alert alert-warning', module.tt('root_lifecycle_already')));
                     fields = element('fieldset', '');

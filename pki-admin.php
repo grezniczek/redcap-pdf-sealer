@@ -197,7 +197,18 @@ require_once APP_PATH_DOCROOT . 'ControlCenter/header.php';
 $framework->initializeJavascriptModuleObject();
 foreach (['external_tsa_failed', 'external_tsa_passed', 'external_tsa_test_failed', 'external_tsa_testing', 'timestamp_order_invalid', 'diagnostic_never', 'pki_fingerprint', 'pki_thumbprint'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
 $framework->tt_transferToJavascriptModuleObject('provider_assigned');
-$framework->tt_transferToJavascriptModuleObject('provider_retirement_counts');
+foreach ([
+    'assignment_policy_change', 'assignment_policy_label', 'assignment_policy_help', 'assignment_policy_delivery',
+    'assignment_policy_save', 'assignment_policy_saved', 'assignment_policy_failed', 'assignment_policy_explicit',
+    'assignment_policy_automatic', 'provider_builtin', 'provider_details', 'provider_usage',
+    'provider_manage_title', 'provider_active', 'provider_retired', 'provider_retire',
+    'provider_reactivate', 'provider_pid', 'provider_active_signer', 'provider_pending_enrollment',
+    'transition_pending_label', 'provider_retirement_counts', 'provider_retirement_help', 'provider_reactivation_help',
+    'provider_retirement_gate', 'provider_lifecycle_failed', 'provider_lifecycle_saved', 'provider_review_failed',
+    'provider_dialog_unavailable', 'provider_usage_empty', 'table_search', 'table_length',
+    'table_info', 'table_info_empty', 'table_info_filtered', 'table_zero',
+    'table_first', 'table_last', 'table_next', 'table_previous',
+] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
 foreach (['root_lifecycle_title', 'root_lifecycle_review', 'root_lifecycle_action', 'root_lifecycle_confirm_button', 'root_lifecycle_compromise_ack', 'root_lifecycle_dialog_unavailable', 'root_lifecycle_already', 'root_lifecycle_renew', 'root_lifecycle_superseded', 'root_lifecycle_compromise', 'pki_subject', 'root_lifecycle_failed', 'root_lifecycle_saved', 'root_lifecycle_renewed', 'root_lifecycle_replaced', 'root_lifecycle_pending', 'root_lifecycle_trust', 'root_lifecycle_projects_done', 'root_lifecycle_projects_pending', 'root_lifecycle_renew_help', 'root_lifecycle_superseded_help', 'root_lifecycle_compromise_help', 'root_lifecycle_dependents', 'tsa_lifecycle_failed', 'tsa_lifecycle_confirm_prompt', 'tsa_lifecycle_saved', 'tsa_lifecycle_replaced', 'tsa_lifecycle_changed', 'tsa_lifecycle_pending', 'tsa_lifecycle_replace_help', 'tsa_lifecycle_superseded_help', 'tsa_lifecycle_compromise_help', 'revocation_failed', 'revocation_confirm_prompt', 'revocation_saved', 'revocation_crl_published', 'revocation_crl_pending', 'revocation_replaced', 'revocation_signer_changed', 'revocation_replacement_pending', 'revocation_already', 'renewal_failed', 'renewal_saved', 'renewal_issuer_expiry'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
 foreach (['transition_current', 'transition_target', 'transition_saved_pending', 'transition_saved_activated', 'transition_saved_canceled'] as $key) { $framework->tt_transferToJavascriptModuleObject($key); }
 ?>
@@ -258,54 +269,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
         <?php if ($providersUnavailable): ?>
             <p class="alert alert-warning"><?= $escape($framework->tt('provider_unavailable')) ?></p>
         <?php else: ?>
-            <form id="pdf-sealer-assignment-policy" class="mb-3">
-                <fieldset>
-                    <label><input type="checkbox" id="assignment-required" <?= $assignmentRequired ? 'checked' : '' ?> aria-describedby="assignment-policy-help">
-                        <?= $escape($framework->tt('assignment_policy_label')) ?></label>
-                    <p id="assignment-policy-help" class="small text-muted"><?= $escape($framework->tt('assignment_policy_help')) ?></p>
-                    <p class="alert alert-warning"><?= $escape($framework->tt('assignment_policy_delivery')) ?></p>
-                    <button class="btn btn-primaryrc btn-sm" type="submit"><?= $escape($framework->tt('assignment_policy_save')) ?></button>
-                </fieldset>
-                <p class="alert mt-3" role="status" hidden></p>
-            </form>
-            <hr>
-            <?php foreach ($providerCatalog as $provider): ?>
-                <div class="pdf-sealer-card mb-3">
-                    <h6><?= $escape($provider['name'] ?? $framework->tt('provider_builtin')) ?>
-                        <span class="badge <?= $provider['retired'] ? 'bg-secondary' : 'bg-success' ?>"><?= $escape($framework->tt($provider['retired'] ? 'provider_retired' : 'provider_active')) ?></span></h6>
-                    <p class="small"><code><?= $escape($provider['id']) ?></code><br>
-                        <?= $escape($framework->tt('timestamp_mode_label')) ?>: <?= $escape($sourceChoices[$provider['timestamp_source'] ?? 'none'] ?? $framework->tt('external_tsa_unavailable')) ?><br>
-                        <?php foreach ($provider['timestamp_alternatives'] as $index => $alternativeId): ?>
-                        <?= $escape($framework->tt('timestamp_alternative_' . ($index + 1))) ?>: <?= $escape($sourceChoices[$alternativeId] ?? $framework->tt('external_tsa_unavailable')) ?><br>
-                        <?php endforeach; ?>
-                        <?php if ($provider['timestamp_source'] !== null): ?><?= $escape($framework->tt($provider['bb_fallback'] ? 'timestamp_fallback_allow' : 'timestamp_fallback_fail')) ?><?php endif; ?></p>
-                    <?php foreach ($providerCertificates as $cert): if ($cert['provider_id'] !== $provider['id']) { continue; } ?>
-                        <dl class="pdf-sealer-certificate">
-                            <dt><?= $escape($framework->tt($cert['trust_anchor'] ? 'provider_anchor' : 'provider_intermediate')) ?></dt><dd><?= $module::certificateSubjectHtml($cert['subject']) ?></dd>
-                            <dt><?= $escape($framework->tt('pki_fingerprint')) ?></dt><dd><code class="pdf-sealer-fingerprint"><?= $escape($cert['fingerprint']) ?></code></dd>
-                            <dt><?= $escape($framework->tt('pki_thumbprint')) ?></dt><dd><code class="pdf-sealer-fingerprint"><?= $escape($cert['thumbprint']) ?></code></dd>
-                            <dt><?= $escape($framework->tt('pki_valid_until')) ?></dt><dd><?= $escape(gmdate('Y-m-d H:i:s \U\T\C', $cert['valid_until'])) ?></dd>
-                        </dl>
-                    <?php endforeach; ?>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" data-provider-lifecycle="<?= $escape($provider['id']) ?>"><?= $escape($framework->tt($provider['retired'] ? 'provider_reactivate' : 'provider_retire')) ?></button>
-                    <div class="provider-lifecycle-review mt-3" hidden>
-                        <p class="provider-lifecycle-summary"></p>
-                        <p class="provider-lifecycle-explanation"></p>
-                        <div style="max-height:18rem;overflow:auto">
-                            <table class="table table-sm">
-                                <thead><tr><th><?= $escape($framework->tt('provider_pid')) ?></th><th><?= $escape($framework->tt('provider_active_signer')) ?></th><th><?= $escape($framework->tt('provider_pending_enrollment')) ?></th><th><?= $escape($framework->tt('transition_pending_label')) ?></th></tr></thead>
-                                <tbody></tbody>
-                            </table>
-                        </div>
-                        <label class="provider-lifecycle-gate mb-3" hidden><input type="checkbox"> <?= $escape($framework->tt('provider_retirement_gate')) ?></label>
-                        <div class="pdf-sealer-actions">
-                            <button type="button" class="btn btn-primaryrc btn-sm provider-lifecycle-confirm"></button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm provider-lifecycle-cancel"><?= $escape($framework->tt('provider_lifecycle_cancel')) ?></button>
-                        </div>
-                    </div>
-                    <p class="provider-lifecycle-message alert alert-danger mt-3" role="status" hidden></p>
-                </div>
-            <?php endforeach; ?>
+            <?php require __DIR__ . '/views/providers.php'; ?>
             <h5><?= $escape($framework->tt('provider_register')) ?></h5>
             <p class="small text-muted"><?= $escape($framework->tt('provider_upload_help')) ?></p>
             <form id="pdf-sealer-provider-register">
@@ -498,6 +462,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
 <script src="<?= $escape($framework->getUrl('assets/project-revocation.js')) ?>"></script>
 <script src="<?= $escape($framework->getUrl('assets/tsa-lifecycle.js')) ?>"></script>
 <script src="<?= $escape($framework->getUrl('assets/root-lifecycle.js')) ?>"></script>
+<script src="<?= $escape($framework->getUrl('assets/providers-admin.js')) ?>"></script>
 <script>
 (() => {
     const module = <?= $framework->getJavascriptModuleObjectName() ?>;
@@ -532,82 +497,6 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
     });
     selectTab(location.hash.slice(1));
     window.addEventListener('hashchange', () => selectTab(location.hash.slice(1)));
-    document.querySelectorAll('[data-provider-lifecycle]').forEach(button => {
-        const card = button.parentElement;
-        const review = card.querySelector('.provider-lifecycle-review');
-        const message = card.querySelector('.provider-lifecycle-message');
-        const confirm = card.querySelector('.provider-lifecycle-confirm');
-        const cancel = card.querySelector('.provider-lifecycle-cancel');
-        const gateLabel = card.querySelector('.provider-lifecycle-gate');
-        const gate = gateLabel.querySelector('input');
-        const failed = <?= json_encode($framework->tt('provider_lifecycle_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-        let preview = null;
-        const needsGate = () => preview && !preview.retired && preview.is_default && !preview.assignment_required;
-        gate.addEventListener('change', () => { confirm.disabled = needsGate() && !gate.checked; });
-        cancel.addEventListener('click', () => { review.hidden = true; preview = null; button.disabled = false; });
-        button.addEventListener('click', async () => {
-            message.hidden = true; review.hidden = true; button.disabled = true;
-            try {
-                const response = await module.ajax('preview_ca_retirement', {provider: button.dataset.providerLifecycle});
-                if (!response?.ok) throw new Error('Preview failed');
-                preview = response;
-                const projects = response.projects;
-                card.querySelector('.provider-lifecycle-summary').textContent = module.tt('provider_retirement_counts',
-                    projects.length, projects.filter(p => p.identity_id !== null).length, projects.filter(p => p.enrollment_id !== null).length);
-                card.querySelector('.provider-lifecycle-explanation').textContent = response.retired
-                    ? <?= json_encode($framework->tt('provider_reactivation_help'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
-                    : <?= json_encode($framework->tt('provider_retirement_help'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-                const body = review.querySelector('tbody'); body.replaceChildren();
-                projects.forEach(project => {
-                    const row = document.createElement('tr');
-                    [project.pid, project.identity_id !== null ? '✓' : '—', project.enrollment_id !== null ? '✓' : '—', project.transition_id ? '✓' : '—'].forEach(value => {
-                        const cell = document.createElement('td'); cell.textContent = value; row.appendChild(cell);
-                    });
-                    body.appendChild(row);
-                });
-                confirm.classList.toggle('btn-warning', !response.retired);
-                confirm.classList.toggle('btn-primaryrc', response.retired);
-                confirm.textContent = response.retired
-                    ? <?= json_encode($framework->tt('provider_reactivate'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
-                    : <?= json_encode($framework->tt('provider_retire'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-                gate.checked = false; gateLabel.hidden = !needsGate(); confirm.disabled = needsGate();
-                review.hidden = false; (needsGate() ? gate : confirm).focus();
-            } catch (error) { message.textContent = failed; message.hidden = false; button.disabled = false; }
-        });
-        confirm.addEventListener('click', async () => {
-            if (!preview || (needsGate() && !gate.checked)) return;
-            confirm.disabled = true; cancel.disabled = true; gate.disabled = true; message.hidden = true;
-            try {
-                const response = await module.ajax('set_ca_retirement', {provider: button.dataset.providerLifecycle,
-                    retired: !preview.retired, review_hash: preview.review_hash, enable_assignment_gate: Boolean(needsGate() && gate.checked)});
-                if (!response?.ok) throw new Error('State changed or save failed');
-                location.hash = 'providers'; location.reload();
-            } catch (error) {
-                message.textContent = failed; message.hidden = false; review.hidden = true; preview = null; button.disabled = false;
-            } finally { cancel.disabled = false; gate.disabled = false; }
-        });
-    });
-
-    const assignmentPolicyForm = document.getElementById('pdf-sealer-assignment-policy');
-    assignmentPolicyForm?.addEventListener('submit', async event => {
-        event.preventDefault();
-        const fields = assignmentPolicyForm.querySelector('fieldset');
-        const checkbox = document.getElementById('assignment-required');
-        const message = assignmentPolicyForm.querySelector('[role="status"]');
-        const failed = <?= json_encode($framework->tt('assignment_policy_failed'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-        fields.disabled = true;
-        message.hidden = true;
-        try {
-            const response = await module.ajax('save_assignment_policy', {required: checkbox.checked});
-            if (!response?.ok) throw new Error('Save failed');
-            checkbox.checked = response.required;
-            message.className = 'alert alert-success mt-3';
-            message.textContent = <?= json_encode($framework->tt('assignment_policy_saved'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-        } catch (error) {
-            message.className = 'alert alert-danger mt-3';
-            message.textContent = failed;
-        } finally { fields.disabled = false; message.hidden = false; }
-    });
     const transitionForm = document.getElementById('pdf-sealer-transition');
     if (transitionForm) {
         const fields = transitionForm.querySelector('fieldset');
@@ -929,6 +818,7 @@ foreach (['transition_current', 'transition_target', 'transition_saved_pending',
     window.PDFSealerProjectRevocation(module);
     window.PDFSealerTsaLifecycle(module);
     window.PDFSealerRootLifecycle(module);
+    window.PDFSealerProvidersAdmin(module);
     window.PDFSealerTimestampAdmin(module, <?= json_encode($timestampPolicies, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
         <?= json_encode($sourceSummaries, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>, formatDiagnosticTime,
         <?= json_encode($framework->getUrl('pki-admin.php'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>);

@@ -32,3 +32,5 @@
 }
 .pdf-sealer-status { max-width: 850px; }
 .pdf-sealer-dialog-body { font-size: 13px; line-height: 1.35; }
+.pdf-sealer-table-wrap { overflow-x: auto; }
+.pdf-sealer-dialog-body table { width: 100%; }

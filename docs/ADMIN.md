@@ -115,7 +115,7 @@ Only eligible completed eConsent PDFs are sealed. Existing archives and ordinary
 
 ## Require explicit CA assignment
 
-On **CA providers**, enable **Require explicit CA assignment for new project identities** and select **Save assignment policy**. The switch defaults to **off** and is independent of the number of registered CAs.
+On **CA providers**, the current policy is summarized above the provider table. Select **Change assignment policy**, enable **Require explicit CA assignment for new project identities** in the dialog, and select **Save assignment policy**. The switch defaults to **off** and is independent of the number of registered CAs.
 
 - **Off:** an unassigned project uses the built-in default when its first eligible sealing operation runs.
 - **On:** a project without a provider binding cannot obtain a signing identity until an administrator assigns a concrete CA using **Assign project provider**. Choosing the built-in CA explicitly permits normal local issuance; choosing an external CA requires its enrollment workflow.
@@ -126,6 +126,8 @@ On **CA providers**, enable **Require explicit CA assignment for new project ide
 For a busy project, enable the switch and **wait for the successful save confirmation before enabling or assigning the sealing pipeline**. Saving synchronizes with automatic first issuance. An automatic issuance that started earlier may finish before the save succeeds and retain its binding; after a successful save, an unbound project cannot automatically select the default CA. Inspect the project's status before assigning its provider. Use **Change project provider** for an existing binding.
 
 ## External CA registration and project assignment
+
+The **CA providers** catalog is a searchable, paged table showing status, name, timestamp mode (**None**, **Internal**, or the external TSA name), and the earliest certificate expiry in each CA chain (UTC). Select **Manage** to open a movable dialog: **Details** includes the certificate chain, fingerprints, Windows thumbprints and ordered timestamp policy; **Usage Stats** shows project IDs, active signer assignments and pending CSRs/provider changes in a searchable, paged table. Usage is read when the dialog opens; close and reopen to refresh it.
 
 On **CA providers**, register a named external provider by uploading its public PEM chain: issuing CA first, any parent intermediates next, and the self-signed root last. A directly issuing root can be uploaded alone. The limit is eight certificates / 128 KiB. Certificates must be currently valid CAs with certificate-signing usage; ordering, signatures, path constraints, and duplicate chains are checked. Private keys are rejected. Registration publishes these certificates on the public trust page and includes them in daily expiry checks while the provider is active, even before a project uses them.
 
@@ -139,7 +141,7 @@ Registration and assignment use authenticated CC-only AJAX and system-scoped aud
 
 ## Retire or reactivate a CA
 
-On **CA providers**, select **Retire CA** for a built-in or external provider. Review the affected project IDs, active signers, and pending CSRs/transitions, then confirm. The list includes projects where the module is disabled. If assignments or enrollments change before confirmation, the operation fails and requires a fresh review.
+On **CA providers**, select **Manage** for a built-in or external provider. Review the affected project IDs, active signers and pending CSRs/transitions on **Usage Stats**, then select **Retire CA** in the dialog footer. A separate confirmation dialog reads the current impact again and explains the consequences. Confirming closes both dialogs and updates the catalog status and available assignment choices without reloading the page. Canceling confirmation leaves the Manage dialog open. The list includes projects where the module is disabled. If assignments or enrollments change before confirmation, the operation fails and requires a fresh review.
 
 Retirement blocks new assignments, built-in issuance, CSR generation, and returned-certificate activation—including certificates for requests already pending. Existing active signers continue sealing while otherwise valid. Pending CSRs remain downloadable and cancelable; their encrypted keys are retained until cancellation or later activation after reactivation. Certificates, bindings, keys, prior PDFs, and audit history are not deleted. The public trust page retains downloads and labels the provider as retired.
 
