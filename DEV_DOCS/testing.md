@@ -1,12 +1,20 @@
 # Development and testing
 
+## Browser plan save and unassigned enablement — 2026-10-04
+
+The user reports all three checks passed in PID 533 (ChatGPT's Playground): saving an explicit empty plan and reopening it after reload; canceling PDF Sealer enablement while preserving the disabled module and empty plan; and deliberately enabling PDF Sealer without assigning its sealing operation, with the operation subsequently available in the editor and the pipeline still empty.
+
+Independent read-only `redcap_devctl` inspection confirms the saved Core plan is `[]` and the project Sealer enabled override is `true`. The plan audit contains one entry, ID 1059, attributed to `gr`, with `[]` as its data; enablement with the unchanged plan added no duplicate plan-change audit. The canceled intermediate state is user-reported. PID 524 remains `["pdf_sealer:seal"]` with Sealer enabled. No tool-driven live mutations were made.
+
+Next browser acceptance: disable Sealer in PID 533 and re-enable it with one explicit sealing assignment; save/reopen a duplicate assignment and its warning; then remove the extra occurrence and save/reopen one assignment. Retained unavailable assignments and fresh PDF delivery remain subsequent checks.
+
 ## Core editor stable sizing and initialization — 2026-10-04
 
 Following browser feedback about resizing during redraws, initial Core configuration is fetched before creating the rcDialog. The controller prepares a fresh detached DOM body, operation editor and workflow previews before the helper displays it. A pending-open guard prevents duplicate dialogs/requests. An explicit `80vh` initial height keeps the outer dialog stable as assignments, warnings and previews redraw; native body scrolling, manual resize and fullscreen remain available. Passing the prepared DOM node to rcDialog preserves the editor's node references and handlers. Notices receive explicit display state so initial read-only/enablement/error messages also work before insertion. Initial load failures open a dismissible error, and closing permits another attempt.
 
 The **eleven Node checks** (ten controller plus ordered assignment) pass, including hidden initialization, pre-show data/render state, duplicate pending opens, initial HTTP/response failure recovery, stable configuration through redraw, permissions, stale responses, busy dismissal, retry and enablement callbacks. JavaScript syntax and whitespace checks pass. No server contracts or live settings changed. This supersedes the prior initialization on `dialog:shown`; initial preparation now finishes before display.
 
-The user reports that the dialog now behaves correctly after the sizing and initialization refinement. This accepts the requested browser behavior fix; it does not independently establish every resize/fullscreen scenario. Deliberate save/reopen and enablement acceptance remain next.
+The user reports that the dialog now behaves correctly after the sizing and initialization refinement. This accepts the requested browser behavior fix; it does not independently establish every resize/fullscreen scenario. The subsequent save/reopen and unassigned enablement results are recorded above.
 
 At the start of this next browser round, independent `redcap_devctl` inspection confirms that PID 533 (ChatGPT's Playground) still has no saved execution plan or Sealer enabled override. PID 524 retains `["pdf_sealer:seal"]` with Sealer enabled. Use PID 533 for the upcoming explicit-empty save, canceled enablement, and deliberate nonassignment checks.
 

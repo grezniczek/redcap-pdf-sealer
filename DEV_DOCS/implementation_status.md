@@ -1,5 +1,9 @@
 # PDF Sealer implementation status
 
+## Browser plan save and unassigned enablement — 2026-10-04
+
+The user passed explicit-empty save/reopen, canceled enablement, and deliberate Sealer enablement without a sealing assignment in PID 533. Independent dev-control inspection confirms `[]`, Sealer enabled, and exactly one native plan-change audit attributed to `gr`; unchanged-plan enablement creates no duplicate audit. PID 524's plan and enablement remain unchanged. See [testing](testing.md#browser-plan-save-and-unassigned-enablement--2026-10-04). Assigned enablement, duplicate persistence, retained unavailable assignments and fresh artifact delivery remain pending.
+
 ## Core editor stable sizing and initialization — 2026-10-04
 
 The editor now fetches and renders its initial plan/previews before rcDialog is displayed, and uses an explicit initial height with scrolling to avoid resizing during redraws. Manual resize/fullscreen remain available; pending opens are deduplicated and initial load failures remain dismissible/retryable. Eleven Node tests pass. The user reports that the dialog now behaves correctly. See [testing](testing.md#core-editor-stable-sizing-and-initialization--2026-10-04) for that browser feedback and the independently verified starting state for deliberate save/enablement acceptance. No server contract or live state changed.
