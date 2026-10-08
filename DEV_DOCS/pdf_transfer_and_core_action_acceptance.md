@@ -8,8 +8,10 @@ Excluded-file import preserved absent plan state in PID 540; its subsequent
 explicit-empty save/export/import passes, with stored `[]` in PID 541.
 Ordered duplicate/unavailable native import, browser and re-export pass in PID 542.
 Unsupported-version rejection/cleanup and scoped native adapter replacement/rollback also pass.
-Empty-tag and repeated-tag rejection/cleanup also pass. Non-list JSON browser acceptance, complete PMT and
-enabled-action acceptance remain **pending**.
+Empty-tag, repeated-tag and non-list JSON rejection/cleanup also pass. The planned
+XML acceptance matrix is complete, with existing-target rollback established by
+the scoped native adapter test. Complete cross-instance PMT and enabled-action
+acceptance remain **pending**.
 Preserve previous sealing and enablement evidence; these are additional checks
 for the expanded refactor.
 
@@ -286,6 +288,40 @@ and allocation 546 is the current baseline. Expect the localized plan-import
 error, not conversion to an explicit empty list. Native browser rejection and
 cleanup for this fixture remain pending. The separate native adapter test has
 already rejected this payload while preserving existing target state.
+
+## Non-list JSON native rejection and cleanup — passed 2026-10-08
+
+The user received the expected localized plan-import error from the version-1
+fixture containing `operations="{}"`. Dev-control confirms no project under
+**PDF plan XML non-list JSON** or PID 546, zero inspected metadata/project-
+setting/EM-setting/user-rights rows for 546, and unchanged valid fixture plans
+539–542 with no Core workflow settings. Allocation is now 548; PID 547 belongs
+to a separate active project and is outside this test and its cleanup scope.
+The invalid object was rejected instead of becoming an explicit empty plan.
+Native browser rejection and inspected failed-creation cleanup pass.
+
+The planned native XML cases are complete: selected/excluded exports, selected/
+omitted/explicit-empty imports, ordered duplicate/unavailable round trip, and
+version/empty-tag/repeated-tag/non-list rejection with failed-creation cleanup.
+Existing-target replacement/preservation and rollback have separate native
+adapter evidence; this does not claim full existing-project ODM replacement.
+
+## PMT receiver readiness — inspected 2026-10-08
+
+Dev-control reports healthy development instances with no warnings. Main is
+17.5.3 at `https://dev-redcap/`; pool-1 is 17.5.1 at `https://dev-redcap1/`.
+Read-only source inspection finds no PdfFinalization classes in pool-1, so it
+cannot establish destination execution-plan acceptance with its current code.
+Main PMT configuration permits source/destination migration and leave-as-is;
+actual browser availability still needs checking. No feature gate was changed.
+
+Read-only `rcm status` identifies slots 4 and 5 as 17.5.3, currently serving
+`annotation-feature` and `mlm-redesign` Core branches respectively, with the
+`testing` Framework. Either can temporarily select the refactor Core/Framework
+for a same-version receiver, then restore its prior selections. Slot choice
+is pending because these instances serve other feature work. No code selection,
+instance database, project or migration key has been changed. Cross-instance
+PMT acceptance remains pending; a same-instance test would have narrower scope.
 
 ## Starting state
 

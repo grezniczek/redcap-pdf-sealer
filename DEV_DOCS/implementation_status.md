@@ -1,6 +1,6 @@
 # PDF Sealer implementation status
 
-## Guided XML transfer acceptance progressing — 2026-10-08
+## Planned XML transfer acceptance complete; PMT receiver pending — 2026-10-08
 
 Selected and excluded browser exports pass. Native creation/import preserves one
 sealing identifier in PID 539, absence in PID 540 before its deliberate empty
@@ -15,8 +15,11 @@ Core adapter run on PID 541 passes existing-target replacement, malformed
 payload preservation and exact settings/project-note rollback. The browser full
 metadata import route remains project creation; the adapter test does not claim
 full existing-project ODM replacement. Empty-tag and repeated-tag native
-rejection/cleanup also pass. Non-list JSON browser acceptance, complete
-PMT and enabled Core test controls remain pending. See
+rejection/cleanup also pass, as does non-list JSON rejection with inspected
+cleanup for failed allocation 546. The planned XML acceptance matrix is complete.
+Cross-instance PMT and enabled Core test controls remain pending. Pool-1 lacks
+the refactor; slots 4 and 5 offer same-version receiver candidates, with temporary
+branch selection awaiting the user’s slot choice. No instance was reconfigured. See
 [transfer acceptance](pdf_transfer_and_core_action_acceptance.md) for evidence,
 file provenance and the disposable fixtures. Earlier checkpoints below retain
 their dated scope.

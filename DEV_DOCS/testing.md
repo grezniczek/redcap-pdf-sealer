@@ -1,5 +1,23 @@
 # Development and testing
 
+## Native XML acceptance checkpoint and PMT readiness — 2026-10-08
+
+The user received the expected error for `operations="{}"`. Dev-control confirms
+no matching test project/PID 546, zero inspected metadata/project-setting/EM-
+setting/user-rights rows for 546, and unchanged valid fixture plans/Core absence.
+This completes the planned native XML export/import/re-export and malformed
+rejection matrix. Existing-target preservation/rollback is established by the
+separate scoped native adapter test, not a full metadata-replacement browser
+route. See [transfer acceptance](pdf_transfer_and_core_action_acceptance.md#non-list-json-native-rejection-and-cleanup--passed-2026-10-08).
+
+Read-only PMT preflight finds pool-1 on 17.5.1 without finalization classes.
+Slots 4 and 5 run 17.5.3 and can temporarily select the refactor Core/Framework;
+the user’s receiver choice is pending. Main PMT configuration permits both
+directions and leave-as-is; no code selection, feature gate, project setting
+or migration key was changed. Complete cross-instance PMT and enabled Core
+controls remain pending. This slice changes documentation only; prior runtime
+tests remain valid without rerunning unchanged code.
+
 ## Repeated-tag native XML rejection and cleanup — 2026-10-08
 
 The user received the expected plan-import error for two matching plan tags.
