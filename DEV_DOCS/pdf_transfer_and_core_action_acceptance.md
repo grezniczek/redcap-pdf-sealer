@@ -343,6 +343,18 @@ source completion; exclude records, logs, files and EM settings. The Core test
 gate remains off. This checkpoint changes documentation only; no rights, token,
 key, project or slot configuration has yet been changed by the agent.
 
+## PMT source prerequisites — passed 2026-10-08
+
+The user enabled API Export for `gr` in PID 542 and created its API token.
+Dev-control verifies `api_export=1` and token presence using a Boolean query;
+the token was not retrieved or printed. The read-only native PHP 8.2 preflight
+passes again on 542, including selected/excluded PMT export routing, shared
+controls/category, disabled Core configuration and preserved settings. This
+establishes source readiness, not completed native PMT transfer. The user will
+generate a metadata-only key using main’s destination Instance ID and
+leave-as-is, then create a fresh destination on main. Actual PMT completion,
+destination plan/activation and browser warnings remain pending.
+
 ## Starting state
 
 - Main development instance: Core v17.5.3. PID 524 has one

@@ -1,5 +1,15 @@
 # Development and testing
 
+## PMT source API prerequisites verified — 2026-10-08
+
+The user enabled API Export and created a token for `gr` on source PID 542.
+Dev-control verifies the right and token presence without returning token bytes.
+The native read-only PHP 8.2 transfer preflight passes on 542 after preparation;
+Core settings and plan state are preserved. Native migration-key validation,
+project creation/completion and destination checks remain pending. The agent
+performed inspection/preflight and documentation only; the native UI changes
+were performed by the user. See [transfer acceptance](pdf_transfer_and_core_action_acceptance.md#pmt-source-prerequisites--passed-2026-10-08).
+
 ## Intra-instance PMT acceptance preparation — 2026-10-08
 
 Following the user’s clarification, use main for both ends of native PMT.
