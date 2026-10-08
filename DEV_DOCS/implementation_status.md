@@ -1,5 +1,9 @@
 # PDF Sealer implementation status
 
+## Remaining enablement browser preflight — 2026-10-08
+
+Current dev-control reads confirm the two browser fixtures retain one sealing assignment with Sealer enabled and the system default disabled. No pending activation request exists, and PID 533 has only an administrator member. [Testing](testing.md#remaining-activationglobal-enable-browser-preflight--2026-10-08) now records the concrete native request/cancel/retry/approval sequence. Standard request and approval notification authorization plus a test requester are outstanding; no live mutation or email was performed. Global-enable browser acceptance requires isolated state because both inspected instances contain hundreds of projects; automated skip/override coverage remains distinct from pending UI acceptance.
+
 ## Fresh eConsent stored/downloaded acceptance — 2026-10-04
 
 PID 524 record 10 passes user-reported browser/Acrobat certification and timestamp acceptance after the user added a signature field. Independent verification of the supplied download confirms complete-document certification, the public root chain, a valid embedded timestamp over CMS signature bytes, and unchanged page rendering/text/footer link. Dev-control identifies edoc 2378 and the native B-T success log. The user-supplied stored-file SHA-256 exactly matches the independently calculated download hash, completing fresh eConsent snapshot/download acceptance. The read-only edoc tools still fail with an invalid JSON envelope; this tooling limitation did not require changing the artifact or permissions. See [pipeline acceptance](pdf_pipeline_acceptance.md#record-10-post-refactor-acceptance--passed).

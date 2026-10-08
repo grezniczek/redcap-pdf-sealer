@@ -1,5 +1,20 @@
 # Development and testing
 
+## Remaining activation/global-enable browser preflight — 2026-10-08
+
+Read-only `redcap_devctl` inspection confirms PIDs 524 and 533 remain development projects with `["pdf_sealer:seal"]` and Sealer enabled. The system default remains disabled (`enabled=false`, version `v9.9.9`). Neither project has a module-activation To-Do request. PID 533 currently has only `gr`, a superuser with Design rights. No live settings, requests or users were changed during this preflight.
+
+The next activation-request browser sequence is:
+
+1. Use PID 533 as the test fixture. Save an explicit empty Core plan and disable Sealer; retain the original one-operation plan/enabled state for restoration. Use a test requester account with project Design rights whose module control offers Request Activation.
+2. Submit one native activation request. Verify a pending To-Do entry while Sealer remains disabled and the plan remains `[]`.
+3. As an administrator, open that request and choose Enable. Expect the Core placement dialog. Cancel it: the request must remain pending, Sealer disabled and the plan empty. Reopening the request must permit another attempt.
+4. Retry, add one sealing operation, and choose Save & Enable. Expect the normal approval success/To-Do closure, a completed request, Sealer enabled and exactly one saved sealing assignment. Inspect the plan-change audit and request ID before declaring this branch passed.
+
+Notification authorization is outstanding. The instance has `send_emails_admin_tasks=1`, so native request creation sends the project administrator email (`manager/ajax/send-enable-module-request.php`). Successful approval also sends the requester email from `ExternalModules::finalizeModuleActivationRequest()`, independently of that setting. Do not treat turning off administrator-task emails as suppressing the approval notification. The test requester/account and intended recipients must be settled before sending either notification.
+
+Global-enable UI acceptance needs isolated test state: the main instance has **342 active projects**; pool-1 has **328**, so neither is an empty fixture. Do not use PDF Sealer's system-wide checkbox as a project-local test. The pending matrix must include an explicit empty plan (skip and report), a plan already containing the operation (eligible), an absent plan (normal global default), and preserved unrelated operation order/duplicates. Check the saved response warning and effective module availability, restore prior overrides/system default, and verify no operation was inserted automatically. Existing automated enablement coverage verifies the Core skip query and Framework override behavior; it does not establish browser/global-save acceptance. A disposable instance or a scoped, inert fixture module is the next setup choice for this branch.
+
 ## Fresh eConsent stored/downloaded and Acrobat acceptance — 2026-10-04
 
 The user added a signature field to PID 524's Example Survey, completed record 10, downloaded its saved eConsent snapshot, and reports warning-free Acrobat certification/timestamp acceptance with the root already trusted. Independent qpdf/pdfsig/OpenSSL checks on the supplied download pass for whole-document certification, its public root chain, the embedded timestamp over CMS signature bytes, and original rendering/text/footer-link preservation. Dev-control database reads identify edoc 2378 and a matching native B-T success log for record 10/event 1589. See [pipeline acceptance](pdf_pipeline_acceptance.md#record-10-post-refactor-acceptance--passed) for hashes and detailed evidence.
