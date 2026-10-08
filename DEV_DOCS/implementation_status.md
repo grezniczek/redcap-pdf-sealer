@@ -1,5 +1,9 @@
 # PDF Sealer implementation status
 
+## Global-enable warning and stored-state checks pass — 2026-10-08
+
+The global-enable warning matches the expected thirteen skipped projects. Independent dev-control reads confirm their disabled overrides, preservation of all saved plans and audit baselines, no automatic plan in PID 538, and unchanged Sealer state. PID 537's explicit disabled override is correctly retained; the initial acceptance expectation and native test fixture were corrected to reflect Framework's existing semantics. No production implementation changed. [Testing](testing.md#global-enable-warning-and-stored-state-checks--2026-10-08) records syntax/isolated-suite verification and the unexecuted native-test limitation. Browser persistence/availability checks, global disable and fixture cleanup remain pending.
+
 ## Global-enable fixture ready — 2026-10-08
 
 An inert development fixture with two nonterminal unchanged operations is installed for the remaining global-enable browser test. Source, syntax/no-file reservation smoke checks and a concrete three-project procedure are in [global-enable acceptance](pdf_global_enable_acceptance.md). Native system enablement and disposable project setup remain pending. Preparation made no live database mutation; PIDs 524/533's Sealer plans/enablement remain unchanged. The fixture uses the shared main instance, so cleanup includes its skip overrides on existing configured projects while preserving their plans and Sealer settings.

@@ -43,8 +43,8 @@ after the test and cleanup.
    `["pdf_finalize_acceptance:first","pdf_finalize_acceptance:second",
    "pdf_finalize_acceptance:first"]`. Confirm the duplicate warning and order.
    Disable the fixture for this project, retaining the saved plan. This prepares
-   an existing disabled override that the normal global-enable transition clears
-   because placement already exists.
+   an existing disabled override that the normal global-enable transition must
+   preserve even though placement already exists.
 5. In **Default**, leave the Core plan absent and the fixture's project override
    absent. Do not save a plan or enable the fixture for this project.
 6. Recheck all three starting states, then in Control Center configure the test
@@ -62,7 +62,7 @@ after the test and cleanup.
 | Project | Saved plan before/after global enablement | Expected effective availability |
 | --- | --- | --- |
 | Empty | `[]` | Disabled by the skip override; named in warning |
-| Placed | `first`, `second`, `first` | Enabled through the system default; not named in warning |
+| Placed | `first`, `second`, `first` | Remains disabled by its explicit override; not named in warning |
 | Default | No saved plan | Enabled through the system default; no plan created; not named in warning |
 
 The fixture has no single-project side effects to undo. The global setting uses
@@ -86,8 +86,8 @@ plan creation. The user saved `first`, `second`, `first` and confirmed the
 duplicate warning. After the user disabled the fixture, dev-control confirmed
 `enabled=false` with the exact saved plan
 `["pdf_finalize_acceptance:first","pdf_finalize_acceptance:second","pdf_finalize_acceptance:first"]`
-retained. The Placed starting state is ready; global enablement must later clear
-this disabled override while preserving every occurrence and its order.
+retained. The Placed starting state is ready; global enablement must preserve
+this explicit disabled override and every plan occurrence and its order.
 
 **PDF Global Test — Default**, PID **538**, was created in development status
 and left untouched. Dev-control confirmed no saved Core plan and no fixture
@@ -113,8 +113,25 @@ Native plan-audit baseline (`count` / latest `log_event_id`, filtered to
 - `redcap_log_event15`: 461 = 17/1246, 534 = 1/1346.
 
 There are no matching plan audits for 525 or 538. These counts and latest IDs
-must remain unchanged during the global toggle. Global-enable browser results
+must remain unchanged during the global toggle.
+
+After the user checked the global default and saved, the user confirmed the
+warning matched the thirteen expected skipped PIDs. Dev-control confirmed the
+system `enabled=true` setting, exactly those thirteen new `false` skip overrides,
+the retained `false` override in 537, and no override in 538. All fourteen saved
+plans and all three audit-table count/latest-ID baselines match exactly; 538's
+plan remains absent. PDF Sealer's system default and 524/533 enabled settings are
+unchanged. Browser persistence/availability checks, global disable and cleanup
 remain pending.
+
+The original procedure incorrectly expected global enablement to clear 537's
+explicit disabled override. Source inspection and the native browser save show
+that Framework preserves such overrides; this is consistent with the refactor's
+existing design. The expected matrix above is corrected. The native Framework
+`PdfFinalizeEnablementTest` had seeded only the enabled-module cache, not the
+project's test-setting store. Its global-enable test now seeds both stored
+disabled overrides and checks their preservation, alongside the skipped list,
+global default and unchanged plans. No production implementation was changed.
 
 Disable the fixture through Control Center after testing, then remove only its
 copied development directory. Native system disable removes the active version
@@ -132,12 +149,12 @@ actions; the agent uses dev-control for read-only inspection. Existing automated
 Core/Framework skip/override tests do not replace these browser results.
 
 **Status:** source fixture installed and enabled at system level through the
-browser. Dev-control confirms registration ID 83, active version `v9.9.9`, and
-no system `enabled` setting, so the global project default remains off.
-Disposable project setup is complete in PIDs 536/537/538; global-enable browser
-acceptance is pending. JSON and PHP syntax
+browser; registration ID 83, active version `v9.9.9`. Disposable project setup
+is complete in PIDs 536/537/538. The global-enable warning and resulting stored
+states pass with explicit disabled overrides preserved. Browser persistence and
+availability, global disable and cleanup remain pending. JSON and PHP syntax
 checks pass on PHP 8.2/8.5. An isolated hook smoke check confirms both operations
 return nonterminal unchanged with either reservation flag and without an input
 file. Installed copies match the tracked fixture. No native bootstrap or live
 database mutation occurred during preparation. Sentinel plans/Sealer state are
-unchanged. No browser global-enable pass is claimed.
+unchanged. Full global-enable browser acceptance is not yet complete.
