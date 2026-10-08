@@ -15,7 +15,8 @@ in PID 548, including completion and stored/browser destination checks. Excluded
 PMT also passes in PID 549, preserving absent plan state; explicit-empty PMT
 passes in PID 550 with stored `[]`. The planned native XML/PMT transfer checks
 are complete. Enabled-action acceptance remains **pending**, with a temporary
-test gate scoped only to PID 550 and no workflows selected yet.
+test gate scoped only to PID 550. Its Record PDFs-only controls pass save/reopen,
+no-op and cancel acceptance; native PDF execution/handoff and cleanup are pending.
 Preserve previous sealing and enablement evidence; these are additional checks
 for the expanded refactor.
 
@@ -467,6 +468,38 @@ Cleanup must clear test workflow selections through the native UI, preview and
 restore `hook_functions_file` to its original empty string with a guard matching
 this exact temporary path, then remove the exact temporary bootstrap/probe files.
 Do not commit the bootstrap or leave the gate active after acceptance.
+
+## Core workflow save/reopen/no-op/cancel — passed 2026-10-08
+
+The user confirmed all four browser checks in disposable PID 550: enabled
+choices/no-signing text; Record PDFs-only save and fixed terminal preview;
+unchanged save; and canceling an additional Survey PDFs selection followed by
+reopen retaining only Record PDFs. The EM assignment list remains empty.
+
+Dev-control verifies `pdf_finalization.core_terminal_workflows=["record_pdf"]`
+and unchanged `external_modules.pdf_finalize_execution_plan=[]`. Querying the
+project’s actual `redcap_log_event15` shard finds exactly one Core-settings
+audit: ID 1414, timestamp 20261008233938, user `gr`, event OTHER, data
+`["record_pdf"]`. Thus the unchanged save produces no extra audit and the
+canceled additional workflow is not persisted. Native metadata inspection
+identifies instrument `survey`, ID field `participant_id`, text field `textbox`
+and signature field `sig` for the next disposable record test.
+
+Project storage lookup identifies `redcap_data8` for sources/targets 540, 548,
+549 and 550; direct counts in that actual shard confirm zero records for all
+four at this checkpoint. Earlier checks of the legacy `redcap_data` table alone
+were insufficient for sharded projects; the current shard queries establish
+those zero-record results. Likewise audit verification uses the project’s
+configured log shard rather than the legacy table.
+
+The temporary PID-550-only bootstrap now also routes that project’s diagnostics
+to `/tmp/pdf-core-terminal-test-550-3c9deeb61fd6dce0.log` for native execution
+correlation. It redirects no other project’s logs. PHP 8.2/8.5 syntax checks pass.
+Read only matching PDF-finalization events for this test, not unrelated error
+text. Remove the exact capture file together with the bootstrap/probe during
+cleanup; restoring the original hook setting restores normal future logging.
+Native PDF execution/delivery, EM handoff, read-only rights and gate-off clearing
+remain pending. No record, PDF, PKI or edoc action was performed by the agent.
 
 ## Starting state
 

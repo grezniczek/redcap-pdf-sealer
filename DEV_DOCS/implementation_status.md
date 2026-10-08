@@ -28,7 +28,11 @@ eventually resolved; its cause is undiagnosed. Explicit-empty PMT from 540 to
 and a confirmed empty editor. The planned native XML/PMT matrix is complete.
 A temporary native hook bootstrap now exposes the non-signing Core test action
 only in disposable 550; native probes verify 524 remains gate-off/unchanged.
-No workflows are selected yet. Core controls/runtime and cleanup remain pending. See
+Record PDFs-only selection now passes browser save/reopen, fixed preview, no-op
+save and canceled Survey PDFs edits. The actual project audit shard confirms
+exactly one change audit (1414), saved `["record_pdf"]` and unchanged EM `[]`.
+Native PDF execution/handoff, read-only rights and deactivation/cleanup remain
+pending. Project-scoped diagnostic capture is prepared. See
 [transfer acceptance](pdf_transfer_and_core_action_acceptance.md) for evidence,
 file provenance and the disposable fixtures. Earlier checkpoints below retain
 their dated scope.

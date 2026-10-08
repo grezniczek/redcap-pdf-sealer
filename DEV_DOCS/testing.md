@@ -1,5 +1,19 @@
 # Development and testing
 
+## Core workflow controls native acceptance — 2026-10-08
+
+The user confirmed all four PID 550 browser checks: enabled non-signing controls,
+Record PDFs-only save/reopen and fixed preview, unchanged save, and cancellation
+of additional Survey PDFs selection. Dev-control verifies saved `["record_pdf"]`,
+unchanged EM `[]` and exactly one Core change audit (1414) in the actual project
+log shard `redcap_log_event15`. No extra audit or canceled selection persisted.
+Actual project-data shard `redcap_data8` confirms zero records in 540/548/549/
+550; legacy-table checks alone were insufficient and are superseded by these
+shard checks. PID 550-only diagnostic capture is prepared for a fresh native
+record PDF; bootstrap lints pass on PHP 8.2/8.5. Execution/delivery, EM handoff,
+read-only rights and deactivation/cleanup remain pending. See
+[transfer acceptance](pdf_transfer_and_core_action_acceptance.md#core-workflow-savereopenno-opcancel--passed-2026-10-08).
+
 ## Explicit-empty PMT acceptance and scoped Core test window — 2026-10-08
 
 The user created PID 550 from 540 and confirmed the empty pipeline. Dev-control
