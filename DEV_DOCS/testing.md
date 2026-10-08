@@ -1,5 +1,15 @@
 # Development and testing
 
+## Imported execution-plan destination browser checks — 2026-10-08
+
+In PID 539 the user confirmed the imported sealing assignment is retained and
+marked unavailable, Core test controls are disabled, and cancellation closes
+normally. Follow-up dev-control inspection confirms `["pdf_sealer:seal"]` and
+absent Core workflow settings. This completes selected-file native import plus
+the destination browser check. Excluded-file import, explicit empty/duplicate
+plans, existing-target replacement/rollback, complete PMT and enabled Core test
+controls remain pending. No activation or designer save occurred in this check.
+
 ## Selected execution-plan native XML import — 2026-10-08
 
 The user created PID 539 from the selected metadata-only XML. Dev-control confirms

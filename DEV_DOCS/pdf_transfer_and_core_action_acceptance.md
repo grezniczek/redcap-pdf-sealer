@@ -3,8 +3,8 @@
 Implementation checkpoint: 2026-10-08. Isolated regressions, native read-only
 export/configuration preflight on PID 524 and real Sealer-to-Core runner handoff
 pass. Native browser export with the plan selected and excluded also passes,
-and selected-plan native import has verified stored-state evidence in PID 539.
-Destination UI, absent/empty/duplicate cases, rollback, complete PMT and
+and selected-plan native import passes stored-state and browser checks in PID 539.
+Absent/empty/duplicate cases, rollback, complete PMT and
 enabled-action acceptance remain **pending**.
 Preserve previous sealing and enablement evidence; these are additional checks
 for the expanded refactor.
@@ -48,6 +48,13 @@ import preserves the identifier without activating the module or adding Sealer
 project PKI/settings. Target browser retained-unavailable presentation is the
 next check. Absent/empty/duplicates, existing-target replacement, rollback and
 complete PMT acceptance remain pending. Keep 539 for these disposable tests.
+
+The user subsequently confirmed all three destination checks: the imported
+sealing assignment is retained and marked unavailable, Core test controls are
+disabled, and Cancel closes normally. Follow-up dev-control reads confirm the
+plan remains `["pdf_sealer:seal"]` and Core workflow settings remain absent.
+Selected-file native import and retained-unavailable browser presentation pass.
+No module activation or designer save was performed during this check.
 
 ## Starting state
 
