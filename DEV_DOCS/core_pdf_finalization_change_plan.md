@@ -1,11 +1,15 @@
 # Core-owned PDF finalization — change plan
 
-**Status:** Core contracts, coordinator/provider wiring, plan management and PDF Sealer integration implemented; native backend, guided project plan-management browser, activation-request browser, and fresh eConsent stored/downloaded artifact acceptance pass. Global-enable UI acceptance remains pending.
+**Status:** Core contracts, coordinator/provider wiring, plan management and PDF Sealer integration implemented; native backend, guided project plan-management browser, activation-request browser, global-enable browser, and fresh eConsent stored/downloaded artifact acceptance pass. Disposable global-enable project cleanup remains pending.
 
 **Date:** 2026-10-03.  
 **Scope:** REDCap Core, the External Module Framework, and PDF Sealer's integration contract.
 
 ## Implementation progress — 2026-10-04
+
+### Global-enable browser acceptance — 2026-10-08
+
+The inert test fixture passed the skipped-project warning, checkbox persistence, project availability and global-disable transition checks across explicit empty, placed/disabled, and absent plans. Independent dev-control reads confirm preservation of all saved plans, native plan-audit baselines and inspected Sealer state. Explicit disabled overrides remain authoritative; the initial acceptance expectation and native test fixture were corrected accordingly, without production changes. The fixture's active version, settings and installed source copies are removed; disposable projects 536/537/538 remain for browser cleanup. [Global-enable acceptance](pdf_global_enable_acceptance.md) records the evidence and the corrected native test's execution limitation.
 
 ### Activation approval correction — 2026-10-08
 

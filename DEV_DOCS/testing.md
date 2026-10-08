@@ -1,5 +1,9 @@
 # Development and testing
 
+## Global-enable fixture cleanup — 2026-10-08
+
+The user system-disabled the fixture through Control Center; dev-control confirmed no active version remained. Previewed, prefix-and-ID-scoped cleanup removed exactly eighteen remaining fixture settings (four system, fourteen project overrides); follow-up inspection confirms zero settings for module ID 83. The two installed source copies matched the tracked fixture and were removed with their empty directory through reviewed escalation. Temporary staging files were removed; tracked test source remains. All fourteen saved plans and all three plan-audit baselines still match, and Sealer's inspected state is unchanged. The inert registry entry remains normal Framework metadata. Disposable projects 536/537/538 still require browser cleanup; the agent did not delete projects or change their plans.
+
 ## Global-enable browser and stored-state checks — 2026-10-08
 
 The subsequent global-disable transition also passes: the user unchecked the default, saved, and confirmed no skipped-project warning. Independent dev-control reads confirm `enabled=false`, all fourteen saved plans and all plan-audit baselines unchanged, project overrides retained, no plan/override in 538, and unchanged inspected Sealer settings. Fixture cleanup remains pending.

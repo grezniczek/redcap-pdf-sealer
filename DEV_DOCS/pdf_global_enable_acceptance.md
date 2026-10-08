@@ -142,6 +142,25 @@ project's test-setting store. Its global-enable test now seeds both stored
 disabled overrides and checks their preservation, alongside the skipped list,
 global default and unchanged plans. No production implementation was changed.
 
+Cleanup on 2026-10-08: the user disabled the fixture at system level through
+Control Center. Dev-control confirmed its active version was removed and
+eighteen settings remained (four system settings and fourteen disabled project
+overrides). A prefix-and-ID-scoped dev-control DELETE was previewed as standard
+risk with an expected count of eighteen, then committed with exactly eighteen
+affected rows. A follow-up read confirms zero settings for registry ID 83.
+The disabled registry entry is retained as normal Framework metadata.
+
+The installed directory contained only the two unchanged copies of the tracked
+fixture source. After system disable, those exact copies and their empty
+directory were removed through reviewed filesystem escalation. A follow-up
+check confirms the directory is absent. Temporary staging files were removed;
+the tracked source remains for regressions. All fourteen saved plans and all
+three audit baselines still match the pre-global-save baseline. Sealer remains
+at version `v9.9.9`, globally disabled and enabled in 524/533. Disposable projects
+536/537/538 remain to be deleted through the normal browser UI, or have their
+fixture assignments removed before retention. No project deletion or plan
+mutation was performed by the agent.
+
 Disable the fixture through Control Center after testing, then remove only its
 copied development directory. Native system disable removes the active version
 but retains other settings; inspect these and use previewed, prefix-scoped
@@ -157,12 +176,12 @@ audits. Module discovery, global save, and cleanup are user-directed browser
 actions; the agent uses dev-control for read-only inspection. Existing automated
 Core/Framework skip/override tests do not replace these browser results.
 
-**Status:** source fixture installed and enabled at system level through the
-browser; registration ID 83, active version `v9.9.9`. Disposable project setup
-is complete in PIDs 536/537/538. The global-enable warning and resulting stored
+**Status:** fixture system-disabled, all its settings removed and its installed
+directory removed; tracked source retained. Disposable project setup and testing
+are complete in PIDs 536/537/538. The global-enable warning and resulting stored
 states pass with explicit disabled overrides preserved. Browser checkbox
 persistence, all three availability checks and the global-disable transition
-pass. Fixture cleanup remains pending. JSON and PHP syntax
+pass. Disposable project cleanup remains pending. JSON and PHP syntax
 checks pass on PHP 8.2/8.5. An isolated hook smoke check confirms both operations
 return nonterminal unchanged with either reservation flag and without an input
 file. Installed copies match the tracked fixture. No native bootstrap or live

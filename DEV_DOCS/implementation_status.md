@@ -1,5 +1,9 @@
 # PDF Sealer implementation status
 
+## Global-enable fixture removed — 2026-10-08
+
+Native system disable, previewed removal of eighteen remaining fixture settings, and removal of the exact installed source copies are complete. Follow-up checks confirm no active fixture settings or installed directory, unchanged saved plans/audit baselines, and unchanged inspected Sealer state. Tracked fixture source remains for regressions. [Testing](testing.md#global-enable-fixture-cleanup--2026-10-08) records the cleanup scope. Disposable projects 536/537/538 remain for browser cleanup.
+
 ## Global-enable browser and stored-state checks pass — 2026-10-08
 
 The user also passed the global-disable save with no skipped-project warning. Dev-control confirms the default is off and plans, audit baselines and inspected Sealer settings remain unchanged. Fixture cleanup is the remaining acceptance step.
