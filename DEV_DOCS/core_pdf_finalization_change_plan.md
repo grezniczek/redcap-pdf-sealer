@@ -1,6 +1,6 @@
 # Core-owned PDF finalization — change plan
 
-**Status:** Core contracts, coordinator/provider wiring, plan management and PDF Sealer integration implemented; native backend, guided project plan-management browser, and fresh eConsent stored/downloaded artifact acceptance pass. Activation-request/global-enable UI acceptance remains pending.
+**Status:** Core contracts, coordinator/provider wiring, plan management and PDF Sealer integration implemented; native backend, guided project plan-management browser, activation-request browser, and fresh eConsent stored/downloaded artifact acceptance pass. Global-enable UI acceptance remains pending.
 
 **Date:** 2026-10-03.  
 **Scope:** REDCap Core, the External Module Framework, and PDF Sealer's integration contract.
@@ -9,9 +9,9 @@
 
 ### Activation approval correction — 2026-10-08
 
-The administrator To-Do approval page for user-created request 14 reached Core placement but supplied an empty candidate version. Browser/server evidence showed HTTP 400 from Core's candidate validation. The Framework approval page now resolves the installed version explicitly; an isolated actual-page regression reproduced the failure and passes after the change on PHP 8.2/8.5. Core validation and contracts remain unchanged. Request 14 is still pending with an empty plan and disabled Sealer, ready for browser retry and the cancel/approval acceptance sequence. See [testing](testing.md#activation-request-approval-version-fix--2026-10-08).
+The administrator To-Do approval page for user-created request 14 reached Core placement but supplied an empty candidate version. Browser/server evidence showed HTTP 400 from Core's candidate validation. The Framework approval page now resolves the installed version explicitly; an isolated actual-page regression reproduced the failure and passes after the change on PHP 8.2/8.5. Core validation and contracts remain unchanged. The pending request was reused for browser retry and the cancel/approval sequence. See [testing](testing.md#activation-request-approval-version-fix--2026-10-08).
 
-The user reports successful placement loading after that correction. Cancellation then left the To-Do popup empty. Framework now closes the outer popup on placement cancellation through Core's existing frame helper, while direct approval pages retain a retry button. Five focused JavaScript regressions and the user-performed browser cancellation retest pass. Independent inspection confirms request 14 still pending, Sealer disabled and the plan empty. [Testing](testing.md#activation-placement-cancellation-closes-the-to-do-popup--2026-10-08) records the evidence; successful approval remains next. No Core hook, policy or persistence contract changed.
+The user reports successful placement loading after that correction. Cancellation then left the To-Do popup empty. Framework now closes the outer popup on placement cancellation through Core's existing frame helper, while direct approval pages retain a retry button. Five focused JavaScript regressions and the user-performed browser cancellation retest pass. Inspection at that checkpoint confirmed request 14 still pending, Sealer disabled and the plan empty. The subsequent user-performed approval also passes: dev-control confirms request 14 completed by `gr`, one saved sealing assignment, Sealer enabled and native plan/module audits 1082/1083. [Testing](testing.md#activation-request-browser-acceptance-complete--2026-10-08) records the completed sequence. No Core hook, policy or persistence contract changed. Global-enable UI acceptance remains pending.
 
 ### Guided browser and fresh eConsent acceptance
 

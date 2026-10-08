@@ -1,8 +1,12 @@
 # PDF Sealer implementation status
 
+## Activation-request browser acceptance complete — 2026-10-08
+
+The user passed native request submission as `test`, administrator placement loading, cancellation with outer-popup closure and pending-state preservation, and reopening/approval with one sealing assignment in PID 533. Independent dev-control inspection confirms request 14 completed by `gr`, Sealer enabled, `["pdf_sealer:seal"]`, and the corresponding plan/module audits (1082/1083). The fixture's original plan/enablement is restored. [Testing](testing.md#activation-request-browser-acceptance-complete--2026-10-08) records the evidence and scoped notification limitation. Global-enable UI acceptance remains pending with isolated fixture state.
+
 ## Activation placement cancellation refinement — 2026-10-08
 
-The user accepts the approval version fix, but canceling Core placement in the To-Do iframe exposed an empty outer popup. At the user's request, Framework cancellation now closes that popup through the native frame helper and refreshes the To-Do list, preserving the pending request. Direct approval pages retain their retry button. Five focused controller checks pass, including the regression that fails before the change; JavaScript syntax/whitespace checks pass. The user reports the browser cancellation retest passed; subsequent dev-control inspection confirms request 14 pending, Sealer disabled and plan empty. [Testing](testing.md#activation-placement-cancellation-closes-the-to-do-popup--2026-10-08) records this acceptance and the pending successful approval check.
+The user accepts the approval version fix, but canceling Core placement in the To-Do iframe exposed an empty outer popup. At the user's request, Framework cancellation now closes that popup through the native frame helper and refreshes the To-Do list, preserving the pending request. Direct approval pages retain their retry button. Five focused controller checks pass, including the regression that fails before the change; JavaScript syntax/whitespace checks pass. The user reports the browser cancellation retest passed; inspection at that checkpoint confirmed request 14 pending, Sealer disabled and plan empty. [Testing](testing.md#activation-placement-cancellation-closes-the-to-do-popup--2026-10-08) records this acceptance; subsequent successful approval is recorded above.
 
 ## Activation approval version fix — 2026-10-08
 

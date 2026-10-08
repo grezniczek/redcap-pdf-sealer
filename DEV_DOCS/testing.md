@@ -1,5 +1,11 @@
 # Development and testing
 
+## Activation-request browser acceptance complete — 2026-10-08
+
+The user reports successful approval of request **14** after reopening it through the administrator To-Do List, adding the sealing operation once and choosing Save & Enable. Independent read-only `redcap_devctl` inspection confirms the request is `completed`, attributed to `gr` at **2026-10-08 12:24:58** instance local time. PID 533's saved plan is `["pdf_sealer:seal"]` and Sealer's project enabled override is `true`.
+
+Native plan audit **1082** records the single sealing assignment under `gr`; native module audit **1083** records enabling `pdf_sealer_v9.9.9`, both at the request completion time. Together with the prior cancellation pass, this completes the user-request/administrator-placement/cancel/reopen/approve browser sequence and returns PID 533's plan/enablement to its starting state. The approval version and empty-popup failures were corrected and covered by the regressions below. Request completion does not independently establish notification delivery. No tool-driven live mutation or email was performed. Global-enable UI acceptance remains pending with isolated fixture state.
+
 ## Activation placement cancellation closes the To-Do popup — 2026-10-08
 
 The user reports that the installed-version fix makes request 14's Core placement dialog load correctly. Canceling it through the administrator To-Do iframe then left the outer request popup empty. The screenshot establishes this presentation failure; independent dev-control inspection confirms request 14 remained pending, the plan `[]`, and Sealer disabled.
@@ -8,7 +14,7 @@ At the user's request, Framework `manager/js/project.js` now invokes Core's exis
 
 Run `node --test tests/pdf_activation_request_ui.js`. Five focused checks against the real Framework controller with isolated DOM/enablement/frame doubles cover iframe cancellation, direct-page retry, errors retaining the frame, iframe success closure, and direct-page success acknowledgement/redirect. The iframe cancellation check failed before the change; all five pass afterward. JavaScript syntax and whitespace checks pass. These checks send no requests, email or native mutations.
 
-The user reports the browser cancellation retest passed: reopening request 14, choosing Enable and canceling placement closes the entire To-Do popup with the request still pending in the refreshed list. Subsequent independent dev-control inspection confirms request 14 `pending`, plan `[]`, and Sealer disabled. Successful approval with one sealing assignment is the next check.
+The user reports the browser cancellation retest passed: reopening request 14, choosing Enable and canceling placement closes the entire To-Do popup with the request still pending in the refreshed list. Inspection at that checkpoint confirmed request 14 `pending`, plan `[]`, and Sealer disabled. Subsequent successful approval with one sealing assignment is recorded above.
 
 ## Activation-request approval version fix — 2026-10-08
 
@@ -18,7 +24,7 @@ Opening that request through the administrator To-Do List reached the Core place
 
 Framework `manager/activation-request.php` now resolves `ExternalModules::getEnabledVersion($prefix)` and uses the same version for translated configuration and approval controls. No Core candidate-validation or hook contract change was needed. Run `php8.2 -d xdebug.mode=off tests/pdf_activation_request_view.php` and the same command with `php`. The regression renders a copy of the actual approval page against isolated bootstrap/header/footer/template/Framework doubles, with empty and stale ambient versions, and checks the hidden and row versions plus their configuration lookup. It reproduced the missing version before the fix and passes on PHP 8.2/8.5 afterward. PHP syntax and whitespace checks pass. No native bootstrap, database mutation, request completion or email occurs in this regression.
 
-Independent inspection after the fix confirmed request 14 pending, the plan `[]`, and Sealer disabled. The user subsequently reports that reopening the request loads populated available operations and workflow previews correctly. The cancellation refinement and passed retest are recorded above. Successful Save & Enable remains next; no second activation request is needed.
+Independent inspection after the fix confirmed request 14 pending, the plan `[]`, and Sealer disabled. The user subsequently reports that reopening the request loads populated available operations and workflow previews correctly. The cancellation refinement, passed retest and successful Save & Enable are recorded above. The same request was reused throughout.
 
 ## Remaining activation/global-enable browser preflight — 2026-10-08
 
