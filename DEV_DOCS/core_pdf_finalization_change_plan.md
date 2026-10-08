@@ -7,6 +7,10 @@
 
 ## Implementation progress — 2026-10-04
 
+### Activation approval correction — 2026-10-08
+
+The administrator To-Do approval page for user-created request 14 reached Core placement but supplied an empty candidate version. Browser/server evidence showed HTTP 400 from Core's candidate validation. The Framework approval page now resolves the installed version explicitly; an isolated actual-page regression reproduced the failure and passes after the change on PHP 8.2/8.5. Core validation and contracts remain unchanged. Request 14 is still pending with an empty plan and disabled Sealer, ready for browser retry and the cancel/approval acceptance sequence. See [testing](testing.md#activation-request-approval-version-fix--2026-10-08).
+
 ### Guided browser and fresh eConsent acceptance
 
 The user passed project plan-management checks in PIDs 533 and 524, including explicit empty plans, canceled/unassigned/assigned enablement, saved duplicates/removal, unavailable assignment retention/restoration, and unchanged saves. Independent dev-control reads confirm saved state and the expected four deliberate plan-change audits without extra unchanged-save entries. The user also accepted the rcDialog initialization/sizing refinement; eleven Node checks pass.

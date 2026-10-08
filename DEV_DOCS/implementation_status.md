@@ -1,5 +1,9 @@
 # PDF Sealer implementation status
 
+## Activation approval version fix — 2026-10-08
+
+The user-created activation request 14 for PID 533 exposed an empty module version in the administrator approval page: the Core candidate-preview request failed with HTTP 400. The Framework page now explicitly resolves the installed version and uses it for configuration and approval controls. The isolated actual-page rendering regression in `tests/pdf_activation_request_view.php` fails before the fix and passes on PHP 8.2/8.5 afterward, with empty/stale ambient versions; syntax/whitespace checks pass. Core validation is unchanged. Dev-control confirms the request remains pending, plan empty and Sealer disabled. [Testing](testing.md#activation-request-approval-version-fix--2026-10-08) records the evidence and pending browser retry/cancel/approval checks.
+
 ## Remaining enablement browser preflight — 2026-10-08
 
 Current dev-control reads confirm the two browser fixtures retain one sealing assignment with Sealer enabled and the system default disabled. No pending activation request exists, and PID 533 has only an administrator member. [Testing](testing.md#remaining-activationglobal-enable-browser-preflight--2026-10-08) now records the concrete native request/cancel/retry/approval sequence. Standard request and approval notification authorization plus a test requester are outstanding; no live mutation or email was performed. Global-enable browser acceptance requires isolated state because both inspected instances contain hundreds of projects; automated skip/override coverage remains distinct from pending UI acceptance.
