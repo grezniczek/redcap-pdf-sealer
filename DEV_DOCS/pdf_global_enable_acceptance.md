@@ -71,6 +71,14 @@ of every operation should some later configuration hook fail.
 
 ## Cleanup and evidence
 
+Setup evidence on 2026-10-08: **PDF Global Test — Empty**, PID **536**, was
+created through the browser in development status. Its initial Core plan and
+fixture enabled override were absent. After the user saved the empty execution
+plan through Core's editor, dev-control confirmed the stored value `[]` and
+an absent fixture enabled override. With the system default still off, the
+fixture remains disabled for this project. The Empty starting state is ready;
+this does not establish the later global-enable warning/skip result.
+
 Disable the fixture through Control Center after testing, then remove only its
 copied development directory. Native system disable removes the active version
 but retains other settings; inspect these and use previewed, prefix-scoped
