@@ -14,8 +14,8 @@ rejection and inspected failed-creation cleanup. A separate previewed native
 Core adapter run on PID 541 passes existing-target replacement, malformed
 payload preservation and exact settings/project-note rollback. The browser full
 metadata import route remains project creation; the adapter test does not claim
-full existing-project ODM replacement. Empty-tag native rejection/cleanup also
-passes. Repeated-tag/non-list JSON browser cases, complete
+full existing-project ODM replacement. Empty-tag and repeated-tag native
+rejection/cleanup also pass. Non-list JSON browser acceptance, complete
 PMT and enabled Core test controls remain pending. See
 [transfer acceptance](pdf_transfer_and_core_action_acceptance.md) for evidence,
 file provenance and the disposable fixtures. Earlier checkpoints below retain

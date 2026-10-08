@@ -1,5 +1,17 @@
 # Development and testing
 
+## Repeated-tag native XML rejection and cleanup — 2026-10-08
+
+The user received the expected plan-import error for two matching plan tags.
+Dev-control confirms no target under its test title or PID 545, zero inspected
+metadata/project-setting/EM-setting/user-rights rows for 545, allocation advanced
+to 546, and unchanged valid fixture plans/Core absence. Thus ambiguous multiple
+plans are rejected instead of selecting or merging them. Prepared the final
+planned malformed browser fixture with valid JSON object `{}` instead of a list;
+native browser rejection/cleanup remains pending. Provenance and evidence are in
+[transfer acceptance](pdf_transfer_and_core_action_acceptance.md#repeated-tag-native-rejection-and-cleanup--passed-2026-10-08).
+Agent work was inspection, temporary fixture preparation and documentation only.
+
 ## Empty-tag native XML rejection and cleanup — 2026-10-08
 
 The user received the expected plan-import error from the empty-tag fixture.

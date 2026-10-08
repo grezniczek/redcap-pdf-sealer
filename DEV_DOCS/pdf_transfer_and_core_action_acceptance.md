@@ -8,7 +8,7 @@ Excluded-file import preserved absent plan state in PID 540; its subsequent
 explicit-empty save/export/import passes, with stored `[]` in PID 541.
 Ordered duplicate/unavailable native import, browser and re-export pass in PID 542.
 Unsupported-version rejection/cleanup and scoped native adapter replacement/rollback also pass.
-Empty-tag rejection/cleanup also passes. Repeated-tag/non-list JSON browser cases, complete PMT and
+Empty-tag and repeated-tag rejection/cleanup also pass. Non-list JSON browser acceptance, complete PMT and
 enabled-action acceptance remain **pending**.
 Preserve previous sealing and enablement evidence; these are additional checks
 for the expanded refactor.
@@ -262,6 +262,30 @@ The fixture is 45,852 bytes, SHA-256
 `f1c6717d43ef25cf3e73df1229f8685a1cb5d29e5a82bed51d640a15924356a5`.
 No project under that title exists before the attempt; allocation 545 is the
 current baseline. Native rejection/cleanup remains pending.
+
+## Repeated-tag native rejection and cleanup — passed 2026-10-08
+
+The user received the expected localized plan-import error from the repeated-tag
+fixture. Dev-control confirms no project under **PDF plan XML repeated tags**
+or PID 545, zero inspected metadata/project-setting/EM-setting/user-rights rows
+for 545, allocation advanced to 546, and valid fixture plans/Core absence remain
+unchanged. Thus the native parser rejects multiple plans even when both are
+otherwise valid and identical. Native rejection and inspected cleanup pass.
+
+## Non-list JSON native fixture — prepared 2026-10-08
+
+Prepared `/tmp/pdf-plan-non-list-json.REDCap.xml`, accessible as
+`\\wsl.localhost\Ubuntu\tmp\pdf-plan-non-list-json.REDCap.xml`.
+Only the source's plan element changes to version `1` with `operations="{}"`.
+Independent parsing verifies one plan, a valid JSON object instead of a list,
+well-formed XML and no clinical subject records. The file is 45,733 bytes,
+SHA-256 `3335c1ceaf5b7928d85651ced06d38dbc8b65c079de6015a6a3a571aa7573ead`.
+The final planned malformed browser case attempts native creation as **PDF plan
+XML non-list JSON**; no project under that title exists before the attempt,
+and allocation 546 is the current baseline. Expect the localized plan-import
+error, not conversion to an explicit empty list. Native browser rejection and
+cleanup for this fixture remain pending. The separate native adapter test has
+already rejected this payload while preserving existing target state.
 
 ## Starting state
 
