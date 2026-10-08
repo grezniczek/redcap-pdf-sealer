@@ -79,6 +79,16 @@ an absent fixture enabled override. With the system default still off, the
 fixture remains disabled for this project. The Empty starting state is ready;
 this does not establish the later global-enable warning/skip result.
 
+**PDF Global Test — Placed**, PID **537**, was created in development status
+with no saved plan or fixture override. As superuser `gr`, the user enabled the
+fixture for this project; dev-control confirmed `enabled=true` and no automatic
+plan creation. The user saved `first`, `second`, `first` and confirmed the
+duplicate warning. After the user disabled the fixture, dev-control confirmed
+`enabled=false` with the exact saved plan
+`["pdf_finalize_acceptance:first","pdf_finalize_acceptance:second","pdf_finalize_acceptance:first"]`
+retained. The Placed starting state is ready; global enablement must later clear
+this disabled override while preserving every occurrence and its order.
+
 Disable the fixture through Control Center after testing, then remove only its
 copied development directory. Native system disable removes the active version
 but retains other settings; inspect these and use previewed, prefix-scoped
