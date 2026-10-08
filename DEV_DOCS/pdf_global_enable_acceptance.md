@@ -86,8 +86,10 @@ audits. Module discovery, global save, and cleanup are user-directed browser
 actions; the agent uses dev-control for read-only inspection. Existing automated
 Core/Framework skip/override tests do not replace these browser results.
 
-**Status:** source fixture installed in the shared development-module directory;
-system/project enablement and browser acceptance are pending. JSON and PHP syntax
+**Status:** source fixture installed and enabled at system level through the
+browser. Dev-control confirms registration ID 83, active version `v9.9.9`, and
+no system `enabled` setting, so the global project default remains off.
+Disposable project setup and global-enable browser acceptance are pending. JSON and PHP syntax
 checks pass on PHP 8.2/8.5. An isolated hook smoke check confirms both operations
 return nonterminal unchanged with either reservation flag and without an input
 file. Installed copies match the tracked fixture. No native bootstrap or live
