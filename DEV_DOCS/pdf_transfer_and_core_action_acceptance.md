@@ -6,7 +6,8 @@ pass. Native browser export with the plan selected and excluded also passes,
 and selected-plan native import passes stored-state and browser checks in PID 539.
 Excluded-file import preserved absent plan state in PID 540; its subsequent
 explicit-empty save/export/import passes, with stored `[]` in PID 541.
-Duplicate cases, existing-target replacement, rollback, complete PMT and
+Ordered duplicate/unavailable native import passes stored-state checks in PID 542.
+Its browser/re-export checks, existing-target replacement, rollback, complete PMT and
 enabled-action acceptance remain **pending**.
 Preserve previous sealing and enablement evidence; these are additional checks
 for the expanded refactor.
@@ -135,6 +136,19 @@ This is an intentionally edited import fixture, not an assertion that native
 export has already produced this list. Native import/browser retention followed
 by export of the resulting destination will test that round trip. No live
 settings/module registration/activation was changed during preparation.
+
+## Ordered duplicate/unavailable native import — stored state passed 2026-10-08
+
+The user created development project 542, **PDF plan XML import duplicates**,
+from the prepared fixture. Dev-control confirms the exact three-entry ordered
+plan shown above, absent Core workflow settings, zero target project settings
+for Sealer/the missing prefix, and the unchanged disabled Sealer system default.
+Native import therefore retains duplicate occurrences and an unregistered
+operation identifier without enabling or registering their modules. PHP 8.2
+read-only native preflight also passes on 542, including export-option routing,
+exact serialized list retention, shared controls and disabled Core configuration.
+Browser order/unavailable/duplicate warning presentation and its metadata-only
+re-export remain pending. No designer save was needed to retain the imported list.
 
 ## Starting state
 

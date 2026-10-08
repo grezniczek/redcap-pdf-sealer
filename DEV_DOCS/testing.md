@@ -1,5 +1,18 @@
 # Development and testing
 
+## Ordered duplicate/unavailable native XML import — 2026-10-08
+
+The user created PID 542 from the prepared three-entry fixture. Dev-control
+confirms exact order: `pdf_sealer:seal`,
+`pdf_finalize_transfer_missing:annotate`, `pdf_sealer:seal`. Core workflow
+settings are absent, there are zero target settings for either prefix, and
+Sealer's system default remains disabled. Native import preserves the unknown
+operation and duplicate occurrences without activation. The PHP 8.2 read-only
+native export/configuration preflight passes on 542. Browser warning/order and
+metadata-only re-export remain pending;
+[transfer acceptance](pdf_transfer_and_core_action_acceptance.md#ordered-duplicateunavailable-native-import--stored-state-passed-2026-10-08)
+records evidence and boundaries. Agent work was inspection/preflight/documentation.
+
 ## Explicit-empty native XML import and next fixture — 2026-10-08
 
 The user created PID 541 from the explicit-empty export. Dev-control confirms
