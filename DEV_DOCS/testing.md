@@ -1,5 +1,37 @@
 # Development and testing
 
+## Native XML rejection/cleanup and adapter rollback — 2026-10-08
+
+The user received the expected plan-import error from the version-2 fixture.
+Dev-control confirms no target/project metadata/settings/rights for allocation
+543 or its test title; allocation advanced to 544. Successful fixture plans
+539–542 and their absent Core workflow settings are unchanged.
+
+New `tests/pdf_plan_transfer_live.php` passes read-only preview and a native
+PHP 8.2 run on disposable PID 541. Actual Core adapter/repository tests verify
+existing/absent destinations, omitted versus explicit empty, ordered duplicate/
+unavailable identifiers and five malformed payloads. A temporary Core project-
+note sentinel and setting mutations are rolled back unconditionally; native
+readback verifies original setting ID/value/timestamps, Core absence and note/
+project activity. Dev-control independently confirms expected plans and PID
+541's restored null note/activity. PHP 8.2/8.5 syntax checks pass.
+
+```sh
+PDF_SEALER_LIVE_TEST=1 PDF_SEALER_TEST_PID=541 PDF_SEALER_TEST_USERNAME=gr \
+  php8.2 tests/pdf_plan_transfer_live.php --preview
+PDF_SEALER_LIVE_TEST=1 PDF_SEALER_TEST_PID=541 PDF_SEALER_TEST_USERNAME=gr \
+  php8.2 tests/pdf_plan_transfer_live.php --run
+```
+
+The run is a scoped native adapter transaction test, not full ODM replacement on
+an existing project. Writes use Core APIs; only transaction control uses direct
+SQL. Dev-control inspections confirm transactional storage and restored state;
+the tool cannot yet invoke application-service acceptance, a useful enhancement.
+No finalization, records, module activation, PKI, edoc or email action occurs.
+Prepared an empty-tag fixture for the next browser parser/rejection check.
+Evidence, provenance and precise limits are in
+[transfer acceptance](pdf_transfer_and_core_action_acceptance.md).
+
 ## Ordered duplicate/unavailable XML round trip — 2026-10-08
 
 The user confirmed PID 542's order and unavailable/duplicate warnings, then

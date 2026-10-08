@@ -9,11 +9,13 @@ browser view and the excluded import's empty view also pass. Inspections confirm
 no target Sealer settings/activation or Core test selections. PID 540 was then
 saved/exported as an explicit-empty source; its audit and imported 541 state are
 verified. PID 542 also passes ordered duplicate/unavailable native import,
-browser warnings and metadata-only re-export. A version-2 fixture is prepared
-for native rejection/failed-creation cleanup. Existing-target replacement and
-transaction rollback require a separate scoped native adapter test because the
-browser full metadata import route is project creation. Complete PMT and enabled
-Core test controls also remain pending. See
+browser warnings and metadata-only re-export. The version-2 fixture passes native
+rejection and inspected failed-creation cleanup. A separate previewed native
+Core adapter run on PID 541 passes existing-target replacement, malformed
+payload preservation and exact settings/project-note rollback. The browser full
+metadata import route remains project creation; the adapter test does not claim
+full existing-project ODM replacement. Empty/repeated-tag parser cases, complete
+PMT and enabled Core test controls remain pending. See
 [transfer acceptance](pdf_transfer_and_core_action_acceptance.md) for evidence,
 file provenance and the disposable fixtures. Earlier checkpoints below retain
 their dated scope.

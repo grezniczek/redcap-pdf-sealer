@@ -7,7 +7,8 @@ and selected-plan native import passes stored-state and browser checks in PID 53
 Excluded-file import preserved absent plan state in PID 540; its subsequent
 explicit-empty save/export/import passes, with stored `[]` in PID 541.
 Ordered duplicate/unavailable native import, browser and re-export pass in PID 542.
-Existing-target replacement, transaction rollback, malformed import cleanup, complete PMT and
+Unsupported-version rejection/cleanup and scoped native adapter replacement/rollback also pass.
+Remaining malformed parser cases, complete PMT and
 enabled-action acceptance remain **pending**.
 Preserve previous sealing and enablement evidence; these are additional checks
 for the expanded refactor.
@@ -186,6 +187,58 @@ cleanup alone does not prove rollback preserved a pre-existing target plan.
 Dev-control can inspect/preview database state but cannot run this application
 workflow; a native application-service acceptance runner would be a useful
 enhancement. No malformed import or live mutation is claimed by preparation.
+
+## Unsupported-version rejection and cleanup — passed 2026-10-08
+
+The user received the expected localized PDF execution-plan import error during
+native creation with the version-2 fixture. Dev-control confirms no project
+under the chosen title or PID 543, zero metadata/project-setting/EM-setting/user-
+rights rows for 543, and allocation advanced from 543 to 544. The four successful
+fixtures retain their expected plans and absent Core workflow settings. This
+establishes native parser/adapter rejection and the inspected failed-creation
+cleanup; it is separate from the existing-target transaction test below.
+
+## Native adapter replacement and transaction rollback — passed 2026-10-08
+
+Added `tests/pdf_plan_transfer_live.php` with read-only `--preview` and a
+rollback-contained `--run`. Native Design rights, exact disposable empty-fixture
+title, record-free status, disabled Sealer/Core gate, transactional tables and
+fresh-connection autocommit are checked before any mutation. Dev-control also
+confirmed the projects/settings tables are InnoDB. Preview and the PHP 8.2 run
+pass on PID 541 as `gr`; PHP 8.2/8.5 syntax checks pass.
+
+The actual Core adapter/repository retains ordered duplicates/unavailable
+identifiers, leaves an existing row exactly unchanged on omitted metadata,
+replaces a nonempty plan with explicit `[]`, and reports five malformed payloads
+without changing the preceding plan (unsupported version, JSON object, numeric
+identifier, multiple rows, empty row). It also verifies omitted/empty behavior
+after preparing absent state within the same transaction. A project-note
+sentinel written through Core's project helper and all temporary settings
+changes are unconditionally rolled back. Native readback verifies the original
+setting ID/value/timestamps, absent Core setting and project note/activity.
+Follow-up dev-control confirms all four fixture plans unchanged, PID 541's note
+null and activity timestamps still `2026-10-08 19:20:36`.
+
+This exercises native database replacement/validation and caller-owned rollback
+with actual Core APIs. It does not call full `ODM::parseOdm()` on an existing
+project or claim a browser metadata-replacement route. Transaction-control SQL
+is confined to the harness; application writes use Core helpers, not direct SQL
+data mutation. No record/activation/PKI/edoc/email action occurs. Temporary error
+logging is removed afterward. Dev-control does not yet provide this native
+application-service runner; preview and mutation inspection still use its tools.
+
+## Empty-tag native parser fixture — prepared 2026-10-08
+
+Prepared `/tmp/pdf-plan-empty-tag.REDCap.xml`, accessible as
+`\\wsl.localhost\Ubuntu\tmp\pdf-plan-empty-tag.REDCap.xml`.
+Only the selected source's plan element changes to
+`<redcap:PdfFinalizeExecutionPlan/>`. It is well-formed XML with exactly one
+attribute-free plan tag and no clinical subject records: 45,705 bytes, SHA-256
+`622a13b9949bac19aae040f3c91f037fa94310252db02d3953ad7f07f83ee0b2`.
+The next native browser creation attempt is **PDF plan XML empty tag** and must
+report a plan-import error. This checks the parser consumes an incomplete
+present tag instead of ignoring it as absent metadata. Native rejection/cleanup
+for this fixture remains pending; preparation changed no live project state.
 
 ## Starting state
 
