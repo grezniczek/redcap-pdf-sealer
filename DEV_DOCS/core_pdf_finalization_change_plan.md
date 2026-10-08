@@ -1,11 +1,108 @@
 # Core-owned PDF finalization — change plan
 
-**Status:** Core contracts, coordinator/provider wiring, plan management and PDF Sealer integration implemented; native backend, guided project plan-management browser, activation-request browser, global-enable browser, and fresh eConsent stored/downloaded artifact acceptance pass. Global-enable fixture and disposable project cleanup are verified complete. The corrected native enablement test's execution limitation is recorded in testing.
+**Status:** Core contracts, coordinator/provider wiring, plan management and PDF Sealer integration implemented; the completed backend/browser/eConsent acceptance and test-fixture cleanup remain valid. On 2026-10-08 the user expanded this refactor to include XML/PMT execution-plan transfer and a test-only Core terminal action with an enable/disable interface. Those integrations and their acceptance are pending, so the overall refactor is not yet complete. The corrected native enablement test's execution limitation is recorded in testing.
 
 **Date:** 2026-10-03.  
 **Scope:** REDCap Core, the External Module Framework, and PDF Sealer's integration contract.
 
 ## Implementation progress — 2026-10-04
+
+### Scope update: test-only Core terminal action and controls — 2026-10-08
+
+The user also requests a dummy Core terminal sealing action to exercise the
+enable/disable interface before a real signer and PKI are implemented. Keep this
+within Core; do not add a Framework feature or another EM for the action.
+This adds manual acceptance of a selected Core terminal step to the existing
+synthetic-action engine tests. XML/PMT transfer remains required in parallel.
+
+Required behavior:
+
+- Use the existing `PdfTerminalAction`, Core policy resolver, fixed-step preview,
+  and `terminal_action_reserved_for_core` contract. A selected test action runs
+  last, including without an EM plan/provider. PDF Sealer yields nonterminal
+  unchanged through its already implemented reservation handling.
+- Name and identify the action as a test action; no cryptographic sealing is
+  performed or claimed. A dummy success can return terminal unchanged bytes,
+  but the UI/log evidence must identify test finalization, not certification.
+  Existing sealed PDFs must not be presented as newly Core-certified.
+- Persist Core enablement separately from the designer's ordered EM list. Never
+  encode the Core action as a movable/removable EM operation. Apply the native
+  design/admin rights, CSRF, audit and persistence/recovery rules to its controls.
+  Runtime selection and preview must use the same stored setting and resolver.
+- Keep the placeholder unavailable for ordinary production use behind an
+  explicit development/test gate. Normal defaults are disabled. Enable it only
+  for disposable acceptance projects; afterward disable their settings and the
+  gate. Shipping an unsigned PDF must not be described as successful sealing.
+- Do not confuse action availability with signer readiness. The eventual real
+  action must retain a selected reservation when PKI prerequisites fail and
+  follow Core's failure policy, rather than falling back to EM sealing.
+- Test save/reopen, enable/disable, fixed final placement, EM yielding, Core-only
+  execution, unchanged bytes and deactivation. Preserve the completed EM-only
+  sealing regression and perform no PKI/key/certificate mutation for dummy tests.
+
+Control granularity is being clarified with the user: per project and PDF
+workflow is recommended; a single project-wide switch is the alternative.
+Core currently enumerates `econsent`, `record_pdf`, and `survey_pdf` workflows.
+Do not assume all eConsent-containing exports are governed eConsent snapshots.
+
+The XML/PMT slice must consider these new Core settings as well as the EM plan:
+declare which eventual production workflow choices are portable, while test
+gates/test-action activation must not become enabled on a destination through
+transfer. No runtime placeholder or enablement implementation is claimed here.
+
+### Scope update: XML/PMT execution-plan transfer — 2026-10-08
+
+The user requires project XML and Project Migration Tool transfer as part of
+Core execution-plan ownership. This supersedes the earlier deferral. Preserve
+the completed ownership/enablement acceptance; add the transfer work and its
+acceptance before closing the overall refactor. Actual Core sealing remains
+separate future work.
+
+Source inspection shows both workflows already use Core's ODM metadata path.
+`Classes/ODM.php::getOdmMetadata()` exports selected custom metadata;
+`ODM::parseOdm()` imports vendor extensions inside the metadata transaction.
+`Classes/ProjectMigration.php` provides the shared XML/PMT metadata checkboxes
+and migration-category labels, and `getRemoteProjectXML()` forwards the selected
+metadata options to the project-XML API. A Core-owned adapter can serve both
+workflows without a second PMT serializer or Framework/EM contract changes.
+
+Required implementation slice:
+
+1. Add a focused Core `PdfExecutionPlanOdmAdapter` using the existing
+   `PdfExecutionPlanRepository` for persistence and identifier-list validation.
+   Serialize only the ordered EM operation identifiers in a dedicated ODM
+   vendor extension. Keep the existing storage key for compatibility.
+2. Add a default-checked **PDF Finalization Execution Plan** option to the
+   shared XML/PMT metadata controls when a saved plan exists, including `[]`.
+   Honor selected-option exports, export-all, and ordinary project-XML API
+   exports using the existing ODM selection rules. Keep this independent of
+   eConsent settings and the separate EM-settings transfer option.
+3. Import through ODM's existing metadata transaction and error handling,
+   consuming the dedicated extension before generic table import. Validate
+   the whole payload before replacing a plan; malformed/ambiguous payloads or
+   persistence failure must produce an import error and roll back. Retain native
+   import authorization and audit behavior rather than treating import as a
+   designer-editor submission.
+4. Preserve exact order, duplicates, and unavailable identifiers. An omitted
+   extension leaves an existing target plan untouched; on a new target it leaves
+   the plan absent. An explicit `[]` creates/replaces an explicit empty plan.
+   Do not resolve identifiers against installed modules during import: operation
+   availability is destination state and is reported by the existing Core UI.
+5. Write no module-enablement settings or Core terminal-action policy from this
+   extension. Normal destination/global defaults and existing PMT module-disable
+   behavior remain authoritative. Do not execute finalization, transfer signing
+   identities/keys/project bindings, or transfer instance PKI.
+6. Add meaningful round-trip and integration tests: multiple operations,
+   duplicates, unavailable modules/operations, absent versus empty, existing
+   target plans, option exclusion, malformed payloads, persistence failure and
+   rollback. Retain direct-copy regressions. Exercise the native XML and PMT
+   paths with disposable projects, including metadata-only PMT, then verify
+   imported plan/status before destination module activation and execution after
+   deliberate activation where needed.
+
+No runtime transfer implementation or transfer acceptance is claimed by this
+scope update. Earlier XML/PMT tests established fresh destination identities
+after manual plan reassignment; they do not establish automatic plan transfer.
 
 ### Global-enable browser acceptance — 2026-10-08
 
@@ -297,7 +394,7 @@ Framework enablement can query Core for placement requirements and open/link the
 
 Retain the current identifier-list setting initially unless a concrete requirement justifies migration. Preserve order, duplicates, and unresolved identifiers. A setting-key rename requires explicit migration and coordinated capability detection.
 
-Core owns copy/transfer semantics. Preserve existing direct-copy behavior. XML/PMT plan transfer is a separately scoped deferred feature: moving ownership must not erase plans or claim missing transfer support is implemented. Test/document actual behavior; certificate and project-identity transfer is outside this refactor.
+Core owns copy/transfer semantics. Preserve existing direct-copy behavior and implement XML/PMT execution-plan transfer as part of this refactor. Preserve exact order, duplicates, unavailable identifiers and absent versus explicit empty state; honor existing metadata-selection controls. Omitted payloads must not erase existing target plans. Validate imported structure before persistence and use native import transaction/error handling. Transfer the plan without changing module activation or transferring signing identities, keys, project bindings or instance PKI. Test/document native XML and PMT behavior.
 
 Audit existing finalization callers:
 
@@ -378,6 +475,31 @@ Deliverable: future Core terminal actions require no further Framework or EM edi
 
 Suggested commit: `Verify Core terminal actions across PDF workflows`.
 
+### Slice 6 — Transfer execution plans through XML and PMT
+
+Add the Core ODM adapter and shared metadata-option integration described in the
+2026-10-08 scope update. Retain native module-activation semantics and transfer
+only the execution plan. Verify round trips, validation/rollback and native
+XML/PMT acceptance without repeating unrelated completed browser tests.
+
+Deliverable: Core-owned plans survive project XML and PMT transfer, alongside
+the already supported direct-copy path.
+
+Suggested commit: `Transfer PDF finalization execution plans through XML and PMT`.
+
+### Slice 7 — Exercise Core terminal-action enablement
+
+Implement the explicitly test-only Core terminal action and Core-owned controls
+described in the 2026-10-08 scope update. Confirm control granularity, keep normal
+defaults off, and exercise the selected fixed step through the existing engine.
+Finish acceptance with the dummy action and test gate deactivated. Actual
+cryptographic Core sealing and PKI remain separate future work.
+
+Deliverable: usable/tested Core enablement and reservation plumbing, with no
+active placeholder masquerading as a production sealer.
+
+Suggested commit: `Add test-only Core terminal finalization controls`.
+
 Coordinate dependent changes across repositories so development installations do not run mismatched contracts.
 
 ## 11. Acceptance criteria
@@ -393,10 +515,11 @@ Coordinate dependent changes across repositories so development installations do
 9. Reservation is per generation/workflow; unrelated workflows retain normal terminal behavior.
 10. Core actions run exactly once at the end. Failure cannot reopen EM processing.
 11. Editor, endpoints, enablement, and runtime agree on policy, fixed steps, warnings, and permissions.
-12. Existing plans and direct copies survive; XML/PMT limits are accurately tested/documented.
+12. Existing plans and direct copies survive; XML and PMT transfer preserve order, duplicates, unavailable identifiers and absent/empty semantics without implicitly enabling modules or transferring signing identities. Invalid imports roll back, and omitted/unselected plan metadata leaves existing target plans intact.
 13. Caller guards do not bypass Core-only actions, and nested paths do not finalize twice.
 14. Generation IDs and hashes correlate final/storage/delivery artifacts; action failure and commitment failure remain distinct.
 15. Add another synthetic terminal action for a different workflow using only Core code; frozen Framework and adapted EMs work unchanged.
+16. The test-only Core terminal action can be enabled/disabled through authorized Core controls, appears as the fixed terminal step, and causes EM Sealer to yield. It is clearly identified as a non-signing test action and is deactivated after acceptance; production defaults/gates cannot activate it accidentally through project transfer.
 
 Use focused engine/contract tests and relevant existing PDF Sealer suites. Reuse cryptographic/content-preservation tests where integration could change bytes. Repeat real storage/download signature/hash acceptance for changed delivery paths; unit tests do not establish browser, email, or Acrobat acceptance.
 
@@ -408,4 +531,4 @@ Built-in sealing is a separate later Core action. Its port includes PKI/provider
 
 Successful sealing as a delivery prerequisite is a separate workflow policy decision; this refactor establishes its enforcement mechanism.
 
-No PAdES B-LT/B-LTA, provider UI redesign, key/certificate replacement, module publication, or deferred XML/PMT transfer is included.
+No PAdES B-LT/B-LTA, provider UI redesign, key/certificate replacement, or module publication is included. XML/PMT execution-plan transfer is required within this refactor following the 2026-10-08 scope update.

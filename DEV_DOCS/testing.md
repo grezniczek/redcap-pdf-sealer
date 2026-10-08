@@ -1,5 +1,13 @@
 # Development and testing
 
+## Core test-action enablement acceptance added to scope — 2026-10-08
+
+The user also requests a test-only Core terminal action and enable/disable controls. This adds pending save/reopen, enable/disable, fixed-terminal-preview, EM-yielding and Core-only browser/runtime checks. The dummy must be explicitly non-signing, preserve PDF bytes, and remain behind a normally disabled development/test gate. Finish acceptance with its settings and gate deactivated. XML/PMT transfer must not activate the test placeholder on import. [The updated change plan](core_pdf_finalization_change_plan.md#scope-update-test-only-core-terminal-action-and-controls--2026-10-08) records requirements and the pending control-granularity choice. No runtime dummy or enablement implementation is claimed by this documentation update.
+
+## XML/PMT transfer acceptance added to scope — 2026-10-08
+
+The user now requires automatic execution-plan transfer through project XML and PMT as part of Core ownership. Existing guided browser and eConsent checks remain passed; this is a new pending acceptance slice. Use the [updated implementation/acceptance plan](core_pdf_finalization_change_plan.md#scope-update-xmlpmt-execution-plan-transfer--2026-10-08). Test the shared ODM adapter and native XML/PMT paths, including selected versus excluded metadata, multiple ordered/duplicate operations, unavailable identifiers, absent versus explicit empty, existing targets, invalid payloads and rollback. Verify destination activation behavior and no transferred signing identities. Earlier XML/PMT acceptance required manual plan assignment and does not establish this feature. No transfer implementation or new live mutation was performed during this scope update.
+
 ## Refactor browser acceptance and cleanup complete — 2026-10-08
 
 The user deleted disposable projects 536/537/538 through REDCap's normal UI. Independent dev-control reads confirm their soft-deletion timestamps (13:56:21, 13:56:34 and 13:56:45, instance local time), zero remaining settings/active version for fixture ID 83, exactly the original twelve pre-existing active Sealer-only plans, unchanged plan-audit baselines, and unchanged inspected Sealer version/default/524/533 enablement. The installed fixture directory and temporary staging files were removed; tracked fixture source remains. Historical project settings/audits and inert module registration remain normal retained metadata. [Global-enable acceptance](pdf_global_enable_acceptance.md) records the full procedure and evidence.

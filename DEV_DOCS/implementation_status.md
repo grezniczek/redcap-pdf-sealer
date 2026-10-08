@@ -1,5 +1,13 @@
 # PDF Sealer implementation status
 
+## Test-only Core terminal-action controls added to scope — 2026-10-08
+
+The user also requests a dummy terminal Core action for testing and building an enable/disable interface before real sealing and PKI are ported. Use the existing Core action/policy/reservation contracts, separate Core settings from the EM identifier list, identify the placeholder as non-signing test finalization, and keep it deactivated outside deliberate development acceptance. Control granularity is being clarified (per project/workflow recommended). XML/PMT transfer remains required and must not activate test gates/actions on import. [The updated plan](core_pdf_finalization_change_plan.md#scope-update-test-only-core-terminal-action-and-controls--2026-10-08) records the requirements; runtime implementation and acceptance remain pending.
+
+## XML/PMT execution-plan transfer required — 2026-10-08
+
+The user now requires XML export/import and Project Migration Tool execution-plan transfer within the Core-ownership refactor. The earlier deferral is superseded. Completed backend/browser/eConsent acceptance and cleanup remain valid, but overall refactor completion now requires this additional implementation and transfer acceptance. Core's shared ODM path and XML/PMT metadata controls provide the integration points; no Framework/EM contract change is expected. Transfer ordered identifiers with duplicates and unavailable entries preserved, distinguish absent from explicit empty, validate/roll back malformed imports, and leave destination activation and signing identities unchanged. [The updated change plan](core_pdf_finalization_change_plan.md#scope-update-xmlpmt-execution-plan-transfer--2026-10-08) records the implementation slice. No runtime transfer code has been added yet.
+
 ## Refactor browser acceptance and cleanup complete — 2026-10-08
 
 All guided browser acceptance is complete: project plan management, activation requests, global enable/disable, and the fresh eConsent stored/downloaded pathway. The user deleted the three disposable global-enable projects; dev-control confirms normal soft deletion, no fixture settings/active version, the original twelve active saved plans, unchanged audit baselines, and unchanged inspected Sealer state. Installed test code and temporary staging files are removed; tracked fixture source and normal historical metadata remain. [Testing](testing.md#refactor-browser-acceptance-and-cleanup-complete--2026-10-08) records final evidence and the corrected native-test execution limitation. No further browser acceptance slice is required. Production Core sealing and XML/PMT plan transport remain outside this refactor. Earlier entries retain their checkpoint status.
@@ -829,14 +837,16 @@ The new UUID, certificate, and public key differ from PIDs 524, 525, and 526. Th
 
 This completes the agreed PMT acceptance scope: the destination started without an inherited signer and issued its own identity on first sealing. PMT signer reuse was not separately tested; the earlier copy/XML reuse checks remain the available evidence for that behavior. No additional manual sealing check is pending for PID 527. Pipeline transfer remains deferred as described below.
 
-## Deferred: PDF finalization pipeline transfer
+<a id="deferred-pdf-finalization-pipeline-transfer"></a>
 
-**Later slice, explicitly deferred by the user.** Project XML export/import and the Project Migration Tool do not yet carry the PDF finalization execution plan. This is a missing integration in the Core/EM Framework PDF-finalization branches. The direct project-copy path already preserves the plan. Requiring manual reassignment in the XML/PMT tests was a workaround for this gap.
+## Required: PDF finalization pipeline transfer
 
-Scope for the later slice:
+**Required within the refactor, per the user's 2026-10-08 scope update.** This supersedes the earlier user deferral. Project XML export/import and the Project Migration Tool do not yet carry the PDF finalization execution plan. The direct project-copy path already preserves the plan. Requiring manual reassignment in the earlier XML/PMT tests was a workaround for this gap, not evidence of automatic transfer.
+
+Scope for the required transfer slice:
 
 - Add supported export/import and PMT transport for the ordered operation identifiers stored under `external_modules.pdf_finalize_execution_plan` in Core project settings.
-- Coordinate the Core serialization/migration paths with the Framework's execution-plan validation and storage APIs. Preserve operation order and distinguish an absent plan from an explicitly empty plan where those states have different meanings.
+- Use Core's shared ODM serialization/import paths and Core-owned execution-plan validation/storage APIs. Preserve operation order, duplicates, unavailable identifiers and absent versus explicitly empty plans. Omitted metadata leaves existing target plans untouched; malformed imports must fail through native transaction/error handling.
 - Preserve existing module-enablement behavior; transferring a plan must not implicitly enable a module. Define and test handling of operations whose modules are absent or disabled on the destination.
 - Transfer pipeline configuration only. Signing identities, project UUID bindings, private keys, and instance PKI stay outside project transfer.
 - Verify XML and PMT round-trips, including multiple ordered operations and empty/absent plans, and retain direct-copy behavior. Confirm the expected project status before module enablement and execution after explicit enablement.
