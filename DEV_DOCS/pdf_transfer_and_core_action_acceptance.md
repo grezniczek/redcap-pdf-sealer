@@ -10,7 +10,7 @@ Ordered duplicate/unavailable native import, browser and re-export pass in PID 5
 Unsupported-version rejection/cleanup and scoped native adapter replacement/rollback also pass.
 Empty-tag, repeated-tag and non-list JSON rejection/cleanup also pass. The planned
 XML acceptance matrix is complete, with existing-target rollback established by
-the scoped native adapter test. Complete cross-instance PMT and enabled-action
+the scoped native adapter test. Complete native PMT and enabled-action
 acceptance remain **pending**.
 Preserve previous sealing and enablement evidence; these are additional checks
 for the expanded refactor.
@@ -323,6 +323,26 @@ is pending because these instances serve other feature work. No code selection,
 instance database, project or migration key has been changed. Cross-instance
 PMT acceptance remains pending; a same-instance test would have narrower scope.
 
+## Intra-instance PMT acceptance selected — 2026-10-08
+
+The user points out that PMT also works within one instance. Source inspection
+of migration-key validation, API connection validation, metadata fetching and
+the project-creation route finds no rejection of an identical source/destination
+base URL. The normal destination Instance ID still must validate. We will use
+main as both source and destination with fresh disposable targets; no second
+slot or branch switch is needed, superseding the pending receiver-choice question.
+This exercises the native migration-key/API/ODM/project-creation/completion
+path. It does not establish cross-instance deployment or differing-version
+compatibility; those are separate from this plan-transfer acceptance.
+
+Source PID 542 retains the ordered duplicate/unavailable fixture. Dev-control
+reports `gr` has Design rights but no API Export right or API token there.
+Prepare API Export and a token through native project UI before generating a
+metadata-only key. Keep the token/key in the browser. Select leave-as-is for
+source completion; exclude records, logs, files and EM settings. The Core test
+gate remains off. This checkpoint changes documentation only; no rights, token,
+key, project or slot configuration has yet been changed by the agent.
+
 ## Starting state
 
 - Main development instance: Core v17.5.3. PID 524 has one
@@ -373,7 +393,7 @@ PMT acceptance remains pending; a same-instance test would have narrower scope.
 1. Use a disposable source with an ordered plan containing duplicates and an
    unavailable identifier. Confirm the shared plan option is checked, including
    for an explicit-empty fixture; absent plans offer no option.
-2. Perform native **metadata-only** PMT to the second development instance with
+2. Perform native **metadata-only** PMT to a fresh project on main with
    the plan option selected. Inspect destination order/unavailable/empty state
    and category label. No plan-specific records/data queue is needed. Destination
    module disabling remains native PMT behavior; no test gate/selection or PKI

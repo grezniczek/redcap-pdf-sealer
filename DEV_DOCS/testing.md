@@ -1,5 +1,21 @@
 # Development and testing
 
+## Intra-instance PMT acceptance preparation — 2026-10-08
+
+Following the user’s clarification, use main for both ends of native PMT.
+Source inspection finds no same-instance prohibition in key validation,
+connection testing, metadata fetch or project creation. The normal destination
+Instance ID still applies. This supersedes the pending second-slot choice;
+no deployment change is needed. Actual PMT acceptance remains pending.
+
+Dev-control confirms `gr` has Design rights on source PID 542 but lacks API
+Export rights/token. Prepare those through native UI, then test metadata-only
+PMT with leave-as-is and fresh disposable targets. Keep credentials/keys in
+the browser; exclude data, files, logs and EM settings. See
+[transfer acceptance](pdf_transfer_and_core_action_acceptance.md#intra-instance-pmt-acceptance-selected--2026-10-08).
+This slice changes documentation only; no live rights/settings/configuration
+were changed.
+
 ## Native XML acceptance checkpoint and PMT readiness — 2026-10-08
 
 The user received the expected error for `operations="{}"`. Dev-control confirms
