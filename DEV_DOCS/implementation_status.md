@@ -1,5 +1,17 @@
 # PDF Sealer implementation status
 
+## Core-only native PDF delivery passes; Sealer handoff next
+
+PID 550 record 1’s unsigned browser download matches the Core completed-pipeline
+and artifact-commit hashes. Correlated events show empty EM plan, one terminal
+`core:test_terminal` unchanged result, no signing, zero modifications and allowed
+commit. The user reports no seal in Acrobat; qpdf structure checks pass. Existing
+Record PDFs-only settings and empty EM list remain unchanged. The scoped test
+bootstrap is prepared for late project initialization on survey requests; 524
+remains gate-off. Sealer’s native eConsent handoff, read-only rights, disabling/
+clearing and cleanup are the remaining acceptance slices. See
+[transfer acceptance](pdf_transfer_and_core_action_acceptance.md#core-only-native-record-pdf--passed-artifact-2026-10-08).
+
 ## Planned XML/PMT transfer acceptance complete; Core controls next — 2026-10-08
 
 Selected and excluded browser exports pass. Native creation/import preserves one

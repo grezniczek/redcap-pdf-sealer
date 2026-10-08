@@ -1,5 +1,24 @@
 # Development and testing
 
+## Core-only native record-PDF execution/delivery — artifact 2026-10-08
+
+The user supplied record 1’s PID 550 download and reported no seal in Acrobat.
+Captured events show reserved `core:test_terminal`, unchanged terminal success,
+zero accepted modifications, one invocation and browser artifact commitment.
+Pipeline, artifact and independent download SHA-256/size all match. qpdf reports
+no syntax/stream errors; pdfsig reports no signatures with an NSS warning, so
+no certificate-validation claim is made. Dev-control confirms unchanged plans/
+Core selections and no inspected PID 550 Sealer binding/failure/timestamp logs.
+Evidence is in [transfer acceptance](pdf_transfer_and_core_action_acceptance.md#core-only-native-record-pdf--passed-artifact-2026-10-08).
+
+The untracked temporary bootstrap now also invokes its scoped gate/capture from
+the native before-render hook for late project initialization. PHP 8.2/8.5 lints
+and native probes pass: 550 available, 524 unavailable/unchanged. The native
+eConsent fixture needs survey/eConsent setup because PMT omitted those options.
+Sealer handoff, read-only rights, deactivation/clearing and cleanup remain pending.
+The user generated the record/PDF; agent work was inspection and scoped temporary
+test preparation/documentation.
+
 ## Core workflow controls native acceptance — 2026-10-08
 
 The user confirmed all four PID 550 browser checks: enabled non-signing controls,
