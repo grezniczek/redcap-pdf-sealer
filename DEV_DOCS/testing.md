@@ -1,5 +1,22 @@
 # Development and testing
 
+## Explicit-empty PMT acceptance and scoped Core test window — 2026-10-08
+
+The user created PID 550 from 540 and confirmed the empty pipeline. Dev-control
+verifies stored `[]`, completed migration 5 with leave-as-is/cleared migration
+credentials, zero destination records/EM settings and absent Core selections.
+The read-only PHP 8.2 native preflight passes before gate activation. Selected,
+excluded and explicit-empty native intra-instance PMT now pass; no cross-instance
+compatibility claim is made.
+
+Prepared an untracked temporary bootstrap for PID 550 only, linted on PHP 8.2/
+8.5. A previewed, guarded single-row native hook configuration update exposes
+the Core test gate there. Read-only native probes show 550 available with no
+selection and 524 unavailable with its accepted plan unchanged. There remain
+zero Core workflow rows; 550’s Core-settings audit baseline is zero. Browser
+controls/runtime acceptance and restoring the original empty hook configuration
+remain pending. See [transfer acceptance](pdf_transfer_and_core_action_acceptance.md#scoped-core-test-gate--prepared-and-activated-2026-10-08).
+
 ## Excluded native intra-instance PMT acceptance — 2026-10-08
 
 The user created PID 549 with optional components deselected and confirmed an

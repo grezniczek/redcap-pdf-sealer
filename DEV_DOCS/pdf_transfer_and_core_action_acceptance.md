@@ -12,8 +12,10 @@ Empty-tag, repeated-tag and non-list JSON rejection/cleanup also pass. The plann
 XML acceptance matrix is complete, with existing-target rollback established by
 the scoped native adapter test. Selected-plan native intra-instance PMT passes
 in PID 548, including completion and stored/browser destination checks. Excluded
-PMT also passes in PID 549, preserving absent plan state. Explicit-empty PMT
-and enabled-action acceptance remain **pending**.
+PMT also passes in PID 549, preserving absent plan state; explicit-empty PMT
+passes in PID 550 with stored `[]`. The planned native XML/PMT transfer checks
+are complete. Enabled-action acceptance remains **pending**, with a temporary
+test gate scoped only to PID 550 and no workflows selected yet.
 Preserve previous sealing and enablement evidence; these are additional checks
 for the expanded refactor.
 
@@ -411,6 +413,60 @@ unresolved and no empty-selection runtime defect is claimed or patched.
 The native selection/import result passes. Browser validation category and
 explicit-empty PMT remain next checks. Source 540 currently needs native API
 Export/token preparation for the explicit-empty case.
+
+## Explicit-empty native intra-instance PMT — passed 2026-10-08
+
+The user created PID 550, **PDF plan PMT empty**, from source 540 and confirmed
+an empty destination pipeline. Dev-control verifies a stored execution-plan row
+with exact `[]` in source and destination, absent Core workflow settings, zero
+destination EM settings and zero records. This distinguishes an explicitly
+configured empty plan from the absent plan retained by excluded target 549.
+Selected target 548 retains the three-entry plan.
+
+Migration row 5 records origin 540, destination 550, `leave_as_is`, start
+`2026-10-08 22:27:02` and end `2026-10-08 22:28:42` (database timestamps).
+The target is active/development and migration status is `COMPLETED`; migration
+token/signature are cleared (Boolean-only inspection), and inspected data/EM-
+settings/logging/file-repository queue fields are null. Native read-only PHP 8.2
+transfer/configuration preflight passes on 550 before the test gate is enabled.
+The user reported the empty view; source default checkbox and validation label
+were not separately reported, while native helper/default/category checks pass.
+
+Selected, excluded and explicit-empty native intra-instance PMT now pass their
+creation/completion, stored-state and reported destination browser checks. The
+planned native XML/PMT transfer matrix is complete; cross-instance deployment
+and differing-version compatibility are outside the intra-instance result.
+Enabled Core control/runtime acceptance and cleanup remain pending.
+
+## Scoped Core test gate — prepared and activated 2026-10-08
+
+Use disposable PID 550 for Core-only controls/runtime acceptance. Before
+activation, native preflight confirms the gate is off; dev-control finds zero
+Core workflow rows instance-wide and zero Core-settings audits for 550. Its
+EM plan remains `[]`, and no modules or records are present.
+
+Temporary `/tmp/pdf-core-terminal-test-bootstrap-550.php` defines Boolean
+`REDCAP_PDF_FINALIZATION_TEST_ACTION=true` only when `PROJECT_ID` is 550. It
+contains no hook functions, signing/PKI access or PDF mutations. PHP 8.2/8.5
+syntax checks pass; the file is mode 644 for native web-process reads. After
+dev-control preview (standard risk, exactly one expected row), a guarded update
+sets main’s previously empty `hook_functions_file` to that path. Execution
+affects exactly one config row. This uses Core’s existing native hook bootstrap
+and changes no tracked runtime file or other project settings. The preview/
+execution warning about trigger/cascade row counts is generic; the guarded
+configuration row is the sole requested target.
+
+Read-only native bootstrap probes confirm availability true for 550 and false
+for accepted PID 524; both have no selected Core workflows, and their EM plans
+remain respectively `[]` and `["pdf_sealer:seal"]`. Instance-wide workflow-row
+count remains zero. The gate exposes the non-signing test action for 550 only;
+actual reservation still requires a deliberate native workflow save. Browser
+save/reopen/no-op/cancel and native PDF execution remain pending.
+
+Cleanup must clear test workflow selections through the native UI, preview and
+restore `hook_functions_file` to its original empty string with a guard matching
+this exact temporary path, then remove the exact temporary bootstrap/probe files.
+Do not commit the bootstrap or leave the gate active after acceptance.
 
 ## Starting state
 

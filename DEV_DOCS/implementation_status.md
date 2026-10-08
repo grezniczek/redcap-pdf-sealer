@@ -1,6 +1,6 @@
 # PDF Sealer implementation status
 
-## XML acceptance complete; selected/excluded intra-instance PMT pass — 2026-10-08
+## Planned XML/PMT transfer acceptance complete; Core controls next — 2026-10-08
 
 Selected and excluded browser exports pass. Native creation/import preserves one
 sealing identifier in PID 539, absence in PID 540 before its deliberate empty
@@ -23,8 +23,12 @@ cleared migration credentials, zero destination records/EM settings and absent
 Core selections. Excluded PMT to 549 also completes and preserves absent plan
 state, with no records/EM settings/Core selections; its empty editor is confirmed.
 Both destinations pass read-only native preflight. An observed Working delay
-eventually resolved; its cause is undiagnosed. Explicit-empty PMT and enabled
-Core test controls remain pending. See
+eventually resolved; its cause is undiagnosed. Explicit-empty PMT from 540 to
+550 also completes with stored `[]`, no records/EM settings/Core selections
+and a confirmed empty editor. The planned native XML/PMT matrix is complete.
+A temporary native hook bootstrap now exposes the non-signing Core test action
+only in disposable 550; native probes verify 524 remains gate-off/unchanged.
+No workflows are selected yet. Core controls/runtime and cleanup remain pending. See
 [transfer acceptance](pdf_transfer_and_core_action_acceptance.md) for evidence,
 file provenance and the disposable fixtures. Earlier checkpoints below retain
 their dated scope.
