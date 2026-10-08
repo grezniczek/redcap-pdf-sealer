@@ -1,5 +1,18 @@
 # Development and testing
 
+## Selected execution-plan native XML import — 2026-10-08
+
+The user created PID 539 from the selected metadata-only XML. Dev-control confirms
+the imported exact `["pdf_sealer:seal"]` plan, absent Core workflow setting,
+zero Sealer project settings and disabled effective Sealer enablement (system
+default false, no project override). Source PID 524's plan/enablement remain
+unchanged. This verifies native project-creation import and stored state;
+destination browser presentation, absent/empty/duplicate and existing-target
+cases, malformed import rollback, complete PMT and enabled Core controls remain
+pending. [Transfer acceptance](pdf_transfer_and_core_action_acceptance.md#selected-plan-native-import--stored-state-passed-2026-10-08)
+records the disposable target and boundaries. The agent performed inspection
+and documentation only; project creation was through the user's native UI.
+
 ## Excluded execution-plan browser XML export — 2026-10-08
 
 After unchecking only the plan option, the user supplied

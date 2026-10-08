@@ -2,8 +2,10 @@
 
 Implementation checkpoint: 2026-10-08. Isolated regressions, native read-only
 export/configuration preflight on PID 524 and real Sealer-to-Core runner handoff
-pass. Native browser export with the plan selected and excluded also passes;
-import/rollback, complete PMT and enabled-action acceptance remain **pending**.
+pass. Native browser export with the plan selected and excluded also passes,
+and selected-plan native import has verified stored-state evidence in PID 539.
+Destination UI, absent/empty/duplicate cases, rollback, complete PMT and
+enabled-action acceptance remain **pending**.
 Preserve previous sealing and enablement evidence; these are additional checks
 for the expanded refactor.
 
@@ -33,6 +35,19 @@ markers. The file is 45,587 bytes, SHA-256
 This completes the selected/excluded metadata-only browser export pair. Native
 import/rollback and destination behavior remain pending. Keep both exports for
 the disposable target checks.
+
+## Selected-plan native import — stored state passed 2026-10-08
+
+The user created development project 539, **PDF plan XML import included**, from
+the selected export through native REDCap project creation. Dev-control confirms
+the active, non-deleted target has the exact stored `["pdf_sealer:seal"]` plan,
+no Core terminal workflow setting and no Sealer project settings. Sealer's system
+default remains disabled; the target has no enabled/version override. Source
+PID 524 still has its original plan and enabled Sealer override. Thus native
+import preserves the identifier without activating the module or adding Sealer
+project PKI/settings. Target browser retained-unavailable presentation is the
+next check. Absent/empty/duplicates, existing-target replacement, rollback and
+complete PMT acceptance remain pending. Keep 539 for these disposable tests.
 
 ## Starting state
 
