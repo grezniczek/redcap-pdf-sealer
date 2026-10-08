@@ -1,5 +1,16 @@
 # Development and testing
 
+## Excluded execution-plan browser XML export — 2026-10-08
+
+After unchecking only the plan option, the user supplied
+`PDFSealerTest_2026-10-08_1611.REDCap.xml` and reported the plan group/tag absent.
+Independent parsing confirms well-formed XML, no plan/group tags, no clinical
+subject records and no Core test activation markers. Size/hash are recorded in
+[transfer acceptance](pdf_transfer_and_core_action_acceptance.md#excluded-plan-browser-export--passed-2026-10-08).
+The selected/excluded browser export pair now passes. Native import/rollback,
+complete PMT and enabled Core test-control acceptance remain pending. This was
+file inspection/documentation only; no live mutation was performed by the agent.
+
 ## Selected execution-plan browser XML export — 2026-10-08
 
 The user confirmed PID 524's default-checked plan option and downloaded metadata

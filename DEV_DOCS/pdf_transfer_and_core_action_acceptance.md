@@ -2,7 +2,7 @@
 
 Implementation checkpoint: 2026-10-08. Isolated regressions, native read-only
 export/configuration preflight on PID 524 and real Sealer-to-Core runner handoff
-pass. Native browser export with the plan selected also passes; exclusion,
+pass. Native browser export with the plan selected and excluded also passes;
 import/rollback, complete PMT and enabled-action acceptance remain **pending**.
 Preserve previous sealing and enablement evidence; these are additional checks
 for the expanded refactor.
@@ -21,6 +21,18 @@ activation markers. Dev-control confirms the source's saved plan matches and
 its Core workflow setting remains absent. No import/activation was performed.
 This establishes selected metadata-only browser export; it does not establish
 excluded export or native destination behavior. Keep this file for import tests.
+
+## Excluded-plan browser export — passed 2026-10-08
+
+The user unchecked only the plan option and supplied
+`C:\Users\grezn\Downloads\PDFSealerTest_2026-10-08_1611.REDCap.xml`, reporting
+that the plan group/tag is absent. Independent parsing confirms well-formed XML,
+zero plan/group tags, zero clinical subject records and no Core test activation
+markers. The file is 45,587 bytes, SHA-256
+`d3c1e6af041cf4b6e1c76a350667a01ebe74507e59eba16515b0a2446329bc25`.
+This completes the selected/excluded metadata-only browser export pair. Native
+import/rollback and destination behavior remain pending. Keep both exports for
+the disposable target checks.
 
 ## Starting state
 
