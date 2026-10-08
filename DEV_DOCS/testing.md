@@ -1,5 +1,17 @@
 # Development and testing
 
+## Selected native intra-instance PMT acceptance — 2026-10-08
+
+The user created PID 548 from source 542 and confirmed unavailable/duplicate
+editor warnings. Dev-control confirms exact ordered duplicate/unavailable plan
+retention, native migration 3 COMPLETED with leave-as-is and cleared migration
+credentials, no destination records/EM settings/Core selections, and unchanged
+source state. Sealer remains disabled. The native read-only PHP 8.2 transfer
+preflight passes on 548. Evidence and precise browser/cross-instance boundaries
+are in [transfer acceptance](pdf_transfer_and_core_action_acceptance.md#selected-plan-native-intra-instance-pmt--passed-2026-10-08).
+Excluded/explicit-empty PMT and enabled Core terminal controls remain pending.
+Agent work was inspection/preflight/documentation; the user performed PMT.
+
 ## PMT source API prerequisites verified — 2026-10-08
 
 The user enabled API Export and created a token for `gr` on source PID 542.

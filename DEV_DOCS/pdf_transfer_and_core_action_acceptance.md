@@ -10,8 +10,9 @@ Ordered duplicate/unavailable native import, browser and re-export pass in PID 5
 Unsupported-version rejection/cleanup and scoped native adapter replacement/rollback also pass.
 Empty-tag, repeated-tag and non-list JSON rejection/cleanup also pass. The planned
 XML acceptance matrix is complete, with existing-target rollback established by
-the scoped native adapter test. Complete native PMT and enabled-action
-acceptance remain **pending**.
+the scoped native adapter test. Selected-plan native intra-instance PMT passes
+in PID 548, including completion and stored/browser destination checks. Excluded/
+explicit-empty PMT and enabled-action acceptance remain **pending**.
 Preserve previous sealing and enablement evidence; these are additional checks
 for the expanded refactor.
 
@@ -354,6 +355,36 @@ establishes source readiness, not completed native PMT transfer. The user will
 generate a metadata-only key using main’s destination Instance ID and
 leave-as-is, then create a fresh destination on main. Actual PMT completion,
 destination plan/activation and browser warnings remain pending.
+
+## Selected-plan native intra-instance PMT — passed 2026-10-08
+
+The user created PID 548, **PDF plan PMT included**, on main from source 542
+and confirmed unavailable-operation and duplicate warnings in the destination
+editor. Dev-control verifies the exact source/destination ordered list:
+`["pdf_sealer:seal","pdf_finalize_transfer_missing:annotate","pdf_sealer:seal"]`.
+Both projects remain active in development and source 542 is unchanged.
+
+Native migration row 3 records origin 542, destination 548, source API
+`https://dev-redcap/api/`, version 17.5.3, completion action `leave_as_is`,
+start `2026-10-08 21:53:18` and end `2026-10-08 21:54:02` (database timestamps).
+The destination project status is `COMPLETED`; migration token/signature columns
+are cleared, verified only as Booleans. Inspected data/file/EM-settings/logging/
+email-log/file-repository/PDF-archive queue fields are null. Native data inspection
+finds zero destination records.
+
+There are zero EM setting rows in either fixture and no Core workflow setting.
+Sealer’s system default remains false, installed version v9.9.9, with no target
+override, so the retained sealing identifiers do not enable it. The read-only
+PHP 8.2 native export/configuration preflight passes on 548, including selected/
+excluded PMT routing, shared option/category, disabled Core gate and preserved
+settings. No cryptographic finalization is invoked by these inspections.
+
+This establishes a completed native migration-key/API/ODM/project-creation/
+completion path within one instance and destination warnings. The user did not
+separately report source default-checkbox/key-validation-label or cancellation
+checks; category/default behavior has native preflight evidence. Cross-instance
+deployment compatibility is outside this intra-instance result. Excluded and
+explicit-empty native PMT cases remain pending. No agent live mutation occurred.
 
 ## Starting state
 
