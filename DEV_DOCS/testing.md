@@ -1,5 +1,17 @@
 # Development and testing
 
+## Explicit-empty source fixture save and native preflight — 2026-10-08
+
+The user saved the empty EM list in PID 540. Dev-control confirms stored `[]`
+and absent Core workflow settings, plus one native plan-change audit (1394,
+`gr`, data `[]`). PHP 8.2 native read-only export/configuration preflight passes
+on this explicit-empty source, including selected/excluded/all XML, API/PMT
+option routing and the default-checked plan option. Browser export/import of
+`[]` remains pending; the earlier absent import state was intentionally changed
+by this designer save. [Transfer acceptance](pdf_transfer_and_core_action_acceptance.md#explicit-empty-source-save--passed-2026-10-08)
+records the state transition. Agent work was inspection/preflight/documentation;
+the user performed the native save.
+
 ## Excluded-import empty editor preserves absent plan — 2026-10-08
 
 The user confirmed PID 540's assigned-operation list is empty. A subsequent

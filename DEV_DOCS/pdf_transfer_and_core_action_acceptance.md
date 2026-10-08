@@ -4,7 +4,7 @@ Implementation checkpoint: 2026-10-08. Isolated regressions, native read-only
 export/configuration preflight on PID 524 and real Sealer-to-Core runner handoff
 pass. Native browser export with the plan selected and excluded also passes,
 and selected-plan native import passes stored-state and browser checks in PID 539.
-Excluded-file import preserves absent plan state in PID 540. Explicit-empty and
+Excluded-file import preserves absent plan state in PID 540. Explicit-empty transfer and
 duplicate cases, rollback, complete PMT and
 enabled-action acceptance remain **pending**.
 Preserve previous sealing and enablement evidence; these are additional checks
@@ -75,6 +75,19 @@ the Core workflow setting. The browser inspection therefore preserves absent
 plan state. Cancellation was requested but not separately reported; the empty
 presentation and unchanged stored state are independently recorded. The next
 deliberate step is saving the empty list to create an explicit `[]` source fixture.
+
+## Explicit-empty source save — passed 2026-10-08
+
+The user clicked Save & Close with no assigned operations in PID 540. Dev-control
+confirms its previously absent execution-plan setting is now stored as `[]`,
+while the Core workflow setting remains absent. Native audit lookup finds one
+`Modify PDF finalization execution plan` event, ID 1394, attributed to `gr`, with
+`[]` data. The read-only native preflight also passes on 540: selected/excluded
+and export-all XML, ordinary API/PMT option routing, shared default-checked
+metadata option/category and disabled Core configuration all preserve the
+explicit-empty setting. Browser export of this fixture and native import of its
+empty tag remain pending. PID 540 is now deliberately an explicit-empty source;
+the earlier absent-state evidence records its pre-save checkpoint.
 
 ## Starting state
 
