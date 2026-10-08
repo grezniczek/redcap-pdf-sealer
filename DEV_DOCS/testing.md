@@ -1,5 +1,18 @@
 # Development and testing
 
+## Excluded execution-plan native XML import — 2026-10-08
+
+The user created PID 540 from the excluded metadata-only XML. Dev-control confirms
+the execution-plan and Core workflow settings are both absent, zero Sealer project
+settings, and unchanged disabled Sealer system default. PID 539 still holds its
+selected-file plan. Thus omitted-tag import preserves absent state on a new
+target without creating an explicit empty setting or enabling Sealer. Destination
+empty-editor/cancel checks, explicit-empty/duplicate plans, existing-target
+replacement/rollback, complete PMT and enabled Core controls remain pending.
+[Transfer acceptance](pdf_transfer_and_core_action_acceptance.md#excluded-plan-native-import--stored-state-passed-2026-10-08)
+records the second disposable target. Project creation was through the user's UI;
+agent work was read-only inspection and documentation.
+
 ## Imported execution-plan destination browser checks — 2026-10-08
 
 In PID 539 the user confirmed the imported sealing assignment is retained and

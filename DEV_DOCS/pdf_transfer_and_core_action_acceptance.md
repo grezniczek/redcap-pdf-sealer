@@ -4,7 +4,8 @@ Implementation checkpoint: 2026-10-08. Isolated regressions, native read-only
 export/configuration preflight on PID 524 and real Sealer-to-Core runner handoff
 pass. Native browser export with the plan selected and excluded also passes,
 and selected-plan native import passes stored-state and browser checks in PID 539.
-Absent/empty/duplicate cases, rollback, complete PMT and
+Excluded-file import preserves absent plan state in PID 540. Explicit-empty and
+duplicate cases, rollback, complete PMT and
 enabled-action acceptance remain **pending**.
 Preserve previous sealing and enablement evidence; these are additional checks
 for the expanded refactor.
@@ -55,6 +56,18 @@ disabled, and Cancel closes normally. Follow-up dev-control reads confirm the
 plan remains `["pdf_sealer:seal"]` and Core workflow settings remain absent.
 Selected-file native import and retained-unavailable browser presentation pass.
 No module activation or designer save was performed during this check.
+
+## Excluded-plan native import — stored state passed 2026-10-08
+
+The user created development project 540, **PDF plan XML import excluded**, from
+the excluded export through native project creation. Dev-control confirms the
+active, non-deleted target has neither an execution-plan setting nor a Core
+terminal workflow setting. There are zero Sealer project settings; the unchanged
+disabled system default leaves Sealer disabled. PID 539 retains its imported
+`["pdf_sealer:seal"]` plan and absent Core workflow setting. This establishes
+omitted-tag import leaves a new destination plan absent; it did not create `[]`.
+Opening/canceling the empty destination editor is the next browser check, before
+deliberately saving an explicit-empty source fixture. No agent mutation occurred.
 
 ## Starting state
 
