@@ -1,5 +1,9 @@
 # PDF Sealer implementation status
 
+## Activation placement cancellation refinement — 2026-10-08
+
+The user accepts the approval version fix, but canceling Core placement in the To-Do iframe exposed an empty outer popup. At the user's request, Framework cancellation now closes that popup through the native frame helper and refreshes the To-Do list, preserving the pending request. Direct approval pages retain their retry button. Five focused controller checks pass, including the regression that fails before the change; JavaScript syntax/whitespace checks pass. Dev-control confirms request 14 pending, Sealer disabled and plan empty. [Testing](testing.md#activation-placement-cancellation-closes-the-to-do-popup--2026-10-08) records the pending browser retest and subsequent successful approval check.
+
 ## Activation approval version fix — 2026-10-08
 
 The user-created activation request 14 for PID 533 exposed an empty module version in the administrator approval page: the Core candidate-preview request failed with HTTP 400. The Framework page now explicitly resolves the installed version and uses it for configuration and approval controls. The isolated actual-page rendering regression in `tests/pdf_activation_request_view.php` fails before the fix and passes on PHP 8.2/8.5 afterward, with empty/stale ambient versions; syntax/whitespace checks pass. Core validation is unchanged. Dev-control confirms the request remains pending, plan empty and Sealer disabled. [Testing](testing.md#activation-request-approval-version-fix--2026-10-08) records the evidence and pending browser retry/cancel/approval checks.

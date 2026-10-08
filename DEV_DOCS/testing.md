@@ -1,5 +1,13 @@
 # Development and testing
 
+## Activation placement cancellation closes the To-Do popup — 2026-10-08
+
+The user reports that the installed-version fix makes request 14's Core placement dialog load correctly. Canceling it through the administrator To-Do iframe then left the outer request popup empty. The screenshot establishes this presentation failure; independent dev-control inspection confirms request 14 remained pending, the plan `[]`, and Sealer disabled.
+
+At the user's request, Framework `manager/js/project.js` now invokes Core's existing `closeToDoListFrame()` helper from the placement cancellation callback when approval runs in an iframe. That helper dismisses the outer request popup and refreshes the parent To-Do page; it does not update request status. A directly opened approval page retains its enabled retry button. Core already invokes the cancellation callback after its dialog has finished closing, so no Core dialog change is needed.
+
+Run `node --test tests/pdf_activation_request_ui.js`. Five focused checks against the real Framework controller with isolated DOM/enablement/frame doubles cover iframe cancellation, direct-page retry, errors retaining the frame, iframe success closure, and direct-page success acknowledgement/redirect. The iframe cancellation check failed before the change; all five pass afterward. JavaScript syntax and whitespace checks pass. These checks send no requests, email or native mutations; actual browser cancellation/reopening remains to be retested on request 14 before successful approval.
+
 ## Activation-request approval version fix — 2026-10-08
 
 The user added non-admin `test` with Design rights to PID 533, saved an explicit empty plan as `gr` (native plan audit 1080), disabled Sealer, and submitted its native activation request as `test`. Dev-control identifies request **14**, pending for PID 533. Request submission preserves `[]` and the disabled Sealer override.
@@ -18,7 +26,7 @@ The next activation-request browser sequence is:
 
 1. Use PID 533 as the test fixture. Save an explicit empty Core plan and disable Sealer; retain the original one-operation plan/enabled state for restoration. Use a test requester account with project Design rights whose module control offers Request Activation.
 2. Submit one native activation request. Verify a pending To-Do entry while Sealer remains disabled and the plan remains `[]`.
-3. As an administrator, open that request and choose Enable. Expect the Core placement dialog. Cancel it: the request must remain pending, Sealer disabled and the plan empty. Reopening the request must permit another attempt.
+3. As an administrator, open that request and choose Enable. Expect the Core placement dialog. Cancel it: the To-Do popup must close, while the request remains pending, Sealer disabled and the plan empty. Reopening the request must permit another attempt. A directly opened approval page instead retains its usable Enable button.
 4. Retry, add one sealing operation, and choose Save & Enable. Expect the normal approval success/To-Do closure, a completed request, Sealer enabled and exactly one saved sealing assignment. Inspect the plan-change audit and request ID before declaring this branch passed.
 
 At this preflight, notification authorization and a requester were outstanding; the subsequent user-directed walkthrough with `test` is recorded above. The instance has `send_emails_admin_tasks=1`, so native request creation sends the project administrator email (`manager/ajax/send-enable-module-request.php`). Successful approval also sends the requester email from `ExternalModules::finalizeModuleActivationRequest()`, independently of that setting. Do not treat turning off administrator-task emails as suppressing the approval notification. Request creation and request completion alone do not prove email delivery.
