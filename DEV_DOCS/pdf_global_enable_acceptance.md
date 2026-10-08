@@ -89,6 +89,33 @@ duplicate warning. After the user disabled the fixture, dev-control confirmed
 retained. The Placed starting state is ready; global enablement must later clear
 this disabled override while preserving every occurrence and its order.
 
+**PDF Global Test — Default**, PID **538**, was created in development status
+and left untouched. Dev-control confirmed no saved Core plan and no fixture
+enabled override. The final pre-global-save read verified all three starting
+states: 536 has `[]`/no override; 537 has the exact three-operation plan/`false`;
+538 has no plan/no override. Fixture version remains `v9.9.9`, with no system
+`enabled` setting. PDF Sealer remains globally disabled and enabled in 524/533.
+
+The saved-plan baseline consists of the two fixture plans plus twelve existing
+plans, all exactly `["pdf_sealer:seal"]`, in PIDs 461, 524, 525, 526, 527, 528,
+529, 530, 531, 532, 533 and 534. All fourteen configured projects are active.
+Therefore the expected skipped-project list is those twelve existing PIDs plus
+536; 537 and 538 must be excluded. No saved plan may be changed or created by
+the global save.
+
+Native plan-audit baseline (`count` / latest `log_event_id`, filtered to
+`Modify PDF finalization execution plan`):
+
+- `redcap_log_event13`: 532 = 1/1032, 533 = 6/1082, 536 = 1/1086,
+  537 = 1/1090.
+- `redcap_log_event14`: 524 = 1/1028, 526 = 1/1055, 527 = 1/1077,
+  528 = 1/1105, 529 = 1/1125, 530 = 1/1137, 531 = 3/1234.
+- `redcap_log_event15`: 461 = 17/1246, 534 = 1/1346.
+
+There are no matching plan audits for 525 or 538. These counts and latest IDs
+must remain unchanged during the global toggle. Global-enable browser results
+remain pending.
+
 Disable the fixture through Control Center after testing, then remove only its
 copied development directory. Native system disable removes the active version
 but retains other settings; inspect these and use previewed, prefix-scoped
@@ -107,7 +134,8 @@ Core/Framework skip/override tests do not replace these browser results.
 **Status:** source fixture installed and enabled at system level through the
 browser. Dev-control confirms registration ID 83, active version `v9.9.9`, and
 no system `enabled` setting, so the global project default remains off.
-Disposable project setup and global-enable browser acceptance are pending. JSON and PHP syntax
+Disposable project setup is complete in PIDs 536/537/538; global-enable browser
+acceptance is pending. JSON and PHP syntax
 checks pass on PHP 8.2/8.5. An isolated hook smoke check confirms both operations
 return nonterminal unchanged with either reservation flag and without an input
 file. Installed copies match the tracked fixture. No native bootstrap or live
