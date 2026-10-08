@@ -1,5 +1,9 @@
 # PDF Sealer implementation status
 
+## Global-enable fixture ready — 2026-10-08
+
+An inert development fixture with two nonterminal unchanged operations is installed for the remaining global-enable browser test. Source, syntax/no-file reservation smoke checks and a concrete three-project procedure are in [global-enable acceptance](pdf_global_enable_acceptance.md). Native system enablement and disposable project setup remain pending. Preparation made no live database mutation; PIDs 524/533's Sealer plans/enablement remain unchanged. The fixture uses the shared main instance, so cleanup includes its skip overrides on existing configured projects while preserving their plans and Sealer settings.
+
 ## Activation-request browser acceptance complete — 2026-10-08
 
 The user passed native request submission as `test`, administrator placement loading, cancellation with outer-popup closure and pending-state preservation, and reopening/approval with one sealing assignment in PID 533. Independent dev-control inspection confirms request 14 completed by `gr`, Sealer enabled, `["pdf_sealer:seal"]`, and the corresponding plan/module audits (1082/1083). The fixture's original plan/enablement is restored. [Testing](testing.md#activation-request-browser-acceptance-complete--2026-10-08) records the evidence and scoped notification limitation. Global-enable UI acceptance remains pending with isolated fixture state.

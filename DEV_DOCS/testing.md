@@ -1,5 +1,11 @@
 # Development and testing
 
+## Inert global-enable browser fixture prepared — 2026-10-08
+
+The test-only `pdf_finalize_acceptance_v9.9.9` module is installed in the shared development-module directory, with tracked source under `tests/fixtures/`. Its `first` and `second` declarations are nonterminal; both return unchanged without reading/writing a PDF. No PKI, page hooks, cron, email, links or defaults are included. JSON/PHP syntax checks and isolated no-file hook checks pass on PHP 8.2/8.5, including either reservation flag. Installed files match the tracked source. No system/project registration or live mutation was performed by the agent; native enablement is the next user browser step. Dev-control confirms PIDs 524/533 retain their single Sealer assignment and enablement.
+
+[Global-enable acceptance](pdf_global_enable_acceptance.md) records the empty/placed/absent-plan matrix, warning expectations, duplicate/order preservation, and cleanup. Use three new disposable projects and this fixture's global setting. The main instance is shared: other configured plans can receive this fixture's disabled skip overrides, which must be inspected and cleaned without changing their plans or PDF Sealer settings. System disable alone does not remove all settings; remaining fixture settings need previewed, prefix-scoped cleanup. No global-enable browser pass is claimed yet.
+
 ## Activation-request browser acceptance complete — 2026-10-08
 
 The user reports successful approval of request **14** after reopening it through the administrator To-Do List, adding the sealing operation once and choosing Save & Enable. Independent read-only `redcap_devctl` inspection confirms the request is `completed`, attributed to `gr` at **2026-10-08 12:24:58** instance local time. PID 533's saved plan is `["pdf_sealer:seal"]` and Sealer's project enabled override is `true`.

@@ -1,0 +1,30 @@
+{
+    "name": "PDF Finalization Acceptance (test only)",
+    "namespace": "DE\\RUB\\PdfFinalizeAcceptanceExternalModule",
+    "description": "Local development fixture for PDF operation placement and global enablement. Its two operations leave PDFs unchanged.",
+    "authors": [
+        {
+            "name": "Development test fixture",
+            "email": "noreply@example.invalid",
+            "institution": "Local development"
+        }
+    ],
+    "framework-version": 16,
+    "compatibility": {
+        "php-version-min": "8.2.0"
+    },
+    "pdf-finalize": [
+        {
+            "id": "first",
+            "purpose": "First unchanged operation (test only)",
+            "document_types": ["*"],
+            "is_terminal": false
+        },
+        {
+            "id": "second",
+            "purpose": "Second unchanged operation (test only)",
+            "document_types": ["*"],
+            "is_terminal": false
+        }
+    ]
+}
