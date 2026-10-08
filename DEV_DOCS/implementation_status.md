@@ -1,5 +1,9 @@
 # PDF Sealer implementation status
 
+## Refactor browser acceptance and cleanup complete — 2026-10-08
+
+All guided browser acceptance is complete: project plan management, activation requests, global enable/disable, and the fresh eConsent stored/downloaded pathway. The user deleted the three disposable global-enable projects; dev-control confirms normal soft deletion, no fixture settings/active version, the original twelve active saved plans, unchanged audit baselines, and unchanged inspected Sealer state. Installed test code and temporary staging files are removed; tracked fixture source and normal historical metadata remain. [Testing](testing.md#refactor-browser-acceptance-and-cleanup-complete--2026-10-08) records final evidence and the corrected native-test execution limitation. No further browser acceptance slice is required. Production Core sealing and XML/PMT plan transport remain outside this refactor. Earlier entries retain their checkpoint status.
+
 ## Global-enable fixture removed — 2026-10-08
 
 Native system disable, previewed removal of eighteen remaining fixture settings, and removal of the exact installed source copies are complete. Follow-up checks confirm no active fixture settings or installed directory, unchanged saved plans/audit baselines, and unchanged inspected Sealer state. Tracked fixture source remains for regressions. [Testing](testing.md#global-enable-fixture-cleanup--2026-10-08) records the cleanup scope. Disposable projects 536/537/538 remain for browser cleanup.

@@ -1,6 +1,6 @@
 # Core-owned PDF finalization — change plan
 
-**Status:** Core contracts, coordinator/provider wiring, plan management and PDF Sealer integration implemented; native backend, guided project plan-management browser, activation-request browser, global-enable browser, and fresh eConsent stored/downloaded artifact acceptance pass. Disposable global-enable project cleanup remains pending.
+**Status:** Core contracts, coordinator/provider wiring, plan management and PDF Sealer integration implemented; native backend, guided project plan-management browser, activation-request browser, global-enable browser, and fresh eConsent stored/downloaded artifact acceptance pass. Global-enable fixture and disposable project cleanup are verified complete. The corrected native enablement test's execution limitation is recorded in testing.
 
 **Date:** 2026-10-03.  
 **Scope:** REDCap Core, the External Module Framework, and PDF Sealer's integration contract.
@@ -9,7 +9,9 @@
 
 ### Global-enable browser acceptance — 2026-10-08
 
-The inert test fixture passed the skipped-project warning, checkbox persistence, project availability and global-disable transition checks across explicit empty, placed/disabled, and absent plans. Independent dev-control reads confirm preservation of all saved plans, native plan-audit baselines and inspected Sealer state. Explicit disabled overrides remain authoritative; the initial acceptance expectation and native test fixture were corrected accordingly, without production changes. The fixture's active version, settings and installed source copies are removed; disposable projects 536/537/538 remain for browser cleanup. [Global-enable acceptance](pdf_global_enable_acceptance.md) records the evidence and the corrected native test's execution limitation.
+The user subsequently deleted all three disposable projects through the native UI. Dev-control confirms their soft deletion, zero fixture settings/active version, the original twelve active Sealer-only plans, unchanged audit baselines and inspected Sealer state. [Final acceptance](testing.md#refactor-browser-acceptance-and-cleanup-complete--2026-10-08) closes the guided browser checklist; older progress entries below retain their historical status.
+
+The inert test fixture passed the skipped-project warning, checkbox persistence, project availability and global-disable transition checks across explicit empty, placed/disabled, and absent plans. Independent dev-control reads confirm preservation of all saved plans, native plan-audit baselines and inspected Sealer state. Explicit disabled overrides remain authoritative; the initial acceptance expectation and native test fixture were corrected accordingly, without production changes. The fixture's active version, settings and installed source copies are removed; disposable projects 536/537/538 are confirmed soft-deleted. [Global-enable acceptance](pdf_global_enable_acceptance.md) records the evidence and the corrected native test's execution limitation.
 
 ### Activation approval correction — 2026-10-08
 

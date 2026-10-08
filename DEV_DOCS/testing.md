@@ -1,5 +1,11 @@
 # Development and testing
 
+## Refactor browser acceptance and cleanup complete — 2026-10-08
+
+The user deleted disposable projects 536/537/538 through REDCap's normal UI. Independent dev-control reads confirm their soft-deletion timestamps (13:56:21, 13:56:34 and 13:56:45, instance local time), zero remaining settings/active version for fixture ID 83, exactly the original twelve pre-existing active Sealer-only plans, unchanged plan-audit baselines, and unchanged inspected Sealer version/default/524/533 enablement. The installed fixture directory and temporary staging files were removed; tracked fixture source remains. Historical project settings/audits and inert module registration remain normal retained metadata. [Global-enable acceptance](pdf_global_enable_acceptance.md) records the full procedure and evidence.
+
+Guided project plan-management, activation-request placement/cancel/reopen/approval, global enable/disable, and fresh eConsent stored/downloaded acceptance are now complete for the implemented refactor. The corrected database-dependent native enablement test has syntax validation and browser evidence but has not been executed through its native bootstrap; this remains the scoped testing limitation described below. Production Core sealing and XML/PMT plan transport remain deferred features. Earlier entries record their state at each checkpoint.
+
 ## Global-enable fixture cleanup — 2026-10-08
 
 The user system-disabled the fixture through Control Center; dev-control confirmed no active version remained. Previewed, prefix-and-ID-scoped cleanup removed exactly eighteen remaining fixture settings (four system, fourteen project overrides); follow-up inspection confirms zero settings for module ID 83. The two installed source copies matched the tracked fixture and were removed with their empty directory through reviewed escalation. Temporary staging files were removed; tracked test source remains. All fourteen saved plans and all three plan-audit baselines still match, and Sealer's inspected state is unchanged. The inert registry entry remains normal Framework metadata. Disposable projects 536/537/538 still require browser cleanup; the agent did not delete projects or change their plans.

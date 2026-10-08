@@ -2,6 +2,13 @@
 
 ## Fixture — 2026-10-08
 
+**Acceptance and cleanup: passed.** The user completed the browser sequence and
+deleted the three disposable projects. Final dev-control inspection confirms
+they are soft-deleted, the fixture has no settings/active version, and all twelve
+pre-existing active execution plans and the inspected Sealer state are intact.
+The installed fixture directory is absent; tracked test source is retained.
+The setup and intermediate checks below record their state at each step.
+
 Use the local development module **PDF Finalization Acceptance (test only)**,
 prefix `pdf_finalize_acceptance`, directory `pdf_finalize_acceptance_v9.9.9`.
 Its source is retained in `tests/fixtures/pdf_finalize_acceptance_v9.9.9/` and
@@ -161,6 +168,17 @@ at version `v9.9.9`, globally disabled and enabled in 524/533. Disposable projec
 fixture assignments removed before retention. No project deletion or plan
 mutation was performed by the agent.
 
+Final project cleanup: the user deleted all three projects through REDCap's
+normal browser UI. Dev-control confirms `date_deleted` values on 2026-10-08 at
+13:56:21 for 536, 13:56:34 for 537, and 13:56:45 for 538 (instance local time).
+This is REDCap's normal soft deletion; historical project settings and audits
+are retained. Core's active-project placement query excludes these projects.
+The remaining twelve active saved plans exactly match the original Sealer-only
+baseline. All three plan-audit count/latest-ID baselines still match. Registry
+ID 83 still has zero settings, and Sealer remains globally disabled at version
+`v9.9.9`, with 524/533 enabled and their single sealing assignments intact.
+Browser acceptance and fixture/project cleanup are complete.
+
 Disable the fixture through Control Center after testing, then remove only its
 copied development directory. Native system disable removes the active version
 but retains other settings; inspect these and use previewed, prefix-scoped
@@ -173,7 +191,8 @@ Keep this source fixture and the test results in the module checkout.
 
 Record actual project IDs, browser warning text/list, saved states and native
 audits. Module discovery, global save, and cleanup are user-directed browser
-actions; the agent uses dev-control for read-only inspection. Existing automated
+actions; the agent uses dev-control for inspection and previewed fixture-settings
+cleanup. Existing automated
 Core/Framework skip/override tests do not replace these browser results.
 
 **Status:** fixture system-disabled, all its settings removed and its installed
@@ -181,9 +200,9 @@ directory removed; tracked source retained. Disposable project setup and testing
 are complete in PIDs 536/537/538. The global-enable warning and resulting stored
 states pass with explicit disabled overrides preserved. Browser checkbox
 persistence, all three availability checks and the global-disable transition
-pass. Disposable project cleanup remains pending. JSON and PHP syntax
+pass. Disposable project cleanup is verified complete. JSON and PHP syntax
 checks pass on PHP 8.2/8.5. An isolated hook smoke check confirms both operations
 return nonterminal unchanged with either reservation flag and without an input
 file. Installed copies match the tracked fixture. No native bootstrap or live
 database mutation occurred during preparation. Sentinel plans/Sealer state are
-unchanged. Full global-enable browser acceptance is not yet complete.
+unchanged. Full global-enable browser acceptance and cleanup are complete.
