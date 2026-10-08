@@ -16,6 +16,7 @@ Start here for implementation, testing, acceptance evidence, and release mainten
 | --- | --- |
 | [Implementation status](implementation_status.md) | Current summary followed by chronological implementation and verification notes |
 | [Core-owned PDF finalization change plan](core_pdf_finalization_change_plan.md) | Agreed refactor: Core coordinator and execution-plan management, Framework operation discovery/dispatch, reserved terminal actions, and PDF Sealer adaptation |
+| [Plan transfer and Core test-action acceptance](pdf_transfer_and_core_action_acceptance.md) | Pending native XML/PMT and development-only terminal action browser checks; isolated/native export preflight evidence |
 | [Automatic built-in PKI maintenance](builtin_pki_lifecycle_plan.md) | Implemented cron-based root/TSA/project renewal, root/project/TSA revocation/recovery, viewer-trust boundaries and implementation slices |
 | [Providers and certificate lifecycle](provider_lifecycle_design.md) | Planned CA providers, local key/CSR enrollment, CC-only timestamp policies and fallbacks, and lifecycle implementation sequence |
 | [Testing](testing.md) | Commands and prerequisites formerly mixed into the root README |
@@ -38,7 +39,7 @@ These preserve design rationale and earlier evidence. Their proposed behavior an
 | [Core/Framework finalization plan](redcap_module_pdf_finalize_implementation_plan.md) | Integration design history, including examples unrelated to current module functionality |
 | [Finalization PR description](redcap_module_pdf_finalize_pr_description.md) | Historical Core/Framework change description |
 | [2026-09-23 live acceptance](live_acceptance_2026-09-23.md) | Earlier finalizer/demo evidence, predating current cryptographic sealing acceptance |
-| [PDF finalization pipeline transfer](implementation_status.md#deferred-pdf-finalization-pipeline-transfer) | Deferred Core/Framework slice: preserve pipeline configuration through project XML and PMT; direct copy already transfers it |
+| [Earlier PDF finalization pipeline transfer deferral](implementation_status.md#deferred-pdf-finalization-pipeline-transfer) | Superseded on 2026-10-08: Core ODM transfer is implemented; native import/PMT acceptance remains pending |
 | [CA providers UI redesign](provider_lifecycle_design.md#deferred-ca-providers-ui-redesign--2026-09-30) | Provider management dialogs and a shared Projects overview are implemented; see [current UI acceptance](testing.md#shared-projects-overview--2026-10-04) |
 | [Core footer-link change request](redcap_core_pdf_link_change.md) | Deferred; the EM currently handles inline links and no Core change is scheduled |
 | [Licensing brief](license.md) | Completed implementation brief; results and ongoing procedure are in release licensing |

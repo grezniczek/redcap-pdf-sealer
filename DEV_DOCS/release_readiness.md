@@ -1,5 +1,12 @@
 # PDF Sealer v1 readiness review
 
+The entries below record their dated candidate/package baselines. The subsequent
+Core-ownership refactor now includes implemented XML/PMT execution-plan transfer
+and disabled Core terminal test controls; native import/PMT and enabled-control
+acceptance remain pending. Consult [current status](implementation_status.md)
+before using the older baselines for release compatibility. No new package,
+release tag or publication is implied by the refactor.
+
 ## Current release-candidate status — 2026-10-04
 
 At the user's request, the current module state is designated a **release candidate for the current REDCap Core and EM Framework implementation of `redcap_module_pdf_finalize`**. The UI refinement round is complete. The hook implementation and contract may still change; compatibility must be reviewed against the eventual released Core/Framework contract.

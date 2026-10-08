@@ -1,5 +1,62 @@
 # Development and testing
 
+## XML/PMT transfer and Core test-action implementation — 2026-10-08
+
+Implemented Core's versioned ODM adapter, native export/import wiring and shared
+XML/PMT option/category, plus separately persisted Core workflow controls and a
+non-signing terminal unchanged test action. Its development gate is undefined
+and disabled in the installed instance; dev-control reports zero rows for
+`pdf_finalization.core_terminal_workflows`. No live activation, import, record,
+edoc or PKI mutation was performed for this slice.
+
+Verification:
+
+- Core PHPUnit: **124 tests, 476 assertions**, PHP 8.2/8.5. New coverage includes
+  real ODM serialization plus adapter round trips, malformed payloads, absent
+  and explicit empty, duplicates/unavailable entries, excluded test settings,
+  persistence error reporting, selector validation, runtime/preview policy,
+  Core-only path/bytes, endpoint rights/CSRF, audit failure and recovery.
+- Editor Node tests: **16 pass**, including separate Core saves, preserved
+  unsaved selections/EM assignments, busy handling, failed save retry, gate-off
+  clearing and viewer/activation-dialog restrictions.
+- Framework isolated `PdfFinalizeTest`: **32 tests, 193 assertions**, PHP 8.2/8.5
+  against installed Core. No Framework files changed in this slice.
+- Sealer `tests/core_terminal_reservation.php` and
+  `tests/project_pipeline_status.php`: PHP 8.2/8.5 pass. The reservation test now
+  sends the real Sealer service through the Core runner: Sealer is nonterminal
+  unchanged, `core:test_terminal` runs last, success metadata denies signing,
+  and original bytes remain unchanged without touching Framework services/PKI.
+- Native read-only `tests/pdf_core_transfer_preflight.php`, PHP 8.2/8.5, PID 524 as `gr`:
+  selected/excluded/export-all XML, ordinary API inclusion, PMT selected/excluded
+  routing, default-checked shared option, category label, disabled Core controls
+  and unchanged settings pass. It exports only in memory and prints no metadata.
+
+All sixteen changed/new PHP files pass syntax checks on PHP 8.2/8.5. Editor
+JavaScript syntax, language INI parsing and repository whitespace checks pass.
+Follow-up dev-control reads confirm the original twelve active Sealer-only plans,
+Sealer's disabled system default/installed version and enabled 524/533 overrides
+are unchanged; there are still no Core test selections.
+
+Run the native preflight only against a development instance with actual project
+membership and the test gate disabled:
+
+```sh
+PDF_SEALER_LIVE_TEST=1 PDF_SEALER_TEST_PID=524 PDF_SEALER_TEST_USERNAME=gr \
+  php8.2 tests/pdf_core_transfer_preflight.php
+```
+
+These tests do **not** establish native XML import transaction rollback, project
+creation, complete remote PMT transfer, or browser save/reopen with the Core gate
+temporarily enabled. Use [the acceptance procedure](pdf_transfer_and_core_action_acceptance.md).
+The earlier database-dependent native Framework override test remains unexecuted
+through its native bootstrap; its existing browser evidence remains valid.
+
+Use dev-control for DB/edoc inspection and preview mutations. A supported native
+application-service acceptance runner/disposable project creation would improve
+dev-control: its read-only SQL tools cannot exercise ODM's native application
+transaction or a full PMT workflow. The CLI preflight exercises application
+helpers directly; it performs no direct SQL mutations.
+
 ## Core test-action enablement acceptance added to scope — 2026-10-08
 
 The user also requests a test-only Core terminal action and enable/disable controls. This adds pending save/reopen, enable/disable, fixed-terminal-preview, EM-yielding and Core-only browser/runtime checks. The dummy must be explicitly non-signing, preserve PDF bytes, and remain behind a normally disabled development/test gate. Finish acceptance with its settings and gate deactivated. XML/PMT transfer must not activate the test placeholder on import. [The updated change plan](core_pdf_finalization_change_plan.md#scope-update-test-only-core-terminal-action-and-controls--2026-10-08) records requirements and the pending control-granularity choice. No runtime dummy or enablement implementation is claimed by this documentation update.

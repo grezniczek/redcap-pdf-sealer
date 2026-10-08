@@ -1,11 +1,50 @@
 # Core-owned PDF finalization — change plan
 
-**Status:** Core contracts, coordinator/provider wiring, plan management and PDF Sealer integration implemented; the completed backend/browser/eConsent acceptance and test-fixture cleanup remain valid. On 2026-10-08 the user expanded this refactor to include XML/PMT execution-plan transfer and a test-only Core terminal action with an enable/disable interface. Those integrations and their acceptance are pending, so the overall refactor is not yet complete. The corrected native enablement test's execution limitation is recorded in testing.
+**Status:** Core contracts, coordinator/provider wiring, plan management and PDF Sealer integration implemented; prior backend/browser/eConsent acceptance remains valid. The expanded XML/PMT execution-plan transfer and test-only Core terminal action/controls are now implemented. Isolated regressions, native read-only export/configuration preflight, and real Sealer-to-Core test-action handoff pass. Native import/rollback, end-to-end PMT, and enabled test-action browser acceptance remain pending. The development gate is disabled and no project has Core test activation. The corrected native enablement test's execution limitation remains recorded in testing.
 
 **Date:** 2026-10-03.  
 **Scope:** REDCap Core, the External Module Framework, and PDF Sealer's integration contract.
 
 ## Implementation progress — 2026-10-04
+
+### XML/PMT and Core test-action implementation — 2026-10-08
+
+Core's `PdfExecutionPlanOdmAdapter` serializes a version-1
+`redcap:PdfFinalizeExecutionPlan` extension with an `operations` JSON list.
+`pdffinalizationplan` is the shared XML/PMT metadata option; saved plans, including
+explicit `[]`, offer it checked by default. Ordinary API exports include it;
+PMT still honors its selected options. Import consumes the extension before
+generic table import, validates it without operation discovery, and stores it
+inside ODM's existing metadata transaction. Duplicate/unavailable identifiers
+and absent-versus-empty semantics are preserved. It transports no Core test
+activation, module enablement or PKI state.
+
+The controls use the recommended per-project/per-workflow scope for `econsent`,
+`record_pdf`, and `survey_pdf`. A separate Core setting,
+`pdf_finalization.core_terminal_workflows`, is saved through
+`PdfFinalization/save-core-settings.php` with native rights, captured CSRF,
+verified persistence, audit and recovery. The existing editor saves Core
+selections separately from the EM identifier list and refreshes fixed terminal
+previews through Core. Unsaved Core choices survive EM-order preview redraws.
+
+`REDCAP_PDF_FINALIZATION_TEST_ACTION === true` is an explicit development gate;
+it is undefined/disabled on the installed instance. `core:test_terminal` returns
+terminal unchanged with `test_only: true` and `cryptographic_seal_applied: false`.
+Selected workflows require that action's success. With the gate off, no test
+reservation occurs; the controls can still clear stale selections. Test choices
+are not portable through XML/PMT. A future production action can extend Core's
+selection, action and controls without changing Framework or EM contracts;
+production PKI failure must retain its selected reservation.
+
+Core's 124 tests/476 assertions and Framework's 32 tests/193 assertions pass on
+PHP 8.2/8.5; all 16 editor tests pass. A native read-only preflight on PID 524
+passes actual selected/excluded/export-all XML, API/PMT option routing, shared
+controls/category and disabled Core configuration. The real Sealer service also
+passes Core-runner handoff without Framework/PKI side effects or changed bytes.
+Native import rollback and complete PMT/browser acceptance are not established
+by these checks. Follow [the acceptance procedure](pdf_transfer_and_core_action_acceptance.md)
+before closing the expanded refactor. Earlier scope entries below record their
+pre-implementation checkpoint.
 
 ### Scope update: test-only Core terminal action and controls — 2026-10-08
 

@@ -1,5 +1,27 @@
 # PDF Sealer implementation status
 
+## XML/PMT transfer and disabled Core terminal test controls implemented — 2026-10-08
+
+The expanded Core slice is implemented: a versioned ODM execution-plan adapter,
+shared XML/PMT metadata option, transactional import integration, and separate
+Core workflow controls with permissions/CSRF/audit/recovery. Transfer preserves
+ordered duplicate and unavailable identifiers plus absent/explicit-empty state;
+it does not enable EMs or transfer Core test selections/PKI. The Core dummy
+`core:test_terminal` explicitly performs no signing and preserves PDF bytes.
+Per-project/workflow selections are behind an undefined, normally disabled
+development gate. Dev-control confirms no project has a Core workflow selection.
+
+Core's 124 tests/476 assertions and Framework's 32 tests/193 assertions pass on
+PHP 8.2/8.5, as do all 16 editor tests and focused Sealer status/reservation
+checks. The real Sealer-to-Core test-action handoff passes. Native read-only
+preflight on PID 524 verifies actual XML/API/PMT export selection, shared options
+and disabled Core configuration without changing project settings. See
+[testing](testing.md#xmlpmt-transfer-and-core-test-action-implementation--2026-10-08).
+Native XML import/rollback, complete PMT transfer and enabled test-action browser
+acceptance remain pending; [the procedure](pdf_transfer_and_core_action_acceptance.md)
+defines those next slices. No Framework or Sealer runtime change was needed.
+Earlier entries retain their historical checkpoint scope.
+
 ## Test-only Core terminal-action controls added to scope — 2026-10-08
 
 The user also requests a dummy terminal Core action for testing and building an enable/disable interface before real sealing and PKI are ported. Use the existing Core action/policy/reservation contracts, separate Core settings from the EM identifier list, identify the placeholder as non-signing test finalization, and keep it deactivated outside deliberate development acceptance. Control granularity is being clarified (per project/workflow recommended). XML/PMT transfer remains required and must not activate test gates/actions on import. [The updated plan](core_pdf_finalization_change_plan.md#scope-update-test-only-core-terminal-action-and-controls--2026-10-08) records the requirements; runtime implementation and acceptance remain pending.
