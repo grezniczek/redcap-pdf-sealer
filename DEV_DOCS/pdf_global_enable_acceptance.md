@@ -121,8 +121,11 @@ system `enabled=true` setting, exactly those thirteen new `false` skip overrides
 the retained `false` override in 537, and no override in 538. All fourteen saved
 plans and all three audit-table count/latest-ID baselines match exactly; 538's
 plan remains absent. PDF Sealer's system default and 524/533 enabled settings are
-unchanged. Browser persistence/availability checks, global disable and cleanup
-remain pending.
+unchanged. The user reopened system configuration and confirmed the global
+default checkbox remained checked without saving again. The user then verified
+fixture availability in the browser: 536 disabled, 537 disabled, 538 enabled
+through the global default. All three match the corrected matrix. Global
+disable and cleanup remain pending.
 
 The original procedure incorrectly expected global enablement to clear 537's
 explicit disabled override. Source inspection and the native browser save show
@@ -151,8 +154,9 @@ Core/Framework skip/override tests do not replace these browser results.
 **Status:** source fixture installed and enabled at system level through the
 browser; registration ID 83, active version `v9.9.9`. Disposable project setup
 is complete in PIDs 536/537/538. The global-enable warning and resulting stored
-states pass with explicit disabled overrides preserved. Browser persistence and
-availability, global disable and cleanup remain pending. JSON and PHP syntax
+states pass with explicit disabled overrides preserved. Browser checkbox
+persistence and all three availability checks pass. Global disable and cleanup
+remain pending. JSON and PHP syntax
 checks pass on PHP 8.2/8.5. An isolated hook smoke check confirms both operations
 return nonterminal unchanged with either reservation flag and without an input
 file. Installed copies match the tracked fixture. No native bootstrap or live

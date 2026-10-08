@@ -1,8 +1,8 @@
 # PDF Sealer implementation status
 
-## Global-enable warning and stored-state checks pass — 2026-10-08
+## Global-enable browser and stored-state checks pass — 2026-10-08
 
-The global-enable warning matches the expected thirteen skipped projects. Independent dev-control reads confirm their disabled overrides, preservation of all saved plans and audit baselines, no automatic plan in PID 538, and unchanged Sealer state. PID 537's explicit disabled override is correctly retained; the initial acceptance expectation and native test fixture were corrected to reflect Framework's existing semantics. No production implementation changed. [Testing](testing.md#global-enable-warning-and-stored-state-checks--2026-10-08) records syntax/isolated-suite verification and the unexecuted native-test limitation. Browser persistence/availability checks, global disable and fixture cleanup remain pending.
+The global-enable warning matches the expected thirteen skipped projects. Independent dev-control reads confirm their disabled overrides, preservation of all saved plans and audit baselines, no automatic plan in PID 538, and unchanged Sealer state. The user confirmed checkbox persistence and browser availability: 536/537 disabled, 538 globally enabled. PID 537's explicit disabled override is correctly retained; the initial acceptance expectation and native test fixture were corrected to reflect Framework's existing semantics. No production implementation changed. [Testing](testing.md#global-enable-browser-and-stored-state-checks--2026-10-08) records syntax/isolated-suite verification and the unexecuted native-test limitation. Global disable and fixture cleanup remain pending.
 
 ## Global-enable fixture ready — 2026-10-08
 
