@@ -1,5 +1,17 @@
 # Development and testing
 
+## Empty-tag native XML rejection and cleanup — 2026-10-08
+
+The user received the expected plan-import error from the empty-tag fixture.
+Dev-control confirms no target under its title or PID 544, zero inspected
+metadata/project-setting/EM-setting/user-rights rows for 544, allocation advanced
+to 545, and successful fixture plans/Core absence unchanged. Thus the native
+parser rejects an incomplete present plan instead of ignoring it as omitted.
+Prepared a repeated-tag fixture for the next ambiguity rejection check; native
+acceptance remains pending. Evidence is in
+[transfer acceptance](pdf_transfer_and_core_action_acceptance.md#empty-tag-native-rejection-and-cleanup--passed-2026-10-08).
+Agent work was inspection, temporary XML preparation and documentation only.
+
 ## Native XML rejection/cleanup and adapter rollback — 2026-10-08
 
 The user received the expected plan-import error from the version-2 fixture.

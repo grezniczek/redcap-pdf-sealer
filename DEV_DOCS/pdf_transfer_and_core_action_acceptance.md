@@ -8,7 +8,7 @@ Excluded-file import preserved absent plan state in PID 540; its subsequent
 explicit-empty save/export/import passes, with stored `[]` in PID 541.
 Ordered duplicate/unavailable native import, browser and re-export pass in PID 542.
 Unsupported-version rejection/cleanup and scoped native adapter replacement/rollback also pass.
-Remaining malformed parser cases, complete PMT and
+Empty-tag rejection/cleanup also passes. Repeated-tag/non-list JSON browser cases, complete PMT and
 enabled-action acceptance remain **pending**.
 Preserve previous sealing and enablement evidence; these are additional checks
 for the expanded refactor.
@@ -239,6 +239,29 @@ The next native browser creation attempt is **PDF plan XML empty tag** and must
 report a plan-import error. This checks the parser consumes an incomplete
 present tag instead of ignoring it as absent metadata. Native rejection/cleanup
 for this fixture remains pending; preparation changed no live project state.
+
+## Empty-tag native rejection and cleanup — passed 2026-10-08
+
+The user received the expected localized plan-import error from the attribute-
+free plan-tag fixture. Dev-control confirms no project under **PDF plan XML
+empty tag** or PID 544, zero inspected metadata/project-setting/EM-setting/user-
+rights rows for 544, and allocation advanced to 545. Successful fixture plans
+539–542 and absent Core settings remain unchanged. The parser therefore rejects
+a present incomplete plan instead of treating it as omitted metadata. Native
+rejection and inspected failed-creation cleanup pass; no agent mutation occurred.
+
+## Repeated-tag native parser fixture — prepared 2026-10-08
+
+Prepared `/tmp/pdf-plan-repeated-tags.REDCap.xml`, accessible as
+`\\wsl.localhost\Ubuntu\tmp\pdf-plan-repeated-tags.REDCap.xml`.
+It duplicates the single selected-source plan element, producing two otherwise
+valid version-1 plan tags containing `["pdf_sealer:seal"]`. XML parsing verifies
+both tags and no clinical subject records. Native creation under **PDF plan XML
+repeated tags** must reject this ambiguous payload, even though both plans match.
+The fixture is 45,852 bytes, SHA-256
+`f1c6717d43ef25cf3e73df1229f8685a1cb5d29e5a82bed51d640a15924356a5`.
+No project under that title exists before the attempt; allocation 545 is the
+current baseline. Native rejection/cleanup remains pending.
 
 ## Starting state
 
