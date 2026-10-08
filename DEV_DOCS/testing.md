@@ -1,5 +1,14 @@
 # Development and testing
 
+## Excluded-import empty editor preserves absent plan — 2026-10-08
+
+The user confirmed PID 540's assigned-operation list is empty. A subsequent
+dev-control read finds no execution-plan or Core workflow setting, verifying
+browser inspection did not create `[]`. Cancellation was requested but not
+separately reported. Deliberate explicit-empty save/export/import is the next
+pending slice; no agent mutation was performed. The evidence is also recorded in
+[transfer acceptance](pdf_transfer_and_core_action_acceptance.md#excluded-plan-native-import--stored-state-passed-2026-10-08).
+
 ## Excluded execution-plan native XML import — 2026-10-08
 
 The user created PID 540 from the excluded metadata-only XML. Dev-control confirms

@@ -69,6 +69,13 @@ omitted-tag import leaves a new destination plan absent; it did not create `[]`.
 Opening/canceling the empty destination editor is the next browser check, before
 deliberately saving an explicit-empty source fixture. No agent mutation occurred.
 
+The user subsequently confirmed the assigned-operation list is empty in PID 540.
+Follow-up dev-control reads still find neither the execution-plan setting nor
+the Core workflow setting. The browser inspection therefore preserves absent
+plan state. Cancellation was requested but not separately reported; the empty
+presentation and unchanged stored state are independently recorded. The next
+deliberate step is saving the empty list to create an explicit `[]` source fixture.
+
 ## Starting state
 
 - Main development instance: Core v17.5.3. PID 524 has one
