@@ -1,5 +1,17 @@
 # Development and testing
 
+## Selected execution-plan browser XML export — 2026-10-08
+
+The user confirmed PID 524's default-checked plan option and downloaded metadata
+only. Independent parsing of `PDFSealerTest_2026-10-08_1559.REDCap.xml` finds
+well-formed XML, exactly one version-1 plan with `["pdf_sealer:seal"]`, zero
+clinical subject records and no Core test activation markers. Dev-control reads
+confirm the matching source plan and absent Core workflow setting. The file's
+size/hash and evidence are recorded in
+[transfer acceptance](pdf_transfer_and_core_action_acceptance.md#selected-plan-browser-export--passed-2026-10-08).
+Excluded browser export, native import/rollback, complete PMT and enabled Core
+test controls remain pending; no live mutation was performed by the agent.
+
 ## XML/PMT transfer and Core test-action implementation — 2026-10-08
 
 Implemented Core's versioned ODM adapter, native export/import wiring and shared

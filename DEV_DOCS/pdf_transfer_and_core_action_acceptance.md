@@ -2,8 +2,25 @@
 
 Implementation checkpoint: 2026-10-08. Isolated regressions, native read-only
 export/configuration preflight on PID 524 and real Sealer-to-Core runner handoff
-pass. The native acceptance below is **pending**. Preserve previous sealing and
-enablement evidence; these are additional checks for the expanded refactor.
+pass. Native browser export with the plan selected also passes; exclusion,
+import/rollback, complete PMT and enabled-action acceptance remain **pending**.
+Preserve previous sealing and enablement evidence; these are additional checks
+for the expanded refactor.
+
+## Selected-plan browser export — passed 2026-10-08
+
+The user confirmed the default-checked **PDF Finalization Execution Plan** option
+in PID 524; the supplied screenshot also shows the metadata-only XML download
+button and checked surveys/eConsent options. The downloaded
+`C:\Users\grezn\Downloads\PDFSealerTest_2026-10-08_1559.REDCap.xml`
+is well-formed XML, 45,760 bytes, SHA-256
+`91f7bc03d851fe54092b50f710c754643726a0af07ac54bfdacaca06b5182b74`.
+Independent parsing finds exactly one version-1 execution-plan tag containing
+`["pdf_sealer:seal"]`, no clinical subject records and no Core test-action
+activation markers. Dev-control confirms the source's saved plan matches and
+its Core workflow setting remains absent. No import/activation was performed.
+This establishes selected metadata-only browser export; it does not establish
+excluded export or native destination behavior. Keep this file for import tests.
 
 ## Starting state
 
