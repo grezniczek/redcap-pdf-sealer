@@ -89,6 +89,18 @@ explicit-empty setting. Browser export of this fixture and native import of its
 empty tag remain pending. PID 540 is now deliberately an explicit-empty source;
 the earlier absent-state evidence records its pre-save checkpoint.
 
+## Explicit-empty browser export — passed 2026-10-08
+
+The user exported metadata only from PID 540 with the plan option checked and
+supplied `C:\Users\grezn\Downloads\PDFPlanXMLImportExcl_2026-10-08_1916.REDCap.xml`.
+Independent parsing confirms well-formed XML with exactly one version-1 plan
+tag and the literal `operations="[]"`, zero clinical subject records and no
+Core test activation markers. The file is 45,624 bytes, SHA-256
+`c7b8acf85a28c30a6fe032c13a22cf805a7666a89624cb824af6c592251faab3`.
+Thus explicit-empty browser export retains the tag instead of omitting it.
+Native import into a fresh destination is the next check; leave its plan editor
+unsaved until stored state is inspected. No agent live mutation occurred.
+
 ## Starting state
 
 - Main development instance: Core v17.5.3. PID 524 has one

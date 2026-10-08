@@ -1,5 +1,16 @@
 # Development and testing
 
+## Explicit-empty execution-plan browser XML export — 2026-10-08
+
+Independent parsing of the user's PID 540 metadata-only export,
+`PDFPlanXMLImportExcl_2026-10-08_1916.REDCap.xml`, confirms exactly one version-1
+plan tag with literal `operations="[]"`, well-formed XML, no clinical subject
+records and no Core test activation markers. Size/hash and the pending fresh
+destination import are recorded in
+[transfer acceptance](pdf_transfer_and_core_action_acceptance.md#explicit-empty-browser-export--passed-2026-10-08).
+This proves browser export preserves configured empty state instead of omitting
+the plan extension. Agent work was file inspection and documentation only.
+
 ## Explicit-empty source fixture save and native preflight — 2026-10-08
 
 The user saved the empty EM list in PID 540. Dev-control confirms stored `[]`
