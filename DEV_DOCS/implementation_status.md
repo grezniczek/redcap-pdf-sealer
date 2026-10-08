@@ -8,9 +8,12 @@ save, and explicit `[]` in PID 541. The selected import's unavailable-operation
 browser view and the excluded import's empty view also pass. Inspections confirm
 no target Sealer settings/activation or Core test selections. PID 540 was then
 saved/exported as an explicit-empty source; its audit and imported 541 state are
-verified. A temporary ordered duplicate/unavailable fixture is ready for the next
-native import/export check. Existing-target replacement/rollback, complete PMT
-and enabled Core test controls remain pending. See
+verified. PID 542 also passes ordered duplicate/unavailable native import,
+browser warnings and metadata-only re-export. A version-2 fixture is prepared
+for native rejection/failed-creation cleanup. Existing-target replacement and
+transaction rollback require a separate scoped native adapter test because the
+browser full metadata import route is project creation. Complete PMT and enabled
+Core test controls also remain pending. See
 [transfer acceptance](pdf_transfer_and_core_action_acceptance.md) for evidence,
 file provenance and the disposable fixtures. Earlier checkpoints below retain
 their dated scope.

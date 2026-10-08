@@ -6,8 +6,8 @@ pass. Native browser export with the plan selected and excluded also passes,
 and selected-plan native import passes stored-state and browser checks in PID 539.
 Excluded-file import preserved absent plan state in PID 540; its subsequent
 explicit-empty save/export/import passes, with stored `[]` in PID 541.
-Ordered duplicate/unavailable native import passes stored-state checks in PID 542.
-Its browser/re-export checks, existing-target replacement, rollback, complete PMT and
+Ordered duplicate/unavailable native import, browser and re-export pass in PID 542.
+Existing-target replacement, transaction rollback, malformed import cleanup, complete PMT and
 enabled-action acceptance remain **pending**.
 Preserve previous sealing and enablement evidence; these are additional checks
 for the expanded refactor.
@@ -150,6 +150,43 @@ exact serialized list retention, shared controls and disabled Core configuration
 Browser order/unavailable/duplicate warning presentation and its metadata-only
 re-export remain pending. No designer save was needed to retain the imported list.
 
+## Ordered duplicate/unavailable browser and re-export — passed 2026-10-08
+
+The user confirmed PID 542's exact three-entry order, unavailable warnings on
+all entries and duplicate warnings on the two sealing occurrences, then supplied
+`C:\Users\grezn\Downloads\PDFPlanXMLImportDupl_2026-10-08_1935.REDCap.xml`.
+Independent parsing confirms a well-formed metadata-only export with exactly one
+version-1 tag and the same ordered three-entry list, no clinical subject records
+and no Core test activation markers. The file is 45,744 bytes, SHA-256
+`7f4cc651d71bb8f96362dbccdf33b054ec46329a3f024fc79f19f732db655a85`.
+Follow-up dev-control reads confirm the target plan is unchanged and Core
+workflow settings remain absent. Native import/browser/re-export retention of
+duplicate and unavailable identifiers now passes; no resolving/activation or
+designer save was needed.
+
+## Unsupported-version native rejection fixture — prepared 2026-10-08
+
+Prepared `/tmp/pdf-plan-invalid-version.REDCap.xml`, accessible as
+`\\wsl.localhost\Ubuntu\tmp\pdf-plan-invalid-version.REDCap.xml`.
+It changes only the selected source plan's version from `1` to `2`. Independent
+parsing confirms well-formed XML, one deliberately unsupported plan, its original
+one-item list and no clinical subject records. The file is 45,760 bytes, SHA-256
+`600b7013db2b9a552c53e015be09dccc8e88ecf606e06b1a5e09394dfe38fbc4`.
+The next user test attempts native creation under **PDF plan XML invalid version**
+and should return the localized plan-import error. Dev-control preflight finds
+zero projects under that title and next project allocation 543; this is a
+baseline, not an assertion that 543 belongs to the attempt before inspection.
+
+Source inspection shows full ODM metadata import is used during project
+creation; the existing-project ODM conversion path imports data only. Thus the
+browser rejection checks native parser/adapter wiring and failed-creation
+cleanup. Existing-target absent/empty replacement and direct transaction
+rollback need a separate, scoped native Core adapter test. Failed-creation
+cleanup alone does not prove rollback preserved a pre-existing target plan.
+Dev-control can inspect/preview database state but cannot run this application
+workflow; a native application-service acceptance runner would be a useful
+enhancement. No malformed import or live mutation is claimed by preparation.
+
 ## Starting state
 
 - Main development instance: Core v17.5.3. PID 524 has one
@@ -185,13 +222,15 @@ re-export remain pending. No designer save was needed to retain the imported lis
    duplicates and an unavailable operation identifier. Export/import must retain
    exact order/duplicates/identifiers; an imported `[]` must remain explicitly
    configured. Unavailable entries are warnings/skips, not import failures.
-5. Use native metadata replacement on a disposable existing target to check
-   omitted tag leaves its plan untouched, while explicit `[]` replaces it.
-6. On disposable targets, exercise malformed version, malformed/non-list JSON,
-   repeated plan tags and an empty plan tag. Expect a native import error with
-   no committed metadata or plan replacement. Capture before/after plan and a
-   metadata sentinel through dev-control to establish native transaction rollback.
-   Isolated adapter error tests alone do not establish this rollback.
+5. Use a scoped native Core adapter test on a disposable existing target to check
+   omitted tag leaves its plan untouched, while explicit `[]` replaces it. Full
+   ODM metadata replacement is not exposed by the existing-project browser route.
+6. Through native project creation, exercise malformed version, malformed/non-list
+   JSON, repeated plan tags and an empty plan tag. Expect a native import error
+   and cleanup of the failed new target. Establish preservation/rollback of
+   existing target state separately with the native adapter test and transaction
+   sentinel. Isolated adapter error tests and failed-creation cleanup alone do
+   not establish rollback of an existing target.
 
 ## Project Migration Tool
 

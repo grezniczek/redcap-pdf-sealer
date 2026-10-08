@@ -1,5 +1,26 @@
 # Development and testing
 
+## Ordered duplicate/unavailable XML round trip — 2026-10-08
+
+The user confirmed PID 542's order and unavailable/duplicate warnings, then
+downloaded metadata only. Independent parsing of
+`PDFPlanXMLImportDupl_2026-10-08_1935.REDCap.xml` retains the exact three-item
+ordered list and duplicate sealing entries, one version-1 tag, no clinical
+subject records and no Core test activation. Follow-up dev-control reads confirm
+the target plan unchanged and Core settings absent. Size/hash are recorded in
+[transfer acceptance](pdf_transfer_and_core_action_acceptance.md#ordered-duplicateunavailable-browser-and-re-export--passed-2026-10-08).
+This completes native import/browser/re-export retention for these identifiers.
+
+Prepared a well-formed version-2 fixture for native rejection/failed-creation
+cleanup. No test project under the chosen title exists; allocation 543 is only
+a before-attempt baseline. Source inspection shows the browser full metadata
+import route is project creation, so existing-target replacement and transaction
+rollback need a separate scoped native adapter test. Failed-creation cleanup
+alone does not prove preservation of an existing target. A native application
+acceptance runner would enhance dev-control, which currently inspects/previews
+DB state but cannot invoke this application workflow. Malformed browser import,
+existing-target tests, complete PMT and enabled Core controls remain pending.
+
 ## Ordered duplicate/unavailable native XML import — 2026-10-08
 
 The user created PID 542 from the prepared three-entry fixture. Dev-control
