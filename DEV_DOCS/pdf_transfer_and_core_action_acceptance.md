@@ -11,8 +11,9 @@ Unsupported-version rejection/cleanup and scoped native adapter replacement/roll
 Empty-tag, repeated-tag and non-list JSON rejection/cleanup also pass. The planned
 XML acceptance matrix is complete, with existing-target rollback established by
 the scoped native adapter test. Selected-plan native intra-instance PMT passes
-in PID 548, including completion and stored/browser destination checks. Excluded/
-explicit-empty PMT and enabled-action acceptance remain **pending**.
+in PID 548, including completion and stored/browser destination checks. Excluded
+PMT also passes in PID 549, preserving absent plan state. Explicit-empty PMT
+and enabled-action acceptance remain **pending**.
 Preserve previous sealing and enablement evidence; these are additional checks
 for the expanded refactor.
 
@@ -385,6 +386,31 @@ separately report source default-checkbox/key-validation-label or cancellation
 checks; category/default behavior has native preflight evidence. Cross-instance
 deployment compatibility is outside this intra-instance result. Excluded and
 explicit-empty native PMT cases remain pending. No agent live mutation occurred.
+
+## Excluded-plan native intra-instance PMT — passed 2026-10-08
+
+The user completed PMT with optional components deselected and created PID 549,
+**PDF plan PMT excluded**, confirming an empty execution pipeline in its editor.
+Dev-control verifies no execution-plan row and no Core workflow setting, zero
+EM setting rows and zero records. Thus excluded-plan PMT preserves absent state
+instead of creating a saved `[]`. Source 542 and selected destination 548 retain
+the exact three-entry plan; explicit-empty source 540 retains its stored `[]`.
+
+Migration row 4 records origin 542, destination 549, `leave_as_is`, start
+`2026-10-08 22:02:32` and end `2026-10-08 22:04:12` (database timestamps).
+Destination status is `COMPLETED`, migration token/signature are cleared
+(Boolean-only inspection), and inspected data/EM-settings/logging/file-repository
+queues are null. PHP 8.2 native read-only transfer/configuration preflight passes
+on 549 with disabled Core gate and preserved settings. No agent mutation occurs.
+
+The user initially reported a persistent Working indicator on Create New Project,
+then reported that it completed. Before completion, inspection found no new
+target/migration row; afterward the completed target and migration were verified.
+No failing-request details were captured, so the cause/stage of that delay is
+unresolved and no empty-selection runtime defect is claimed or patched.
+The native selection/import result passes. Browser validation category and
+explicit-empty PMT remain next checks. Source 540 currently needs native API
+Export/token preparation for the explicit-empty case.
 
 ## Starting state
 

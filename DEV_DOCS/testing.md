@@ -1,5 +1,17 @@
 # Development and testing
 
+## Excluded native intra-instance PMT acceptance — 2026-10-08
+
+The user created PID 549 with optional components deselected and confirmed an
+empty pipeline. Dev-control verifies absent plan/Core settings, zero records/EM
+settings, completed migration 4 with leave-as-is/cleared migration credentials,
+and unchanged source/selected-target/explicit-empty-source plans. PHP 8.2 native
+read-only transfer preflight passes on 549. The reported Working delay eventually
+resolved; no request/error evidence establishes its cause, and no runtime fix
+is claimed. See [transfer acceptance](pdf_transfer_and_core_action_acceptance.md#excluded-plan-native-intra-instance-pmt--passed-2026-10-08).
+Explicit-empty PMT and enabled Core controls remain pending. Agent work was
+inspection/preflight/documentation; the user performed PMT and browser checks.
+
 ## Selected native intra-instance PMT acceptance — 2026-10-08
 
 The user created PID 548 from source 542 and confirmed unavailable/duplicate
