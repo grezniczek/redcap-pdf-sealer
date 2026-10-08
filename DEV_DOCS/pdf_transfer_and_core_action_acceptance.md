@@ -4,8 +4,9 @@ Implementation checkpoint: 2026-10-08. Isolated regressions, native read-only
 export/configuration preflight on PID 524 and real Sealer-to-Core runner handoff
 pass. Native browser export with the plan selected and excluded also passes,
 and selected-plan native import passes stored-state and browser checks in PID 539.
-Excluded-file import preserves absent plan state in PID 540. Explicit-empty transfer and
-duplicate cases, rollback, complete PMT and
+Excluded-file import preserved absent plan state in PID 540; its subsequent
+explicit-empty save/export/import passes, with stored `[]` in PID 541.
+Duplicate cases, existing-target replacement, rollback, complete PMT and
 enabled-action acceptance remain **pending**.
 Preserve previous sealing and enablement evidence; these are additional checks
 for the expanded refactor.
@@ -100,6 +101,40 @@ Core test activation markers. The file is 45,624 bytes, SHA-256
 Thus explicit-empty browser export retains the tag instead of omitting it.
 Native import into a fresh destination is the next check; leave its plan editor
 unsaved until stored state is inspected. No agent live mutation occurred.
+
+## Explicit-empty native import — passed 2026-10-08
+
+The user created development project 541, **PDF plan XML import empty**, from
+the explicit-empty export through native project creation. Dev-control confirms
+its execution-plan setting exists with value `[]`, Core workflow settings are
+absent, and there are zero Sealer project settings. The unchanged disabled
+Sealer system default leaves the target disabled. PID 540 retains its deliberate
+`[]` source setting; PID 539 retains `["pdf_sealer:seal"]`. Thus the selected,
+omitted and explicit-empty cases each preserve their intended native import
+state. This completes explicit-empty browser export/native stored-state import;
+no additional target designer save was needed to create `[]`.
+
+## Ordered duplicate/unavailable import fixture — prepared 2026-10-08
+
+Prepared `/tmp/pdf-plan-duplicates-unavailable.REDCap.xml`, available to the
+Windows browser file picker as
+`\\wsl.localhost\Ubuntu\tmp\pdf-plan-duplicates-unavailable.REDCap.xml`.
+It preserves the selected source XML except for the single plan element, whose
+ordered list is:
+
+```json
+["pdf_sealer:seal","pdf_finalize_transfer_missing:annotate","pdf_sealer:seal"]
+```
+
+Dev-control confirms `pdf_finalize_transfer_missing` is not a registered module.
+Independent parsing verifies well-formed XML, exactly one version-1 plan tag,
+the exact list above, no clinical subject records and no Core test activation
+markers. The file is 45,839 bytes, SHA-256
+`b80efbeabf32525f6a9bff3d9ef6a5f17a518af31b73bab3035ecb463200815c`.
+This is an intentionally edited import fixture, not an assertion that native
+export has already produced this list. Native import/browser retention followed
+by export of the resulting destination will test that round trip. No live
+settings/module registration/activation was changed during preparation.
 
 ## Starting state
 

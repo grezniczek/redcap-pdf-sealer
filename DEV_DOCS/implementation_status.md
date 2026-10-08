@@ -1,5 +1,20 @@
 # PDF Sealer implementation status
 
+## Guided XML transfer acceptance progressing — 2026-10-08
+
+Selected and excluded browser exports pass. Native creation/import preserves one
+sealing identifier in PID 539, absence in PID 540 before its deliberate empty
+save, and explicit `[]` in PID 541. The selected import's unavailable-operation
+browser view and the excluded import's empty view also pass. Inspections confirm
+no target Sealer settings/activation or Core test selections. PID 540 was then
+saved/exported as an explicit-empty source; its audit and imported 541 state are
+verified. A temporary ordered duplicate/unavailable fixture is ready for the next
+native import/export check. Existing-target replacement/rollback, complete PMT
+and enabled Core test controls remain pending. See
+[transfer acceptance](pdf_transfer_and_core_action_acceptance.md) for evidence,
+file provenance and the disposable fixtures. Earlier checkpoints below retain
+their dated scope.
+
 ## XML/PMT transfer and disabled Core terminal test controls implemented — 2026-10-08
 
 The expanded Core slice is implemented: a versioned ODM execution-plan adapter,

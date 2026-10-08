@@ -1,5 +1,23 @@
 # Development and testing
 
+## Explicit-empty native XML import and next fixture — 2026-10-08
+
+The user created PID 541 from the explicit-empty export. Dev-control confirms
+stored `[]`, absent Core workflow settings, zero Sealer project settings and
+unchanged disabled system default. Source 540 remains `[]`; target 539 retains
+its one imported sealing identifier. Selected, omitted and explicit-empty native
+imports now pass their stored-state checks. Ordered duplicate/unavailable,
+existing-target replacement/rollback, complete PMT and enabled Core controls
+remain pending.
+
+Prepared a temporary, deliberately edited XML fixture containing sealing,
+`pdf_finalize_transfer_missing:annotate`, then sealing again. Dev-control confirms
+the middle prefix is unregistered. XML parsing verifies exact order/duplicates,
+one supported tag, no records and no test activation. Its path/hash and the
+pending native import/export round trip are in
+[transfer acceptance](pdf_transfer_and_core_action_acceptance.md#ordered-duplicateunavailable-import-fixture--prepared-2026-10-08).
+Preparation modified no source download, live project setting, registry or PKI.
+
 ## Explicit-empty execution-plan browser XML export — 2026-10-08
 
 Independent parsing of the user's PID 540 metadata-only export,
