@@ -6,7 +6,9 @@ The user reports that the installed-version fix makes request 14's Core placemen
 
 At the user's request, Framework `manager/js/project.js` now invokes Core's existing `closeToDoListFrame()` helper from the placement cancellation callback when approval runs in an iframe. That helper dismisses the outer request popup and refreshes the parent To-Do page; it does not update request status. A directly opened approval page retains its enabled retry button. Core already invokes the cancellation callback after its dialog has finished closing, so no Core dialog change is needed.
 
-Run `node --test tests/pdf_activation_request_ui.js`. Five focused checks against the real Framework controller with isolated DOM/enablement/frame doubles cover iframe cancellation, direct-page retry, errors retaining the frame, iframe success closure, and direct-page success acknowledgement/redirect. The iframe cancellation check failed before the change; all five pass afterward. JavaScript syntax and whitespace checks pass. These checks send no requests, email or native mutations; actual browser cancellation/reopening remains to be retested on request 14 before successful approval.
+Run `node --test tests/pdf_activation_request_ui.js`. Five focused checks against the real Framework controller with isolated DOM/enablement/frame doubles cover iframe cancellation, direct-page retry, errors retaining the frame, iframe success closure, and direct-page success acknowledgement/redirect. The iframe cancellation check failed before the change; all five pass afterward. JavaScript syntax and whitespace checks pass. These checks send no requests, email or native mutations.
+
+The user reports the browser cancellation retest passed: reopening request 14, choosing Enable and canceling placement closes the entire To-Do popup with the request still pending in the refreshed list. Subsequent independent dev-control inspection confirms request 14 `pending`, plan `[]`, and Sealer disabled. Successful approval with one sealing assignment is the next check.
 
 ## Activation-request approval version fix — 2026-10-08
 
@@ -16,7 +18,7 @@ Opening that request through the administrator To-Do List reached the Core place
 
 Framework `manager/activation-request.php` now resolves `ExternalModules::getEnabledVersion($prefix)` and uses the same version for translated configuration and approval controls. No Core candidate-validation or hook contract change was needed. Run `php8.2 -d xdebug.mode=off tests/pdf_activation_request_view.php` and the same command with `php`. The regression renders a copy of the actual approval page against isolated bootstrap/header/footer/template/Framework doubles, with empty and stale ambient versions, and checks the hidden and row versions plus their configuration lookup. It reproduced the missing version before the fix and passes on PHP 8.2/8.5 afterward. PHP syntax and whitespace checks pass. No native bootstrap, database mutation, request completion or email occurs in this regression.
 
-Independent inspection after the fix confirms request 14 remains pending, the plan `[]`, and Sealer disabled. Browser retest is pending: close the failed approval view, refresh the administrator To-Do List, reopen request 14 and choose Enable again. Expect populated available operations and workflow previews. Then continue the planned Cancel/pending check before retrying Save & Enable. No second activation request is needed.
+Independent inspection after the fix confirmed request 14 pending, the plan `[]`, and Sealer disabled. The user subsequently reports that reopening the request loads populated available operations and workflow previews correctly. The cancellation refinement and passed retest are recorded above. Successful Save & Enable remains next; no second activation request is needed.
 
 ## Remaining activation/global-enable browser preflight — 2026-10-08
 
