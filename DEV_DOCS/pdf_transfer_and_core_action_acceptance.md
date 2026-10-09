@@ -17,7 +17,9 @@ passes in PID 550 with stored `[]`. The planned native XML/PMT transfer checks
 are complete. Enabled-action acceptance remains **pending**, with a temporary
 test gate scoped only to PID 550. Its Record PDFs-only controls pass save/reopen,
 no-op and cancel acceptance. Core-only record-PDF execution/delivery also passes,
-with matching pipeline/delivery/download hashes. Native Sealer handoff, read-only
+with matching pipeline/delivery/download hashes. Native completed-eConsent
+Sealer handoff also passes: nonterminal unchanged Sealer, Core last, no Sealer
+service logs and matching pipeline/commit/stored/download hashes. Read-only
 rights and deactivation/cleanup remain pending.
 Preserve previous sealing and enablement evidence; these are additional checks
 for the expanded refactor.
@@ -590,6 +592,59 @@ return ok with no warnings. No runtime artifact or handoff is claimed yet;
 next complete a fresh native survey response through eConsent certification
 and download its stored snapshot for event/hash correlation.
 
+## Native Sealer-to-Core eConsent handoff — passed 2026-10-09
+
+The user completed record 2 in disposable PID 550, downloaded
+`C:\Users\grezn\Downloads\pid550_formExampleSurvey_id2_2026-10-09_074655.pdf`,
+and reported no seal in Acrobat. Native survey response inspection confirms
+completion at 2026-10-09 07:46:55. The downloaded PDF is 43,869 bytes with SHA-256
+`8da24a62af2fac159b220e27ce6ffd0ded019387790f54a894f64a27b2017699`.
+It has a PDF header and qpdf reports no syntax/stream-encoding errors.
+
+Captured completed-eConsent events share generation
+`db12264ae8bb8c105385da720267d3af`:
+
+- Pipeline starts with one EM assignment, Core reservation true and
+  `core:test_terminal` selected.
+- `pdf_sealer:seal` executes at position 1: unchanged, terminal false.
+- Core executes at position 2: unchanged, terminal true, `test_only=true` and
+  `cryptographic_seal_applied=false`.
+- Pipeline completes with two invocations, zero accepted modifications,
+  terminal success and can_commit true, with the download size/hash above.
+- Artifact commitment records record 2, File Repository and edoc 2381,
+  with the same hash.
+
+Dev-control edoc inspection and hashing both succeed with no warnings for 2381:
+the stored file exists, metadata/MIME/size are consistent and its SHA-256
+matches pipeline completion, artifact commitment and the independent download.
+Earlier edoc-tool failures remain historical limitations of those checks;
+this artifact has direct stored-byte inspection/hash evidence through dev-control.
+No raw edoc filesystem fallback was needed.
+
+Core selections remain `["econsent","record_pdf"]` and the EM plan remains
+`["pdf_sealer:seal"]`. Inspected Sealer system logs still contain zero PID 550
+project-identity bindings, seal events or timestamp outcomes. This establishes
+the native yielding path before those services, Core terminal execution last,
+unchanged bytes and stored/downloaded artifact correlation.
+
+The earlier certification preview is separately classified `survey_pdf`: no
+Core reservation, no applicable Sealer invocation and a distinct inline artifact
+hash/generation. It is not used as evidence for completed-eConsent sealing.
+Native read-only rights, disabling/gate-off clearing and cleanup remain pending.
+Remove temporary `/tmp/pdf-core-econsent-download-check-550.php` along with
+the previously listed exact test bootstrap/probe/capture files during cleanup.
+
+## Non-Design access test route corrected — 2026-10-09
+
+The user reports that `test` cannot access native Project Setup without Design
+rights. Dev-control confirms PID 550 membership with `design=0`. The prior
+guidance to open the editor from Project Setup was therefore not a usable
+non-Design browser test. Core’s direct read endpoint permits project members
+and returns `can_save` from the separate Design/admin permission guard. Use
+that authenticated GET for the remaining native read-permission check; no
+new UI entry point or broader permission is introduced. The read endpoint
+result is pending. No runtime code changes were needed for this correction.
+
 ## Starting state
 
 - Main development instance: Core v17.5.3. PID 524 has one
@@ -658,8 +713,12 @@ and download its stored snapshot for event/hash correlation.
    must leave EM plans and Core selections unchanged.
 2. For an agreed temporary development test window, enable the Boolean gate
    through a local, removable bootstrap setting; do not commit the gate or use
-   PKI settings. Use a disposable project with Design rights and test a member
-   without Design rights for read-only behavior.
+   PKI settings. Use a disposable project with Design rights. Native Project Setup is not
+   accessible to members without Design rights, so do not use that page as
+   their read-only test route. For a non-Design project member, open
+   `PdfFinalization/get-plan.php?pid=<fixture>` in that member’s authenticated
+   browser and verify success with `can_save=false` and the saved plan/Core
+   selections. Save permission guards are covered separately by backend tests.
 3. Select `record_pdf` only and **Save Core test settings**. Reopen; expect just
    that choice, one native Core-settings change audit, and a fixed final Core
    test step only in its preview. Other workflow previews remain unreserved.

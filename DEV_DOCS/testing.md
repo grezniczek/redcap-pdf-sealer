@@ -1,5 +1,27 @@
 # Development and testing
 
+## Non-Design browser test route corrected — 2026-10-09
+
+The user confirms Project Setup is unavailable to `test` without Design rights;
+dev-control verifies fixture membership with `design=0`. Use the authenticated
+direct plan GET, expecting `can_save=false`, for native read-permission
+acceptance. The editor’s Project Setup entry point cannot provide this check.
+No permission or runtime code change is made; direct GET acceptance remains
+pending. See [transfer acceptance](pdf_transfer_and_core_action_acceptance.md#non-design-access-test-route-corrected--2026-10-09).
+
+## Native Sealer-to-Core eConsent handoff — passed 2026-10-09
+
+PID 550 record 2 passes native eConsent generation/storage/download: Sealer
+returns unchanged/nonterminal at position 1; Core succeeds unchanged/terminal
+at position 2 with test-only/no-seal metadata. Two invocations, zero modifications
+and allowed commitment are correlated. Pipeline, commitment, dev-control stored
+edoc 2381 hash and independent download all match. Edoc inspection/hash tools
+succeed with no warnings; qpdf structure checks pass and the user reports no
+seal in Acrobat. No inspected Sealer binding/seal/timestamp logs were created.
+Core/EM settings remain unchanged. Read-only rights, disabling/gate-off clearing
+and cleanup remain pending. See
+[transfer acceptance](pdf_transfer_and_core_action_acceptance.md#native-sealer-to-core-econsent-handoff--passed-2026-10-09).
+
 ## Native eConsent fixture readiness — 2026-10-09
 
 PID 550 native survey/eConsent setup is verified: active survey 1031, consent

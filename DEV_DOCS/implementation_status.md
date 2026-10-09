@@ -1,6 +1,6 @@
 # PDF Sealer implementation status
 
-## Core-only native PDF delivery passes; Sealer handoff next
+## Native Core-only and Sealer-to-Core PDF delivery pass
 
 PID 550 record 1’s unsigned browser download matches the Core completed-pipeline
 and artifact-commit hashes. Correlated events show empty EM plan, one terminal
@@ -10,8 +10,10 @@ now also passes persisted eConsent reservation and Sealer enablement with one
 `pdf_sealer:seal` assignment; verified audits and the zero Sealer-log baseline
 precede native survey/eConsent setup. The scoped test
 bootstrap is prepared for late project initialization on survey requests; 524
-remains gate-off. Sealer’s native eConsent handoff, read-only rights, disabling/
-clearing and cleanup are the remaining acceptance slices. See
+remains gate-off. Native eConsent handoff also passes on record 2: Sealer yields nonterminal
+unchanged, Core runs last with terminal success, and pipeline/commit/stored
+edoc/download hashes agree. No inspected Sealer service logs are created.
+Read-only rights, disabling/clearing and cleanup remain. See
 [transfer acceptance](pdf_transfer_and_core_action_acceptance.md#core-only-native-record-pdf--passed-artifact-2026-10-08).
 
 ## Planned XML/PMT transfer acceptance complete; Core controls next — 2026-10-08
