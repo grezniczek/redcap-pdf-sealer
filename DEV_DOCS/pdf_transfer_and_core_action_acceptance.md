@@ -1,32 +1,17 @@
 # Execution-plan transfer and Core terminal test-action acceptance
 
-Implementation checkpoint: 2026-10-08. Isolated regressions, native read-only
-export/configuration preflight on PID 524 and real Sealer-to-Core runner handoff
-pass. Native browser export with the plan selected and excluded also passes,
-and selected-plan native import passes stored-state and browser checks in PID 539.
-Excluded-file import preserved absent plan state in PID 540; its subsequent
-explicit-empty save/export/import passes, with stored `[]` in PID 541.
-Ordered duplicate/unavailable native import, browser and re-export pass in PID 542.
-Unsupported-version rejection/cleanup and scoped native adapter replacement/rollback also pass.
-Empty-tag, repeated-tag and non-list JSON rejection/cleanup also pass. The planned
-XML acceptance matrix is complete, with existing-target rollback established by
-the scoped native adapter test. Selected-plan native intra-instance PMT passes
-in PID 548, including completion and stored/browser destination checks. Excluded
-PMT also passes in PID 549, preserving absent plan state; explicit-empty PMT
-passes in PID 550 with stored `[]`. The planned native XML/PMT transfer checks
-are complete. Enabled-action acceptance remains **pending**, with a temporary
-test gate scoped only to PID 550. Its Record PDFs-only controls pass save/reopen,
-no-op and cancel acceptance. Core-only record-PDF execution/delivery also passes,
-with matching pipeline/delivery/download hashes. Native completed-eConsent
-Sealer handoff also passes: nonterminal unchanged Sealer, Core last, no Sealer
-service logs and matching pipeline/commit/stored/download hashes. Read-only
-rights now pass direct member GET/no-save response. Native gate-on clearing
-also passes; the original empty hook setting is restored and temporary bootstrap
-removed. Gate-off stale-selection clearing also passes with a verified empty
-save/audit. Native-window helper/fixture/capture files are removed; native
-disposable-project cleanup is the remaining closure step.
-Preserve previous sealing and enablement evidence; these are additional checks
-for the expanded refactor.
+**Status: complete, including native cleanup — 2026-10-09.**
+
+The planned XML export/import/rejection matrix, scoped existing-target adapter
+rollback, and selected/excluded/explicit-empty intra-instance PMT pass. Core
+controls, Core-only record-PDF delivery and native Sealer-to-Core completed-
+eConsent handoff pass, with correlated stored/downloaded hashes and no Sealer
+service side effects on reservation. Non-Design member read access passes;
+save guards have separate backend coverage. Gate-on deactivation and gate-off
+stale-selection clearing pass. The original empty hook configuration is
+restored, native-window files removed and all disposable projects soft-deleted.
+Accepted projects are preserved. Precise limits and dated evidence follow;
+real Core signing and PKI remain a separate future implementation.
 
 ## Selected-plan browser export — passed 2026-10-08
 
@@ -722,7 +707,40 @@ cleanup; accepted projects 524/533 retain enabled overrides and original plans.
 Project 547 (Piping) is unrelated. Failed creation allocations 543–546 have no
 project rows. Final inspected native project removal remains the closure step.
 
-## Starting state
+## Native fixture cleanup and refactor closure — verified 2026-10-09
+
+The user reports cleanup complete. Dev-control verifies native soft-deletion
+(`date_deleted`) for all seven disposable projects: 550 at 08:17:53, 539 at
+08:18:07, 540 at 08:18:49, 541 at 08:19:02, 542 at 08:19:14, 548 at
+08:19:27 and 549 at 08:19:38 on 2026-10-09 (database timestamps). Failed
+creation allocations 543–546 remain absent. Accepted 524/533 and unrelated
+547 remain active. Their inspected accepted execution plans remain
+`["pdf_sealer:seal"]`, enabled overrides true and Core selections absent;
+Sealer’s system default remains false and development version v9.9.9.
+
+Native soft deletion retains project settings and data for recovery. Fixture
+550 retains empty Core settings, its EM plan and an enabled=true Sealer row;
+separate Sealer disablement is therefore not established by this inspection.
+The fixture is deleted, not a remaining active test project. No hard purge,
+settings-row deletion, edoc trashing or project restoration is performed.
+Its inspected Sealer binding/seal/timestamp logs remain absent.
+
+Main’s hook setting remains the original empty string. File inspection confirms
+the temporary bootstrap, capture, gate probe and PDF download checkers absent;
+the other exact native-window helpers/XML fixtures were removed at the prior
+checkpoint. All final dev-control queries return ok without warnings.
+
+The agreed Core-owned refactor, XML/PMT transfer and disabled dummy-terminal
+controls are complete within the acceptance scope recorded here. Native
+controls/runtime/handoff/member-read/deactivation checks and cleanup are closed.
+PMT evidence is intra-instance, existing-target rollback uses the scoped native
+adapter, and non-Design browser evidence is the read endpoint rather than
+a Setup editor or unauthorized POST. Historical native enablement-harness
+limitations remain documented separately. Real Core signing/PKI is a future
+implementation, not unfinished work in this refactor. No further slice is
+recommended for the agreed scope.
+
+## Starting state (historical procedure baseline)
 
 - Main development instance: Core v17.5.3. PID 524 has one
   `pdf_sealer:seal` assignment and Sealer enabled. Use its export controls only;
@@ -820,6 +838,6 @@ project rows. Final inspected native project removal remains the closure step.
    unchanged. Record actual evidence here or in `testing.md` before declaring
    the expanded refactor complete.
 
-Suggested next slices: native XML import/rollback; metadata-only PMT; temporary
-Core-control browser/runtime acceptance followed by deactivation. Real Core
-signing and the necessary PKI remain a separate future implementation.
+The agreed acceptance slices and native cleanup are complete. No further slice
+is recommended for this scope. Real Core signing and the necessary PKI remain
+a separate future implementation.

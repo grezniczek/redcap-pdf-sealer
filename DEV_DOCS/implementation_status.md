@@ -1,27 +1,28 @@
 # PDF Sealer implementation status
 
-## Native Core-only and Sealer-to-Core PDF delivery pass
+## Core-owned refactor and expanded acceptance complete — 2026-10-09
 
-PID 550 record 1’s unsigned browser download matches the Core completed-pipeline
-and artifact-commit hashes. Correlated events show empty EM plan, one terminal
-`core:test_terminal` unchanged result, no signing, zero modifications and allowed
-commit. The user reports no seal in Acrobat; qpdf structure checks pass. The next setup checkpoint
-now also passes persisted eConsent reservation and Sealer enablement with one
-`pdf_sealer:seal` assignment; verified audits and the zero Sealer-log baseline
-precede native survey/eConsent setup. The scoped test
-bootstrap is prepared for late project initialization on survey requests; 524
-remains gate-off. Native eConsent handoff also passes on record 2: Sealer yields nonterminal
-unchanged, Core runs last with terminal success, and pipeline/commit/stored
-edoc/download hashes agree. No inspected Sealer service logs are created.
-Native non-Design member GET also passes with `can_save=false` and unchanged
-settings/audits; Project Setup is inaccessible to this member. Backend save
-guards have separate regression coverage. Native gate-on clearing also passes (audits 1430/1431). The original empty
-hook setting is restored and the temporary bootstrap removed; native probes
-confirm the gate is off. Gate-off stale-selection clearing also passes with empty persisted settings
-and audit 1432. Native-window temporary helpers/fixtures/capture are removed.
-The planned native acceptance matrix is complete within its recorded scope;
-disposable-project cleanup remains before closing the expanded refactor. See
-[transfer acceptance](pdf_transfer_and_core_action_acceptance.md#core-only-native-record-pdf--passed-artifact-2026-10-08).
+Core now owns finalization coordination, execution-plan management and terminal
+reservation; Framework supplies declared operations and guarded dispatch, and
+Sealer yields unchanged/nonterminal when Core reserves the terminal action.
+The expanded XML/PMT plan transfer and disabled test-only Core action/controls
+are implemented and accepted within the documented scope. Native Core-only PDF
+and Sealer-to-Core eConsent delivery pass with correlated pipeline/commit/stored/
+download hashes. Member read access, gate-on deactivation and gate-off clearing
+also pass. Backend save guards retain separate regression coverage.
+
+The original empty hook configuration is restored and native-window temporary
+files removed. All seven disposable projects are natively soft-deleted; their
+recoverable settings remain, including fixture 550’s Sealer enabled row and
+empty Core selection. Accepted 524/533 and unrelated 547 remain active, with
+accepted plans/activation unchanged. No hard purge is performed.
+
+The agreed refactor is complete; no further slice is recommended. Real Core
+signing/PKI remains separate future work. PMT acceptance is intra-instance;
+existing-target rollback uses the native adapter, and non-Design browser
+coverage is direct read access rather than a Setup editor/unauthorized POST.
+Other historical test limitations remain recorded below. See
+[closure evidence](pdf_transfer_and_core_action_acceptance.md#native-fixture-cleanup-and-refactor-closure--verified-2026-10-09).
 
 ## Planned XML/PMT transfer acceptance complete; Core controls next — 2026-10-08
 

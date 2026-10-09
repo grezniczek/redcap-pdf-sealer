@@ -1,5 +1,19 @@
 # Development and testing
 
+## Expanded Core refactor acceptance closed — 2026-10-09
+
+Dev-control verifies native soft-deletion of all seven fixtures (539–542,
+548–550), accepted 524/533 and unrelated 547 active, original accepted plans/
+activation unchanged, and empty original hook configuration. Fixture settings
+remain recoverable: 550 has empty Core selections and a retained enabled=true
+Sealer row, so separate module disablement is not claimed. Its inspected Sealer
+service logs remain absent. Bootstrap/capture/probe/download helpers are absent;
+other exact native-window files were removed previously. All final queries
+return ok without warnings. No hard purge or raw edoc cleanup was performed.
+The planned acceptance scope is complete with its recorded native-test limits;
+real Core signing/PKI is separate future work. No further slice is recommended.
+See [closure evidence](pdf_transfer_and_core_action_acceptance.md#native-fixture-cleanup-and-refactor-closure--verified-2026-10-09).
+
 ## Gate-off clearing and native-window file cleanup — passed 2026-10-09
 
 The user confirms disabled activation/no Core preview, clearing through Disable
