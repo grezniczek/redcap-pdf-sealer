@@ -1,5 +1,17 @@
 # Development and testing
 
+## Gate-off clearing and native-window file cleanup — passed 2026-10-09
+
+The user confirms disabled activation/no Core preview, clearing through Disable
+Core test finalization, and persisted empty choices with unchanged EM assignment.
+Dev-control verifies empty Core settings, unchanged plan and audit 1432. Native
+probe confirms gate-off; original empty hook configuration remains restored.
+The exact native-window probe/download/export/builder/XML helpers and web-owned
+diagnostic capture are removed; bootstrap/capture absence is verified. Live
+disposable-project cleanup remains for 539–542 and 548–550, preserving accepted
+524/533 and unrelated 547. See
+[transfer acceptance](pdf_transfer_and_core_action_acceptance.md#gate-off-stale-selection-clearing-and-temporary-file-cleanup--passed-2026-10-09).
+
 ## Native deactivation and temporary gate removal — 2026-10-09
 
 The user confirms clear/save/reopen removes all Core terminal previews and

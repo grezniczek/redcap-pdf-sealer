@@ -22,7 +22,9 @@ Sealer handoff also passes: nonterminal unchanged Sealer, Core last, no Sealer
 service logs and matching pipeline/commit/stored/download hashes. Read-only
 rights now pass direct member GET/no-save response. Native gate-on clearing
 also passes; the original empty hook setting is restored and temporary bootstrap
-removed. Gate-off stale-selection clearing and remaining cleanup are pending.
+removed. Gate-off stale-selection clearing also passes with a verified empty
+save/audit. Native-window helper/fixture/capture files are removed; native
+disposable-project cleanup is the remaining closure step.
 Preserve previous sealing and enablement evidence; these are additional checks
 for the expanded refactor.
 
@@ -690,6 +692,35 @@ terminal step, and Disable Core test finalization clearing the stale selection.
 That final browser save, remaining exact temporary-file cleanup and native
 disposable-project removal remain pending. Diagnostic capture is no longer
 configured; its file is retained only until final evidence/cleanup.
+
+## Gate-off stale-selection clearing and temporary-file cleanup — passed 2026-10-09
+
+The user confirms all four native PID 550 checks: gate-off activation choices
+are disabled, the saved Record PDFs selection is visible without a Core
+terminal preview, Disable Core test finalization clears it, and reopen shows
+empty Core choices with the Sealer assignment retained. Dev-control verifies
+Core settings `[]`, EM `["pdf_sealer:seal"]`, and new clear audit 1432 at
+20261009081200 by `gr`. Native PHP 8.2 probe confirms the gate remains off,
+Core selections empty and plan unchanged. The hook configuration remains its
+original empty string. Queries return ok without warnings.
+
+The exact remaining acceptance helpers are removed: gate probe, both PDF
+download checkers, four XML export checkers, five fixture builders and their
+five generated XML fixtures. The project-scoped diagnostic capture is removed
+with reviewed WSL administrative filesystem access because it is web-owned;
+its correlated evidence is already recorded above. Readback confirms both
+bootstrap and capture absent. Downloaded user artifacts and tracked tests
+remain. Older isolated endpoint test directories and `/tmp/pdf-core-refactor`
+staging are outside this native-window cleanup; no configured runtime references
+them. No tracked Core/Framework/EM runtime code is changed.
+
+The planned native controls, Core-only PDF, Sealer handoff, member read access,
+deactivation and gate-off clearing are complete with the limits recorded above.
+Live cleanup remains for disposable projects 539, 540, 541, 542, 548, 549 and
+550 through native UI. Sealer remains deliberately enabled in 550 until that
+cleanup; accepted projects 524/533 retain enabled overrides and original plans.
+Project 547 (Piping) is unrelated. Failed creation allocations 543–546 have no
+project rows. Final inspected native project removal remains the closure step.
 
 ## Starting state
 

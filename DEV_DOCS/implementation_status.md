@@ -17,8 +17,10 @@ Native non-Design member GET also passes with `can_save=false` and unchanged
 settings/audits; Project Setup is inaccessible to this member. Backend save
 guards have separate regression coverage. Native gate-on clearing also passes (audits 1430/1431). The original empty
 hook setting is restored and the temporary bootstrap removed; native probes
-confirm the gate is off. Gate-off stale-selection clearing and remaining cleanup
-are pending. See
+confirm the gate is off. Gate-off stale-selection clearing also passes with empty persisted settings
+and audit 1432. Native-window temporary helpers/fixtures/capture are removed.
+The planned native acceptance matrix is complete within its recorded scope;
+disposable-project cleanup remains before closing the expanded refactor. See
 [transfer acceptance](pdf_transfer_and_core_action_acceptance.md#core-only-native-record-pdf--passed-artifact-2026-10-08).
 
 ## Planned XML/PMT transfer acceptance complete; Core controls next — 2026-10-08
