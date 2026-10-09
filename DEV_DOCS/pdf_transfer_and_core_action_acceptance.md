@@ -570,6 +570,26 @@ configure native eConsent with signature field `sig`, a test consent form, and
 default File Repository snapshot storage before completing a fresh response.
 No Sealer PKI setup is needed while Core reserves this workflow.
 
+## Native eConsent handoff fixture — ready 2026-10-09
+
+The user completed native survey/eConsent setup in disposable PID 550.
+Dev-control verifies survey 1031 (`survey`, Example Survey), active consent
+185 with signature field `sig` and location `descriptive`, and active rich-text
+consent form 147 with version `1`. Active snapshot 283 links that consent to
+survey-completion trigger 1031, selects `:survey`, and saves to File Repository
+without a file-field target. The version is `1`, rather than the suggested
+`1.0`; either is sufficient for this fixture.
+
+There are zero survey responses/completions before generation and no inspected
+PID 550 Sealer binding/seal/timestamp logs. Core selections remain
+`["econsent","record_pdf"]`, EM plan remains `["pdf_sealer:seal"]`, and the
+Sealer project override remains enabled with its system default disabled. The
+read-only native PHP 8.2 bootstrap probe confirms the scoped test action is
+available and these selections/plan are effective. All dev-control queries
+return ok with no warnings. No runtime artifact or handoff is claimed yet;
+next complete a fresh native survey response through eConsent certification
+and download its stored snapshot for event/hash correlation.
+
 ## Starting state
 
 - Main development instance: Core v17.5.3. PID 524 has one

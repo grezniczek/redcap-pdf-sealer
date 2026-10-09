@@ -1,5 +1,15 @@
 # Development and testing
 
+## Native eConsent fixture readiness — 2026-10-09
+
+PID 550 native survey/eConsent setup is verified: active survey 1031, consent
+185 (`sig`/`descriptive`), rich-text form 147 version `1`, and automatic
+File Repository snapshot 283. Zero responses/completions and inspected Sealer
+logs establish the pre-generation baseline. Core/EM settings are unchanged;
+the native PHP 8.2 gate probe passes. Fresh survey completion and snapshot
+execution/delivery correlation remain pending. See
+[transfer acceptance](pdf_transfer_and_core_action_acceptance.md#native-econsent-handoff-fixture--ready-2026-10-09).
+
 ## Core-reserved Sealer activation — 2026-10-09
 
 All three native setup checks pass in PID 550: Core eConsent/record-PDF
