@@ -20,7 +20,8 @@ no-op and cancel acceptance. Core-only record-PDF execution/delivery also passes
 with matching pipeline/delivery/download hashes. Native completed-eConsent
 Sealer handoff also passes: nonterminal unchanged Sealer, Core last, no Sealer
 service logs and matching pipeline/commit/stored/download hashes. Read-only
-rights and deactivation/cleanup remain pending.
+rights now pass direct member GET/no-save response; deactivation/gate-off
+clearing and cleanup remain pending.
 Preserve previous sealing and enablement evidence; these are additional checks
 for the expanded refactor.
 
@@ -644,6 +645,23 @@ and returns `can_save` from the separate Design/admin permission guard. Use
 that authenticated GET for the remaining native read-permission check; no
 new UI entry point or broader permission is introduced. The read endpoint
 result is pending. No runtime code changes were needed for this correction.
+
+## Non-Design native read endpoint — passed 2026-10-09
+
+As non-Design member `test` in PID 550, the user opened the direct plan GET
+and confirmed success, `can_save=false`, saved Core workflows
+`["econsent","record_pdf"]` and the `pdf_sealer:seal` assignment. Native
+Project Setup remains inaccessible for this member, as reported previously.
+Dev-control confirms stored Core/EM settings unchanged and no additional
+Core-settings/plan change audits: latest relevant IDs remain 1418/1419.
+The temporary native hook configuration still references the scoped PID-550
+bootstrap. Queries return ok without warnings.
+
+This establishes native member read access and the endpoint’s no-save response,
+not browser access to a read-only editor through Project Setup. Backend save
+permission guards are separately covered by existing regressions; no native
+unauthorized POST is claimed. Native deactivation, gate-off stale-selection
+clearing and removal of the temporary gate/fixtures remain pending.
 
 ## Starting state
 

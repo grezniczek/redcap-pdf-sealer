@@ -1,5 +1,15 @@
 # Development and testing
 
+## Non-Design native read endpoint — passed 2026-10-09
+
+The user confirms authenticated PID 550 direct GET success for `test` with
+`can_save=false` and matching saved plan/Core selections. Project Setup is
+inaccessible without Design rights, so no read-only editor browser check or
+unauthorized POST is claimed. Dev-control verifies settings/audit IDs unchanged
+(1418/1419 latest). Save guards retain separate backend regression evidence.
+Native deactivation, gate-off clearing and cleanup remain. See
+[transfer acceptance](pdf_transfer_and_core_action_acceptance.md#non-design-native-read-endpoint--passed-2026-10-09).
+
 ## Non-Design browser test route corrected — 2026-10-09
 
 The user confirms Project Setup is unavailable to `test` without Design rights;
