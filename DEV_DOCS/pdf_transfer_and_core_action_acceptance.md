@@ -20,8 +20,9 @@ no-op and cancel acceptance. Core-only record-PDF execution/delivery also passes
 with matching pipeline/delivery/download hashes. Native completed-eConsent
 Sealer handoff also passes: nonterminal unchanged Sealer, Core last, no Sealer
 service logs and matching pipeline/commit/stored/download hashes. Read-only
-rights now pass direct member GET/no-save response; deactivation/gate-off
-clearing and cleanup remain pending.
+rights now pass direct member GET/no-save response. Native gate-on clearing
+also passes; the original empty hook setting is restored and temporary bootstrap
+removed. Gate-off stale-selection clearing and remaining cleanup are pending.
 Preserve previous sealing and enablement evidence; these are additional checks
 for the expanded refactor.
 
@@ -662,6 +663,33 @@ not browser access to a read-only editor through Project Setup. Backend save
 permission guards are separately covered by existing regressions; no native
 unauthorized POST is claimed. Native deactivation, gate-off stale-selection
 clearing and removal of the temporary gate/fixtures remain pending.
+
+## Native deactivation and gate removal — passed/prepared 2026-10-09
+
+The user confirms clearing all Core choices, saving/reopening with no fixed
+Core terminal previews, and preserving `pdf_sealer:seal`. They then saved
+Record PDFs only to prepare the gate-off stale-selection test. Dev-control
+verifies Core audit 1430 at 20261009080618 (`[]`) and 1431 at 20261009080657
+(`["record_pdf"]`), both by `gr`; latest EM-plan audit remains 1419. Current
+Core selection is `["record_pdf"]`, with unchanged `["pdf_sealer:seal"]` plan.
+
+After a standard-risk dev-control preview, a guarded update restores main’s
+`hook_functions_file` to its original empty string only where its value exactly
+matches `/tmp/pdf-core-terminal-test-bootstrap-550.php`. Execution commits
+exactly one affected row; readback confirms empty. The generic direct-row-count
+warning appears in preview/execution. The exact temporary bootstrap is removed.
+The read-only native gate probe is adapted to expect false and passes for
+550 (stale Record PDFs selection retained) and accepted 524 (no Core selections,
+original one-operation plan retained). Accepted 533 also retains its original
+plan and no Core selection. No tracked runtime code is modified.
+
+Gate-on deactivation and reservation disappearance now have native browser
+evidence. The gate is off and the bootstrap removed, so gate-off clearing is
+ready for the native editor: disabled activation choices, no effective Core
+terminal step, and Disable Core test finalization clearing the stale selection.
+That final browser save, remaining exact temporary-file cleanup and native
+disposable-project removal remain pending. Diagnostic capture is no longer
+configured; its file is retained only until final evidence/cleanup.
 
 ## Starting state
 

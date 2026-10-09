@@ -1,5 +1,17 @@
 # Development and testing
 
+## Native deactivation and temporary gate removal — 2026-10-09
+
+The user confirms clear/save/reopen removes all Core terminal previews and
+preserves the EM assignment, then saves Record PDFs only for the gate-off case.
+Dev-control verifies clear/re-save audits 1430/1431 and unchanged EM plan. A
+previewed guarded one-row update restores the original empty hook configuration;
+its exact temporary bootstrap is removed. Native probes verify gate-off for
+550 with the stale selection and accepted 524 with its unchanged plan. Gate-off
+stale-selection clearing, remaining temporary-file cleanup and disposable-project
+removal are pending. See
+[transfer acceptance](pdf_transfer_and_core_action_acceptance.md#native-deactivation-and-gate-removal--passedprepared-2026-10-09).
+
 ## Non-Design native read endpoint — passed 2026-10-09
 
 The user confirms authenticated PID 550 direct GET success for `test` with

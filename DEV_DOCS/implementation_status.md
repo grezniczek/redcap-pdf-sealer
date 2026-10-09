@@ -15,8 +15,10 @@ unchanged, Core runs last with terminal success, and pipeline/commit/stored
 edoc/download hashes agree. No inspected Sealer service logs are created.
 Native non-Design member GET also passes with `can_save=false` and unchanged
 settings/audits; Project Setup is inaccessible to this member. Backend save
-guards have separate regression coverage. Disabling/gate-off clearing and
-cleanup remain. See
+guards have separate regression coverage. Native gate-on clearing also passes (audits 1430/1431). The original empty
+hook setting is restored and the temporary bootstrap removed; native probes
+confirm the gate is off. Gate-off stale-selection clearing and remaining cleanup
+are pending. See
 [transfer acceptance](pdf_transfer_and_core_action_acceptance.md#core-only-native-record-pdf--passed-artifact-2026-10-08).
 
 ## Planned XML/PMT transfer acceptance complete; Core controls next — 2026-10-08
