@@ -1,5 +1,14 @@
 # Development and testing
 
+## Core-reserved Sealer activation — 2026-10-09
+
+All three native setup checks pass in PID 550: Core eConsent/record-PDF
+selection persistence, Sealer enablement/one-operation assignment, and Core
+last in the completed-eConsent preview. Dev-control verifies settings, native
+audits 1418/1419 and no inspected Sealer binding/seal/timestamp logs. Survey/
+eConsent setup and fresh artifact generation are next; native runtime handoff
+is not yet established. See [transfer acceptance](pdf_transfer_and_core_action_acceptance.md#core-reserved-sealer-activation--passed-2026-10-09).
+
 ## Core-only native record-PDF execution/delivery — artifact 2026-10-08
 
 The user supplied record 1’s PID 550 download and reported no seal in Acrobat.

@@ -5,8 +5,10 @@
 PID 550 record 1’s unsigned browser download matches the Core completed-pipeline
 and artifact-commit hashes. Correlated events show empty EM plan, one terminal
 `core:test_terminal` unchanged result, no signing, zero modifications and allowed
-commit. The user reports no seal in Acrobat; qpdf structure checks pass. Existing
-Record PDFs-only settings and empty EM list remain unchanged. The scoped test
+commit. The user reports no seal in Acrobat; qpdf structure checks pass. The next setup checkpoint
+now also passes persisted eConsent reservation and Sealer enablement with one
+`pdf_sealer:seal` assignment; verified audits and the zero Sealer-log baseline
+precede native survey/eConsent setup. The scoped test
 bootstrap is prepared for late project initialization on survey requests; 524
 remains gate-off. Sealer’s native eConsent handoff, read-only rights, disabling/
 clearing and cleanup are the remaining acceptance slices. See

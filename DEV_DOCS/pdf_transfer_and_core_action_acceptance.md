@@ -551,6 +551,25 @@ Native Sealer handoff, read-only rights, disabling/clearing and cleanup remain
 pending. Restore the original empty hook config and remove all exact temporary
 bootstrap/probe/download-check/capture files after acceptance.
 
+## Core-reserved Sealer activation — passed 2026-10-09
+
+The user confirmed all three setup checks in disposable PID 550: persisted
+Record PDFs plus Completed eConsent PDFs selections; native Sealer enablement
+with one assigned sealing operation; and the fixed Core terminal preview last
+for completed eConsent. Dev-control verifies Core selections
+`["econsent","record_pdf"]`, EM plan `["pdf_sealer:seal"]`, and Sealer
+project enabled override true while the system default remains false.
+
+The project’s actual `redcap_log_event15` shard records Core settings audit
+1418 at 20261009002049 and plan audit 1419 at 20261009002132, both by `gr`.
+The inspected PID 550 Sealer system-log baseline remains zero for
+`project_identity_binding`, `seal_event` and `seal_timestamp_outcome`. Enabling
+and assigning the operation has not generated a completed-eConsent artifact;
+native runtime handoff remains pending. Enable the instrument as a survey and
+configure native eConsent with signature field `sig`, a test consent form, and
+default File Repository snapshot storage before completing a fresh response.
+No Sealer PKI setup is needed while Core reserves this workflow.
+
 ## Starting state
 
 - Main development instance: Core v17.5.3. PID 524 has one
